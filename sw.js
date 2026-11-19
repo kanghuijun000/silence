@@ -1,5 +1,5 @@
-const CACHE_NAME = 'silence-cache-v2';
-const APP_FILES = ['./','./index.html','./style.css','./game.js','./manifest.json'];
+const CACHE_NAME = 'silence-cache-v3';
+const APP_FILES = ['./','./index.html','./style.css','./game.js','./manifest.json','./icon.svg'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_FILES)).then(() => self.skipWaiting()));
 });
