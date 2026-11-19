@@ -1,7 +1,7 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 
 const CONFIG = {
-  mazeSize: 31,          // 홀수 격자. 성능과 탐색 길이를 고려한 기본값
+  mazeSize: 51,          // 약 50x50 규모의 홀수 격자
   cellSize: 3,
   wallHeight: 3.3,
   stationCount: 5,
@@ -364,5 +364,6 @@ function bindControls(){
 }
 function boot(){
   initThree();bindControls();generateMaze();buildWorld();setupPlayerAndMonster();updateHud();animate();
+  if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 }
 boot();
