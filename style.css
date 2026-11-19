@@ -5,3 +5,5 @@
 @media(max-height:420px){#minimapPanel{top:62px;width:112px;padding:4px;right:12px}.map-caption{font-size:8px;margin-bottom:2px}}
 
 .map-legend{font-size:8px;line-height:1.4;color:#aab8c0;text-align:center;margin-top:4px;letter-spacing:-.2px}@media(max-height:420px){.map-legend{font-size:7px}}
+
+.install-button{margin-top:12px;padding:11px 25px;min-width:170px;color:#e8edf2;background:#172631;border:1px solid #8296a477;border-radius:5px;font-size:13px;font-weight:700;letter-spacing:1px}.install-button:active{background:#263b49}.install-status{min-height:14px!important;margin:8px 0 0!important;font-size:10px!important;letter-spacing:0!important;color:#9eabb7!important;max-width:360px}
