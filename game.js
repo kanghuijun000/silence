@@ -154,12 +154,12 @@ function buildMonster(){
   if(monsterGroup)scene.remove(monsterGroup);
   monsterRig=createMonsterModel(THREE);
   monsterGroup=monsterRig.group;
-  monsterGroup.visible=false;
+  monsterGroup.visible=true;
   monsterGroup.traverse(o=>{
     if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}
   });
   scene.add(monsterGroup);
-  monsterVisible=false;monsterThroughWalls=false;monsterAnimTime=0;
+  monsterVisible=true;monsterThroughWalls=false;monsterAnimTime=0;
 }
 function setMonsterVisible(on,throughWalls=false){if(!monsterGroup)return;if(monsterVisible===on&&monsterThroughWalls===throughWalls)return;monsterVisible=on;monsterThroughWalls=throughWalls;monsterGroup.visible=on;monsterGroup.traverse(o=>{if(o.isMesh){o.renderOrder=on?8:0;const ms=Array.isArray(o.material)?o.material:[o.material];for(const m of ms){m.depthTest=!throughWalls;m.depthWrite=!throughWalls;m.needsUpdate=true;}}});}
 function setCamera(){
@@ -286,7 +286,7 @@ function updatePlayer(dt,now){
     if(battery>=CONFIG.detectorCapacity){if(chargingGain&&audioCtx)chargingGain.gain.setTargetAtTime(0,audioCtx.currentTime,.06);activeStation=null;stationProgress=0;removeStation(station);}
   }else if(activeStation){if(chargingGain&&audioCtx)chargingGain.gain.setTargetAtTime(0,audioCtx.currentTime,.06);const used=activeStation;activeStation=null;stationProgress=0;removeStation(used);
   }else if(chargingGain&&audioCtx){chargingGain.gain.setTargetAtTime(0,audioCtx.currentTime,.1);}
-  const detectorActive=now<detectorUntil;const nearVisible=distanceToMonster()<5.8&&hasLineOfSight(cellAt(monster.position),cellAt(player.position));setMonsterVisible(detectorActive||nearVisible,detectorActive);
+  const detectorActive=now<detectorUntil;setMonsterVisible(true,detectorActive);
   if(player.position.distanceTo(world(exitCell))<1.55)finish(true);
   updateHud();
 }
