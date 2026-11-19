@@ -80,6 +80,7 @@ export function createMonsterModel(THREE) {
   const legLeft = makeLeg(THREE, root, -1, skin, 'Leg_Left');
   const legRight = makeLeg(THREE, root, 1, skin, 'Leg_Right');
 
+  root.scale.setScalar(0.93);
   return { group: root, head, armLeft, armRight, legLeft, legRight };
 }
 
@@ -127,7 +128,7 @@ function makeRingSculpt(THREE, profile, verticalSegments=100, radialSegments=72,
   }
   for(let i=0;i<verticalSegments-1;i++) for(let j=0;j<radialSegments;j++){
     const a=i*radialSegments+j,b=i*radialSegments+(j+1)%radialSegments,c=(i+1)*radialSegments+(j+1)%radialSegments,d=(i+1)*radialSegments+j;
-    indices.push(a,b,d,b,c,d);
+    indices.push(a,d,b,b,d,c);
   }
   const g=new THREE.BufferGeometry();
   g.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
@@ -183,7 +184,7 @@ function makeEllipsoidGeometry(THREE, scale, segW=28, segH=18, flatten=1) {
   }
   for(let y=0;y<segH;y++)for(let x=0;x<segW;x++){
     const a=y*(segW+1)+x,b=a+1,d=(y+1)*(segW+1)+x,e=d+1;
-    idx.push(a,d,b,b,d,e);
+    idx.push(a,b,d,b,e,d);
   }
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(p,3));
   g.setAttribute('color',new THREE.Float32BufferAttribute(c,3));g.setIndex(idx);g.computeVertexNormals();return g;
