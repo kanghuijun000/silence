@@ -81,23 +81,23 @@ function findPath(start,goal){
 }
 
 function initThree(){
-  scene=new THREE.Scene(); scene.background=new THREE.Color(0x080d13); scene.fog=new THREE.FogExp2(0x080d13,0.027);
+  scene=new THREE.Scene(); scene.background=new THREE.Color(0x18232b); scene.fog=new THREE.FogExp2(0x18232b,0.012);
   camera=new THREE.PerspectiveCamera(76,innerWidth/innerHeight,.08,110);
   renderer=new THREE.WebGLRenderer({antialias:false,powerPreference:'high-performance'});
   renderer.setPixelRatio(Math.min(devicePixelRatio,1.5)); renderer.setSize(innerWidth,innerHeight);
   renderer.outputColorSpace=THREE.SRGBColorSpace; view.replaceChildren(renderer.domElement);
   clock=new THREE.Clock();
-  scene.add(new THREE.HemisphereLight(0x91a7bd,0x15191c,1.05));
-  const light=new THREE.DirectionalLight(0xc2d1dc,.35);light.position.set(-10,20,8);scene.add(light);
-  const ambient=new THREE.AmbientLight(0x34414e,.28);scene.add(ambient);
+  scene.add(new THREE.HemisphereLight(0xc8d8e5,0x4b5358,1.65));
+  const light=new THREE.DirectionalLight(0xe1e9ef,.85);light.position.set(-10,20,8);scene.add(light);
+  const ambient=new THREE.AmbientLight(0x9aa8b2,.72);scene.add(ambient);
 }
 function addBox(x,y,z,sx,sy,sz,mat){
   const mesh=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),mat);mesh.position.set(x,y,z);scene.add(mesh);return mesh;
 }
 function buildWorld(){
-  const wallMat=new THREE.MeshStandardMaterial({color:0x424b50,roughness:1});
-  const floorMat=new THREE.MeshStandardMaterial({color:0x20282d,roughness:1});
-  const ceilingMat=new THREE.MeshStandardMaterial({color:0x171d22,roughness:1});
+  const wallMat=new THREE.MeshStandardMaterial({color:0x78858b,roughness:1,emissive:0x182126,emissiveIntensity:.22});
+  const floorMat=new THREE.MeshStandardMaterial({color:0x465158,roughness:1,emissive:0x11191d,emissiveIntensity:.12});
+  const ceilingMat=new THREE.MeshStandardMaterial({color:0x59656c,roughness:1,emissive:0x1b252b,emissiveIntensity:.2});
   const floor=addBox(0,-.18,0,worldSize,.36,worldSize,floorMat);
   addBox(0,CONFIG.wallHeight+.12,0,worldSize,.24,worldSize,ceilingMat);
   const wallGeo=new THREE.BoxGeometry(cell,CONFIG.wallHeight,cell);
@@ -257,8 +257,8 @@ function updatePlayer(dt,now){
   const isMoving=Math.hypot(joystick.x,joystick.y)>.08;
   const wantsRun=isMoving&&runHeld&&!sprintExhausted&&stamina>0.001;
   if(wantsRun){stamina=Math.max(0,stamina-dt/CONFIG.staminaRunSeconds);if(stamina<=0)sprintExhausted=true;}
-  else if(!runHeld)sprintExhausted=false;
   else if(isMoving)stamina=Math.min(1,stamina+dt/CONFIG.staminaRecoverySeconds);
+  if(!runHeld&&stamina>0.001)sprintExhausted=false;
   const moved=movePlayer(dt);
   // 숨소리는 달리기 중·완충 상태에는 없고, 걷는 중 실제 회복 중일 때만 발생
   if(!wantsRun&&isMoving&&stamina<.999&&now-lastBreath>=1.35){breathingSound();lastBreath=now;}
@@ -320,10 +320,29 @@ function monsterUpdate(dt,now){
 function updateAmbient(now){
   if(now-lastAmbient>12){lastAmbient=now;if(Math.random()<.35)tone(42+Math.random()*18,1.4,'sine',.018,-8);}
 }
+function drawMinimap(now){
+  const canvas=$('minimap');if(!canvas||!player||!maze.length)return;
+  const ctx=canvas.getContext('2d');const size=canvas.width,center=size/2,radius=7,cellPx=size/(radius*2+1);
+  ctx.clearRect(0,0,size,size);ctx.fillStyle='#10171c';ctx.fillRect(0,0,size,size);
+  const pc=cellAt(player.position);
+  for(let dz=-radius;dz<=radius;dz++)for(let dx=-radius;dx<=radius;dx++){
+    const mx=pc.x+dx,mz=pc.z+dz,px=center+dx*cellPx-cellPx/2,py=center+dz*cellPx-cellPx/2;
+    if(!inside(mx,mz)){ctx.fillStyle='#080d11';ctx.fillRect(px,py,cellPx+.5,cellPx+.5);continue;}
+    if(maze[mz][mx]===1){ctx.fillStyle='#87949b';ctx.fillRect(px,py,cellPx+.5,cellPx+.5);}
+    else{ctx.fillStyle='#293940';ctx.fillRect(px,py,cellPx+.5,cellPx+.5);}
+    if(exitCell.x===mx&&exitCell.z===mz){ctx.fillStyle='#d7c77c';ctx.fillRect(px+cellPx*.28,py+cellPx*.28,cellPx*.44,cellPx*.44);}
+    if(stations.some(st=>st.cell.x===mx&&st.cell.z===mz)){ctx.fillStyle='#66d4d2';ctx.beginPath();ctx.arc(px+cellPx/2,py+cellPx/2,cellPx*.2,0,Math.PI*2);ctx.fill();}
+  }
+  // 감지기 작동 중이고 괴물이 미니맵 범위 안에 있을 때만 위치를 표시
+  if(now<detectorUntil){const mc=cellAt(monster.position),dx=mc.x-pc.x,dz=mc.z-pc.z;if(Math.abs(dx)<=radius&&Math.abs(dz)<=radius){const mx=center+dx*cellPx,my=center+dz*cellPx;ctx.fillStyle='#ff3434';ctx.shadowColor='#ff2424';ctx.shadowBlur=9;ctx.beginPath();ctx.arc(mx,my,cellPx*.34,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;}}
+  ctx.save();ctx.translate(center,center);ctx.rotate(-yaw);ctx.fillStyle='#f4f6f7';ctx.strokeStyle='#101820';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(0,-cellPx*.48);ctx.lineTo(cellPx*.34,cellPx*.38);ctx.lineTo(0,cellPx*.2);ctx.lineTo(-cellPx*.34,cellPx*.38);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();
+  ctx.strokeStyle='#c0ccd2';ctx.lineWidth=1;ctx.strokeRect(.5,.5,size-1,size-1);
+}
 function animate(){
   requestAnimationFrame(animate);if(!renderer)return;
   const dt=Math.min(clock.getDelta(),.05),now=performance.now()/1000;
   if(running&&!gameOver){updatePlayer(dt,now);monsterUpdate(dt,now);updateAmbient(now);setCamera();}
+  drawMinimap(now);
   if(exitMesh)exitMesh.rotation.y+=dt*.08;
   for(const s of stations)if(s.mesh){s.mesh.rotation.y+=dt*.35;}
   renderer.render(scene,camera);
@@ -338,9 +357,9 @@ function finish(success){
 function resetGame(){
   if(scene){
     while(scene.children.length)scene.remove(scene.children[0]);
-    scene.add(new THREE.HemisphereLight(0x91a7bd,0x15191c,1.05));
-    const keyLight=new THREE.DirectionalLight(0xc2d1dc,.35);keyLight.position.set(-10,20,8);scene.add(keyLight);
-    scene.add(new THREE.AmbientLight(0x34414e,.28));
+    scene.add(new THREE.HemisphereLight(0xc8d8e5,0x4b5358,1.65));
+    const keyLight=new THREE.DirectionalLight(0xe1e9ef,.85);keyLight.position.set(-10,20,8);scene.add(keyLight);
+    scene.add(new THREE.AmbientLight(0x9aa8b2,.72));
   }
   if(chargingGain&&audioCtx)chargingGain.gain.setValueAtTime(0,audioCtx.currentTime);
   stamina=1;sprintExhausted=false;battery=CONFIG.detectorCapacity;detectorUntil=0;joystick={x:0,y:0};runHeld=false;
