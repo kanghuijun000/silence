@@ -119,7 +119,7 @@ function buildWorld(){
   floorNoise=Array.from({length:CONFIG.mazeSize},()=>Array(CONFIG.mazeSize).fill(null));
   for(let z=1;z<CONFIG.mazeSize-1;z++)for(let x=1;x<CONFIG.mazeSize-1;x++)if(isOpen(x,z)&&Math.random()<.04){
     floorNoise[z][x]=['creak','metal','rubble','water'][randInt(4)];
-    const p=world({x,z});const mark=addBox(p.x,.008,p.z,.42,.018,.42,new THREE.MeshStandardMaterial({color:0x697078,roughness:1,transparent:true,opacity:.18}));
+    // 소음 타일은 외형으로 구분할 수 없도록 시각적 표식을 생성하지 않는다.
   }
 }
 function makeMarker(color,emissive=0){
