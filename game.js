@@ -1,4 +1,5 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+import { createMonsterModel } from './monster-model.js';
 
 const CONFIG = {
   mazeSize: 51,          // 약 50x50 규모의 홀수 격자
@@ -27,6 +28,7 @@ let lastSurfaceCellKey = '', lastCreakAt = -Infinity;
 let stationProgress = 0, activeStation = null, messageTimer = 0;
 let audioCtx = null, masterGain = null, chargingOsc = null, chargingGain = null;
 let monsterGroup, monsterVisible = false, monsterThroughWalls = false;
+let monsterRig = null, monsterAnimTime = 0;
 const cell = CONFIG.cellSize;
 const half = (CONFIG.mazeSize - 1) / 2;
 const worldSize = CONFIG.mazeSize * cell;
@@ -149,14 +151,15 @@ function spawnStation(extra=[]){
 }
 function removeStation(s){if(!s||!stations.includes(s))return;const old={...s.cell};if(s.mesh)scene.remove(s.mesh);stations=stations.filter(v=>v!==s);stationMeshes=stationMeshes.filter(v=>v!==s.mesh);spawnStation([old]);}
 function buildMonster(){
-  monsterGroup=new THREE.Group();
-  const dark=new THREE.MeshStandardMaterial({color:0x283237,roughness:.9,emissive:0x18262b,emissiveIntensity:.65});
-  const skin=new THREE.MeshStandardMaterial({color:0x47545a,roughness:1,emissive:0x1b282d,emissiveIntensity:.45});
-  const torso=new THREE.Mesh(new THREE.CapsuleGeometry(.48,.95,4,7),dark);torso.position.y=1.35;monsterGroup.add(torso);
-  const head=new THREE.Mesh(new THREE.SphereGeometry(.37,9,7),skin);head.position.y=2.15;monsterGroup.add(head);
-  for(const x of [-.14,.14]){const eye=new THREE.Mesh(new THREE.SphereGeometry(.045,6,5),new THREE.MeshBasicMaterial({color:0xb7c6b7}));eye.position.set(x,2.18,.32);monsterGroup.add(eye);}
-  for(const x of [-.3,.3]){const limb=new THREE.Mesh(new THREE.CapsuleGeometry(.14,.85,3,5),dark);limb.position.set(x,.65,0);limb.rotation.z=x*.35;monsterGroup.add(limb);}
-  monsterGroup.visible=false;scene.add(monsterGroup);monsterVisible=false;
+  if(monsterGroup)scene.remove(monsterGroup);
+  monsterRig=createMonsterModel(THREE);
+  monsterGroup=monsterRig.group;
+  monsterGroup.visible=false;
+  monsterGroup.traverse(o=>{
+    if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}
+  });
+  scene.add(monsterGroup);
+  monsterVisible=false;monsterThroughWalls=false;monsterAnimTime=0;
 }
 function setMonsterVisible(on,throughWalls=false){if(!monsterGroup)return;if(monsterVisible===on&&monsterThroughWalls===throughWalls)return;monsterVisible=on;monsterThroughWalls=throughWalls;monsterGroup.visible=on;monsterGroup.traverse(o=>{if(o.isMesh){o.renderOrder=on?8:0;const ms=Array.isArray(o.material)?o.material:[o.material];for(const m of ms){m.depthTest=!throughWalls;m.depthWrite=!throughWalls;m.needsUpdate=true;}}});}
 function setCamera(){
@@ -324,12 +327,28 @@ function monsterUpdate(dt,now){
   else if(monsterTarget)targetPoint=world(monsterTarget);
   const alertLevel=now<sightAlertUntil?4:now<locationAlertUntil?3:now<soundAlertUntil?2:1;
   const speed=[0,2.65,3.35,4.35,5.5][alertLevel];
+  let moving=false;
   if(targetPoint){
     const dx=targetPoint.x-monster.position.x,dz=targetPoint.z-monster.position.z,len=Math.hypot(dx,dz);
     if(len<.25){if(path.length)path.shift();}
-    else{const step=Math.min(len,speed*dt);monster.position.x+=dx/len*step;monster.position.z+=dz/len*step;}
+    else{const step=Math.min(len,speed*dt);monster.position.x+=dx/len*step;monster.position.z+=dz/len*step;moving=true;}
   }
-  monsterGroup.position.set(monster.position.x,0,monster.position.z);
+  monsterAnimTime+=dt;
+  const gaitRate=alertLevel>=4?10.5:alertLevel>=3?7.2:3.8;
+  const stride=moving?(alertLevel>=4?.62:alertLevel>=3?.38:.17):.035;
+  const gait=Math.sin(monsterAnimTime*gaitRate)*stride;
+  if(monsterRig){
+    monsterRig.armLeft.rotation.x=gait;
+    monsterRig.armRight.rotation.x=-gait;
+    monsterRig.armLeft.rotation.z=-.08+Math.abs(gait)*.12;
+    monsterRig.armRight.rotation.z=.08-Math.abs(gait)*.12;
+    monsterRig.legLeft.rotation.x=-gait*.72;
+    monsterRig.legRight.rotation.x=gait*.72;
+    monsterRig.head.rotation.x=(alertLevel>=4?-.13:-.035)+Math.sin(monsterAnimTime*1.25)*.025;
+    monsterRig.head.rotation.z=Math.sin(monsterAnimTime*.82)*.035+(alertLevel>=2?.025:0);
+  }
+  const bodyBob=moving?Math.abs(Math.sin(monsterAnimTime*gaitRate))*.035:Math.sin(monsterAnimTime*1.1)*.012;
+  monsterGroup.position.set(monster.position.x,bodyBob,monster.position.z);
   monsterGroup.rotation.y=Math.atan2(player.position.x-monster.position.x,player.position.z-monster.position.z);
   if(distance<.9)finish(false);
   if(now>nextMonsterSound){nextMonsterSound=now+30+Math.random()*30;if(distance<cell*14){playNoise('monster',monster.position,.65);}}
