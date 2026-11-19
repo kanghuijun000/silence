@@ -18,7 +18,7 @@ let scene, camera, renderer, clock;
 let maze = [], floorNoise = [], stations = [], stationMeshes = [];
 let player, monster, exitMesh, exitCell, spawnCell;
 let running = false, gameOver = false, sprintExhausted = false;
-let stamina = 1, battery = CONFIG.detectorCapacity, detectorUntil = 0;
+let stamina = 1, battery = CONFIG.detectorCapacity, detectorUntil = 0, detectorCooldownUntil = 0;
 let yaw = 0, pitch = 0, joystick = {x:0,y:0}, runHeld = false;
 let lastStep = 0, lastAmbient = 0, nextMonsterSound = 0;
 let monsterState = 'wander', monsterTarget = null, lastSeen = null, searchUntil = 0;
@@ -226,16 +226,17 @@ function hasLineOfSight(a,b){
 function showMessage(text,duration=1900){const e=$('message');e.textContent=text;e.classList.add('show');clearTimeout(messageTimer);messageTimer=setTimeout(()=>e.classList.remove('show'),duration);}
 function useDetector(){
   if(!running||gameOver)return;
-  if(activeStation){return;}
+  const now=performance.now()/1000;
+  if(activeStation||now<detectorCooldownUntil)return;
   if(battery<=0){showMessage('감지기 배터리가 부족하다.');return;}
-  battery--;detectorUntil=performance.now()/1000+CONFIG.detectorSeconds;
+  battery--;detectorUntil=now+CONFIG.detectorSeconds;detectorCooldownUntil=now+5;
   setMonsterVisible(true,true);playNoise('detector',player.position,1.15);
   updateHud();
 }
 function updateHud(){
   $('battery').textContent=battery+' / '+CONFIG.detectorCapacity;$('batteryFill').style.width=(battery/CONFIG.detectorCapacity*100)+'%';
   $('staminaText').textContent=Math.round(stamina*100)+'%';$('staminaFill').style.width=(stamina*100)+'%';
-  $('scanBtn').disabled=battery<=0||!!activeStation;
+  $('scanBtn').disabled=battery<=0||!!activeStation||performance.now()/1000<detectorCooldownUntil;
 }
 function collides(x,z){
   const r=player.radius;
@@ -449,7 +450,7 @@ function resetGame(){
     scene.add(camera);
   }
   if(chargingGain&&audioCtx)chargingGain.gain.setValueAtTime(0,audioCtx.currentTime);
-  stamina=1;sprintExhausted=false;battery=CONFIG.detectorCapacity;detectorUntil=0;joystick={x:0,y:0};runHeld=false;
+  stamina=1;sprintExhausted=false;battery=CONFIG.detectorCapacity;detectorUntil=0;detectorCooldownUntil=0;joystick={x:0,y:0};runHeld=false;
   const now=performance.now()/1000;
   monsterState='wander';monsterTarget=null;lastSeen=null;lastHeard=null;lastHeardAt=0;path=[];pathRefresh=0;stationProgress=0;activeStation=null;lastStep=0;lastBreath=0;lastChargeSound=0;lastAmbient=0;nextMonsterSound=now+30+Math.random()*30;
   nextLocationPing=now+20+Math.random()*20;soundAlertUntil=0;locationAlertUntil=0;sightAlertUntil=0;lastSurfaceCellKey='';lastCreakAt=-Infinity;
