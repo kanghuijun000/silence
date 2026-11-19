@@ -61,7 +61,7 @@ function generateMaze(){
       if(horizontal||vertical)maze[z][x]=0;
     }
   }
-  spawnCell={x:1,z:1};
+  spawnCell=randomOpen();
   // BFS 거리상 가장 먼 통로를 출구로 선택
   const distances=bfsDistances(spawnCell); let far=spawnCell, max=-1;
   for(const [k,d] of distances){if(d>max){max=d;const [x,z]=k.split(',').map(Number);far={x,z};}}
