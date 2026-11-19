@@ -345,6 +345,7 @@ function resetGame(){
   generateMaze();buildWorld();setupPlayerAndMonster();updateHud();gameOver=false;
 }
 function startGame(){
+  if(updatePending){window.location.reload();return;}
   ensureAudio();if(!renderer)initThree();resetGame();clock.start();running=true;
   $('startScreen').classList.add('hidden');$('endScreen').classList.add('hidden');
   if(screen.orientation?.lock)screen.orientation.lock('landscape').catch(()=>{});
@@ -366,12 +367,41 @@ function bindControls(){
   $('runBtn').addEventListener('pointerup',runEnd);$('runBtn').addEventListener('pointercancel',runEnd);$('runBtn').addEventListener('pointerleave',runEnd);
   $('scanBtn').addEventListener('click',useDetector);
   $('startBtn').addEventListener('click',startGame);$('restartBtn').addEventListener('click',startGame);
-  $('guideBtn').addEventListener('click',()=>{$('guideModal').classList.remove('hidden');});$('closeGuideBtn').addEventListener('click',()=>$('guideModal').classList.add('hidden'));$('menuBtn').addEventListener('click',()=>{$('endScreen').classList.add('hidden');$('startScreen').classList.remove('hidden');});window.addEventListener('keydown',e=>{if(e.key==='Escape')$('guideModal').classList.add('hidden');});
+  $('guideBtn').addEventListener('click',()=>{$('guideModal').classList.remove('hidden');});$('closeGuideBtn').addEventListener('click',()=>$('guideModal').classList.add('hidden'));$('menuBtn').addEventListener('click',()=>{if(updatePending){window.location.reload();return;}$('endScreen').classList.add('hidden');$('startScreen').classList.remove('hidden');});window.addEventListener('keydown',e=>{if(e.key==='Escape')$('guideModal').classList.add('hidden');});
   window.addEventListener('resize',()=>{if(!camera||!renderer)return;const portrait=innerHeight>innerWidth,w=portrait?innerHeight:innerWidth,h=portrait?innerWidth:innerHeight;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false);});
   document.addEventListener('visibilitychange',()=>{if(document.hidden){runHeld=false;joystick={x:0,y:0};}});
 }
+let updatePending=false;
+function applyPendingUpdate(){
+  if(updatePending){window.location.reload();}
+}
 function boot(){
   initThree();bindControls();generateMaze();buildWorld();setupPlayerAndMonster();updateHud();animate();
-  if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+  if('serviceWorker' in navigator){
+    window.addEventListener('load',async()=>{
+      try{
+        const registration=await navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'});
+        await registration.update();
+        registration.addEventListener('updatefound',()=>{
+          const worker=registration.installing;
+          if(!worker)return;
+          worker.addEventListener('statechange',()=>{
+            if(worker.state==='installed'&&navigator.serviceWorker.controller){
+              updatePending=true;
+              worker.postMessage({type:'SKIP_WAITING'});
+            }
+          });
+        });
+        navigator.serviceWorker.addEventListener('controllerchange',()=>{
+          updatePending=true;
+          if(!running&&!gameOver&&$('startScreen')&&!$('startScreen').classList.contains('hidden'))window.location.reload();
+        });
+        document.addEventListener('visibilitychange',()=>{
+          if(!document.hidden)registration.update().catch(()=>{});
+        });
+        window.addEventListener('focus',()=>registration.update().catch(()=>{}));
+      }catch(error){console.warn('SILENCE 업데이트 확인 실패:',error);}
+    });
+  }
 }
 boot();
