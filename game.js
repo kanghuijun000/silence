@@ -87,7 +87,7 @@ function initThree(){
   renderer.setPixelRatio(Math.min(devicePixelRatio,1.5)); const portrait=innerHeight>innerWidth; renderer.setSize(portrait?innerHeight:innerWidth,portrait?innerWidth:innerHeight,false);
   renderer.outputColorSpace=THREE.SRGBColorSpace; view.replaceChildren(renderer.domElement);
   clock=new THREE.Clock();
-  scene.add(new THREE.HemisphereLight(0x8497a5,0x171c20,.62));const light=new THREE.DirectionalLight(0x9aa8b4,.28);light.position.set(-10,20,8);scene.add(light);scene.add(new THREE.AmbientLight(0x66727b,.22));const flashlight=new THREE.SpotLight(0xd5e3e8,2.1,22,Math.PI/7,.55,1.4);flashlight.position.set(0,0,0);flashlight.target.position.set(0,0,-1);camera.add(flashlight);camera.add(flashlight.target);scene.add(camera);
+  scene.add(new THREE.HemisphereLight(0x8497a5,0x171c20,.74));const light=new THREE.DirectionalLight(0x9aa8b4,.34);light.position.set(-10,20,8);scene.add(light);scene.add(new THREE.AmbientLight(0x66727b,.27));const flashlight=new THREE.SpotLight(0xd5e3e8,2.3,22,Math.PI/7,.55,1.4);flashlight.position.set(0,0,0);flashlight.target.position.set(0,0,-1);camera.add(flashlight);camera.add(flashlight.target);scene.add(camera);
 }
 function addBox(x,y,z,sx,sy,sz,mat){
   const mesh=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),mat);mesh.position.set(x,y,z);scene.add(mesh);return mesh;
@@ -334,9 +334,9 @@ function finish(success){
 function resetGame(){
   if(scene){
     while(scene.children.length)scene.remove(scene.children[0]);
-    scene.add(new THREE.HemisphereLight(0x8497a5,0x171c20,.62));
-    const keyLight=new THREE.DirectionalLight(0x9aa8b4,.28);keyLight.position.set(-10,20,8);scene.add(keyLight);
-    scene.add(new THREE.AmbientLight(0x66727b,.22));
+    scene.add(new THREE.HemisphereLight(0x8497a5,0x171c20,.74));
+    const keyLight=new THREE.DirectionalLight(0x9aa8b4,.34);keyLight.position.set(-10,20,8);scene.add(keyLight);
+    scene.add(new THREE.AmbientLight(0x66727b,.27));
     scene.add(camera);
   }
   if(chargingGain&&audioCtx)chargingGain.gain.setValueAtTime(0,audioCtx.currentTime);
