@@ -61,16 +61,18 @@ export function createMonsterModel(THREE) {
   }
   addTubeMesh(THREE, head, [[0,0.47,0.12],[0,0.37,0.185],[0,0.27,0.205],[0,0.235,0.19]],
     [0.035,0.029,0.021,0.012], skin, 12, 22, 'Narrow_Nasal_Ridge');
-  addEllipsoid(THREE, head, [0,0.115,0.174], [0.094,0.014,0.014], deep, 'Thin_Mouth_Cavity');
+  addEllipsoid(THREE, head, [-0.026,0.222,0.201], [0.012,0.008,0.006], deep, 'Left_Nostril');
+  addEllipsoid(THREE, head, [0.026,0.222,0.201], [0.012,0.008,0.006], deep, 'Right_Nostril');
+  addEllipsoid(THREE, head, [0,0.115,0.153], [0.094,0.014,0.012], deep, 'Thin_Mouth_Cavity');
   addTubeMesh(THREE, head, [
-    [-0.102,0.132,0.18],[-0.05,0.139,0.194],[0,0.133,0.198],[0.05,0.139,0.194],[0.102,0.132,0.18]
+    [-0.102,0.132,0.158],[-0.05,0.139,0.169],[0,0.133,0.173],[0.05,0.139,0.169],[0.102,0.132,0.158]
   ], [0.008,0.009,0.006,0.009,0.008], ridgeMat, 8, 20, 'Upper_Lip');
   addTubeMesh(THREE, head, [
-    [-0.085,0.096,0.18],[0,0.09,0.194],[0.085,0.096,0.18]
+    [-0.085,0.096,0.158],[0,0.09,0.169],[0.085,0.096,0.158]
   ], [0.007,0.011,0.007], skin, 8, 16, 'Lower_Lip');
   for(let i=0;i<4;i++){
     const x=(i-1.5)*0.033;
-    addTubeMesh(THREE, head, [[x,0.126,0.195],[x+0.002,0.108,0.199]], [0.006,0.0015],
+    addTubeMesh(THREE, head, [[x,0.126,0.168],[x+0.002,0.108,0.171]], [0.006,0.0015],
       new THREE.MeshStandardMaterial({color:0x777b72,roughness:0.8}), 6, 5, 'Uneven_Tooth');
   }
 
