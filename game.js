@@ -148,8 +148,8 @@ function spawnStation(extra=[]){
 function removeStation(s){if(!s||!stations.includes(s))return;const old={...s.cell};if(s.mesh)scene.remove(s.mesh);stations=stations.filter(v=>v!==s);stationMeshes=stationMeshes.filter(v=>v!==s.mesh);spawnStation([old]);}
 function buildMonster(){
   monsterGroup=new THREE.Group();
-  const dark=new THREE.MeshStandardMaterial({color:0x090b0e,roughness:.9});
-  const skin=new THREE.MeshStandardMaterial({color:0x252c30,roughness:1});
+  const dark=new THREE.MeshStandardMaterial({color:0x283237,roughness:.9,emissive:0x18262b,emissiveIntensity:.65});
+  const skin=new THREE.MeshStandardMaterial({color:0x47545a,roughness:1,emissive:0x1b282d,emissiveIntensity:.45});
   const torso=new THREE.Mesh(new THREE.CapsuleGeometry(.48,.95,4,7),dark);torso.position.y=1.35;monsterGroup.add(torso);
   const head=new THREE.Mesh(new THREE.SphereGeometry(.37,9,7),skin);head.position.y=2.15;monsterGroup.add(head);
   for(const x of [-.14,.14]){const eye=new THREE.Mesh(new THREE.SphereGeometry(.045,6,5),new THREE.MeshBasicMaterial({color:0xb7c6b7}));eye.position.set(x,2.18,.32);monsterGroup.add(eye);}
@@ -334,9 +334,10 @@ function finish(success){
 function resetGame(){
   if(scene){
     while(scene.children.length)scene.remove(scene.children[0]);
-    scene.add(new THREE.HemisphereLight(0xc8d8e5,0x4b5358,1.65));
-    const keyLight=new THREE.DirectionalLight(0xe1e9ef,.85);keyLight.position.set(-10,20,8);scene.add(keyLight);
-    scene.add(new THREE.AmbientLight(0x9aa8b2,.72));
+    scene.add(new THREE.HemisphereLight(0x8497a5,0x171c20,.62));
+    const keyLight=new THREE.DirectionalLight(0x9aa8b4,.28);keyLight.position.set(-10,20,8);scene.add(keyLight);
+    scene.add(new THREE.AmbientLight(0x66727b,.22));
+    scene.add(camera);
   }
   if(chargingGain&&audioCtx)chargingGain.gain.setValueAtTime(0,audioCtx.currentTime);
   stamina=1;sprintExhausted=false;battery=CONFIG.detectorCapacity;detectorUntil=0;joystick={x:0,y:0};runHeld=false;
