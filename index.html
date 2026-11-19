@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <meta name="theme-color" content="#080b10">
+  <title>SILENCE</title>
+  <link rel="manifest" href="./manifest.json">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <main id="game">
+    <div id="view"></div>
+    <div id="vignette"></div>
+    <header id="hud">
+      <div class="hud-left">
+        <div class="hud-label">DETECTOR <b id="battery">5 / 5</b></div>
+        <div class="battery-track"><div id="batteryFill"></div></div>
+      </div>
+      <div class="hud-center">
+        <div id="status">탐색 중</div>
+        <div id="distance">출구를 찾아라</div>
+      </div>
+      <div class="hud-right">
+        <div class="hud-label">STAMINA <b id="staminaText">100%</b></div>
+        <div class="stamina-track"><div id="staminaFill"></div></div>
+      </div>
+    </header>
+    <div id="crosshair"></div>
+    <div id="message" aria-live="polite"></div>
+    <div id="touch-ui">
+      <div id="joystick"><div id="stick"></div></div>
+      <div class="actions">
+        <button id="lookHint" class="action small">시야 회전</button>
+        <button id="runBtn" class="action">달리기</button>
+        <button id="scanBtn" class="action">감지기 <small>5초</small></button>
+      </div>
+    </div>
+    <div id="startScreen" class="screen">
+      <div class="eyebrow">A FIRST-PERSON HORROR ESCAPE</div>
+      <h1>SILENCE</h1>
+      <p>소리를 내면, 그것이 찾아온다.</p>
+      <div class="instructions">
+        <span>왼쪽 조이스틱 · 이동</span>
+        <span>화면 오른쪽 드래그 · 시야 회전</span>
+        <span>달리기 · 최대 10초 / 회복 8초</span>
+        <span>감지기 · 5초 동안 괴물 확인</span>
+      </div>
+      <button id="startBtn" class="primary">게임 시작</button>
+      <small>이어폰 사용을 권장합니다.</small>
+    </div>
+    <div id="endScreen" class="screen hidden">
+      <div class="eyebrow" id="endEyebrow">RESULT</div>
+      <h1 id="endTitle">탈출 실패</h1>
+      <p id="endText"></p>
+      <button id="restartBtn" class="primary">다시 시작</button>
+    </div>
+    <div id="rotateNotice">SILENCE<br><small>가로 화면으로 플레이해 주세요</small></div>
+  </main>
+  <script type="module" src="./game.js"></script>
+</body>
+</html>
