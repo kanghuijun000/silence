@@ -104,8 +104,8 @@ function buildWorld(){
  const wallMat=new THREE.MeshStandardMaterial({color:0xa3adb1,map:makeConcreteTexture('#687176'),roughness:1,bumpMap:makeConcreteTexture('#555b5e'),bumpScale:.12});
  const floorMat=new THREE.MeshStandardMaterial({color:0x899397,map:makeConcreteTexture('#3a4245'),roughness:.96,bumpMap:makeConcreteTexture('#4a5052'),bumpScale:.08,metalness:.03});
  const ceilingMat=new THREE.MeshStandardMaterial({color:0x8b969a,map:makeConcreteTexture('#50595d'),roughness:1});
-  const floor=addBox(0,-.18,0,worldSize,.36,worldSize,floorMat);
-  addBox(0,CONFIG.wallHeight+.12,0,worldSize,.24,worldSize,ceilingMat);
+  const floor=addBox(0,-.18,0,worldSize,.36,worldSize,floorMat);floor.receiveShadow=true;
+  const ceiling=addBox(0,CONFIG.wallHeight+.12,0,worldSize,.24,worldSize,ceilingMat);ceiling.receiveShadow=true;
   const wallGeo=new THREE.BoxGeometry(cell,CONFIG.wallHeight,cell);
   const dummy=new THREE.Object3D();
   let count=0;for(let z=0;z<CONFIG.mazeSize;z++)for(let x=0;x<CONFIG.mazeSize;x++)if(maze[z][x]){
@@ -117,7 +117,7 @@ function buildWorld(){
   for(let z=0;z<CONFIG.mazeSize;z++)for(let x=0;x<CONFIG.mazeSize;x++)if(maze[z][x]){
     dummy.position.set((x-half)*cell,CONFIG.wallHeight/2,(z-half)*cell);dummy.updateMatrix();walls.setMatrixAt(i++,dummy.matrix);
   }
-  scene.add(walls);walls.instanceMatrix.needsUpdate=true;
+  walls.castShadow=true;walls.receiveShadow=true;scene.add(walls);walls.instanceMatrix.needsUpdate=true;
   // 낡은 비상등과 노출 배관
   for(let z=3;z<CONFIG.mazeSize-3;z+=7)for(let x=3;x<CONFIG.mazeSize-3;x+=7)if(isOpen(x,z)){const p=world({x,z});const f=new THREE.Mesh(new THREE.BoxGeometry(.52,.12,.18),new THREE.MeshStandardMaterial({color:0x354047,emissive:0x17232a,emissiveIntensity:.35}));f.position.set(p.x,2.82,p.z);scene.add(f);const l=new THREE.PointLight(0x91a9b5,.42,8,2);l.position.set(p.x,2.62,p.z);scene.add(l);}
   const pm=new THREE.MeshStandardMaterial({color:0x343d40,metalness:.62,roughness:.72});for(let z=4;z<CONFIG.mazeSize-4;z+=9)for(let x=4;x<CONFIG.mazeSize-5;x++)if(isOpen(x,z)&&isOpen(x+1,z)&&isOpen(x+2,z)&&Math.random()<.12){const p=world({x,z}),pipe=new THREE.Mesh(new THREE.CylinderGeometry(.055,.055,cell*2.5,7),pm);pipe.rotation.z=Math.PI/2;pipe.position.set(p.x,2.72,p.z);scene.add(pipe);x+=2;}
