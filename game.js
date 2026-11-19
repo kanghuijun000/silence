@@ -226,6 +226,7 @@ function hasLineOfSight(a,b){
 function showMessage(text,duration=1900){const e=$('message');e.textContent=text;e.classList.add('show');clearTimeout(messageTimer);messageTimer=setTimeout(()=>e.classList.remove('show'),duration);}
 function useDetector(){
   if(!running||gameOver)return;
+  if(activeStation){return;}
   if(battery<=0){showMessage('감지기 배터리가 부족하다.');return;}
   battery--;detectorUntil=performance.now()/1000+CONFIG.detectorSeconds;
   setMonsterVisible(true,true);playNoise('detector',player.position,1.15);
@@ -234,7 +235,7 @@ function useDetector(){
 function updateHud(){
   $('battery').textContent=battery+' / '+CONFIG.detectorCapacity;$('batteryFill').style.width=(battery/CONFIG.detectorCapacity*100)+'%';
   $('staminaText').textContent=Math.round(stamina*100)+'%';$('staminaFill').style.width=(stamina*100)+'%';
-  $('scanBtn').disabled=battery<=0;
+  $('scanBtn').disabled=battery<=0||!!activeStation;
 }
 function collides(x,z){
   const r=player.radius;
