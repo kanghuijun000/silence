@@ -22,6 +22,8 @@ let yaw = 0, pitch = 0, joystick = {x:0,y:0}, runHeld = false;
 let lastStep = 0, lastAmbient = 0, nextMonsterSound = 0;
 let monsterState = 'wander', monsterTarget = null, lastSeen = null, searchUntil = 0;
 let lastHeard = null, lastHeardAt = 0, path = [], pathRefresh = 0;
+let nextLocationPing = 0, soundAlertUntil = 0, locationAlertUntil = 0, sightAlertUntil = 0;
+let lastSurfaceCellKey = '', lastCreakAt = -Infinity;
 let stationProgress = 0, activeStation = null, messageTimer = 0;
 let audioCtx = null, masterGain = null, chargingOsc = null, chargingGain = null;
 let monsterGroup, monsterVisible = false, monsterThroughWalls = false;
@@ -115,7 +117,7 @@ function buildWorld(){
   for(let z=3;z<CONFIG.mazeSize-3;z+=7)for(let x=3;x<CONFIG.mazeSize-3;x+=7)if(isOpen(x,z)){const p=world({x,z});const f=new THREE.Mesh(new THREE.BoxGeometry(.52,.12,.18),new THREE.MeshStandardMaterial({color:0x354047,emissive:0x17232a,emissiveIntensity:.35}));f.position.set(p.x,2.82,p.z);scene.add(f);const l=new THREE.PointLight(0x91a9b5,.42,8,2);l.position.set(p.x,2.62,p.z);scene.add(l);}
   const pm=new THREE.MeshStandardMaterial({color:0x343d40,metalness:.62,roughness:.72});for(let z=4;z<CONFIG.mazeSize-4;z+=9)for(let x=4;x<CONFIG.mazeSize-5;x++)if(isOpen(x,z)&&isOpen(x+1,z)&&isOpen(x+2,z)&&Math.random()<.12){const p=world({x,z}),pipe=new THREE.Mesh(new THREE.CylinderGeometry(.055,.055,cell*2.5,7),pm);pipe.rotation.z=Math.PI/2;pipe.position.set(p.x,2.72,p.z);scene.add(pipe);x+=2;}
   floorNoise=Array.from({length:CONFIG.mazeSize},()=>Array(CONFIG.mazeSize).fill(null));
-  for(let z=1;z<CONFIG.mazeSize-1;z++)for(let x=1;x<CONFIG.mazeSize-1;x++)if(isOpen(x,z)&&Math.random()<.065){
+  for(let z=1;z<CONFIG.mazeSize-1;z++)for(let x=1;x<CONFIG.mazeSize-1;x++)if(isOpen(x,z)&&Math.random()<.04){
     floorNoise[z][x]=['creak','metal','rubble','water'][randInt(4)];
     const p=world({x,z});const mark=addBox(p.x,.008,p.z,.42,.018,.42,new THREE.MeshStandardMaterial({color:0x697078,roughness:1,transparent:true,opacity:.18}));
   }
@@ -203,7 +205,7 @@ function emitSound(c,type,volume){
   if(monsterState==='chase')return;
   lastHeard={cell:{x:c.x,z:c.z},type,volume};lastHeardAt=performance.now()/1000;
   const mc=cellAt(monster.position);const d=Math.hypot(mc.x-c.x,mc.z-c.z);
-  if(soundCanBeHeard(c,mc,volume)){monsterTarget={...c};monsterState='investigate';pathRefresh=0;}
+  if(soundCanBeHeard(c,mc,volume)){soundAlertUntil=Math.max(soundAlertUntil,performance.now()/1000+8);monsterTarget={...c};monsterState='investigate';pathRefresh=0;}
 }
 function wallCountBetween(a,b){
   let blocked=0;const steps=Math.max(Math.abs(b.x-a.x),Math.abs(b.z-a.z))*2;
@@ -260,10 +262,13 @@ function updatePlayer(dt,now){
   // 숨소리는 달리기 중·완충 상태에는 없고, 걷는 중 실제 회복 중일 때만 발생
   if(!wantsRun&&stamina<.999&&now-lastBreath>=1.35){breathingSound();lastBreath=now;}
   if(moved&&now-lastStep>(wantsRun ? 0.34 : 0.72)){
-    lastStep=now;const c=cellAt(player.position),surface=floorNoise[c.z]?.[c.x];
-    if(surface)playNoise(surface,player.position,wantsRun?1.25:.72);
-    else if(wantsRun)playNoise('run',player.position,1.15);
-    else if(Math.random()<.14)playNoise('creak',player.position,.35);
+    lastStep=now;const c=cellAt(player.position),surface=floorNoise[c.z]?.[c.x],surfaceKey=key(c);
+    if(surface&&surfaceKey!==lastSurfaceCellKey){
+      lastSurfaceCellKey=surfaceKey;
+      if(surface==='creak'){
+        if(now-lastCreakAt>=8+Math.random()*4){playNoise('creak',player.position,wantsRun?1.25:.72);lastCreakAt=now;}
+      }else playNoise(surface,player.position,wantsRun?1.25:.72);
+    }else if(!surface){lastSurfaceCellKey=surfaceKey;if(wantsRun)playNoise('run',player.position,1.15);}
   }
   if(!isMoving)runHeld=false;
   const here=cellAt(player.position);
@@ -286,12 +291,27 @@ let lastBreath=0,lastChargeSound=0;
 function monsterUpdate(dt,now){
   const pc=cellAt(player.position),mc=cellAt(monster.position);
   const distance=monster.position.distanceTo(player.position);
-  const sees=distance<cell*8&&hasLineOfSight(mc,pc);
-  if(sees){monsterState='chase';lastSeen={...pc};searchUntil=now+7;monsterTarget={...pc};}
-  else if(monsterState==='chase'){
-    if(lastSeen){monsterState='search';monsterTarget={...lastSeen};searchUntil=now+6;}
+  // 20~40초마다 플레이어의 그 순간 위치만 전달한다. 실시간 추적 정보는 아니다.
+  if(now>=nextLocationPing){
+    const reportedPosition={...pc};
+    locationAlertUntil=now+15;
+    if(monsterState!=='chase'){
+      monsterTarget=reportedPosition;
+      monsterState='investigate';
+      pathRefresh=0;
+    }
+    nextLocationPing=now+20+Math.random()*20;
   }
-  if(monsterState==='investigate'&&monsterTarget&&mc.x===monsterTarget.x&&mc.z===monsterTarget.z){monsterState='search';searchUntil=now+5;}
+  const sees=distance<cell*8&&hasLineOfSight(mc,pc);
+  if(sees){
+    sightAlertUntil=now+12;
+    monsterState='chase';lastSeen={...pc};searchUntil=now+12;monsterTarget={...pc};
+  }else if(monsterState==='chase'){
+    if(lastSeen){monsterState='search';monsterTarget={...lastSeen};searchUntil=now+12;}
+  }
+  if(monsterState==='investigate'&&monsterTarget&&mc.x===monsterTarget.x&&mc.z===monsterTarget.z){
+    monsterState='search';searchUntil=Math.max(searchUntil,now+5);
+  }
   if(monsterState==='search'&&now>searchUntil){
     if(lastHeard&&now-lastHeardAt<16){monsterState='investigate';monsterTarget={...lastHeard.cell};}
     else{monsterState='wander';monsterTarget=null;}
@@ -302,10 +322,12 @@ function monsterUpdate(dt,now){
   let targetPoint=null;
   if(path.length){targetPoint=world(path[0]);}
   else if(monsterTarget)targetPoint=world(monsterTarget);
+  const alertLevel=now<sightAlertUntil?4:now<locationAlertUntil?3:now<soundAlertUntil?2:1;
+  const speed=[0,2.65,3.35,4.35,5.5][alertLevel];
   if(targetPoint){
     const dx=targetPoint.x-monster.position.x,dz=targetPoint.z-monster.position.z,len=Math.hypot(dx,dz);
     if(len<.25){if(path.length)path.shift();}
-    else{const speed=monsterState==='chase'?5.35:monsterState==='investigate'?2.9:monsterState==='search'?2.55:2.65;monster.position.x+=dx/len*speed*dt;monster.position.z+=dz/len*speed*dt;}
+    else{const step=Math.min(len,speed*dt);monster.position.x+=dx/len*step;monster.position.z+=dz/len*step;}
   }
   monsterGroup.position.set(monster.position.x,0,monster.position.z);
   monsterGroup.rotation.y=Math.atan2(player.position.x-monster.position.x,player.position.z-monster.position.z);
@@ -403,7 +425,9 @@ function resetGame(){
   }
   if(chargingGain&&audioCtx)chargingGain.gain.setValueAtTime(0,audioCtx.currentTime);
   stamina=1;sprintExhausted=false;battery=CONFIG.detectorCapacity;detectorUntil=0;joystick={x:0,y:0};runHeld=false;
-  monsterState='wander';monsterTarget=null;lastSeen=null;lastHeard=null;lastHeardAt=0;path=[];pathRefresh=0;stationProgress=0;activeStation=null;lastStep=0;lastBreath=0;lastChargeSound=0;lastAmbient=0;nextMonsterSound=performance.now()/1000+30+Math.random()*30;
+  const now=performance.now()/1000;
+  monsterState='wander';monsterTarget=null;lastSeen=null;lastHeard=null;lastHeardAt=0;path=[];pathRefresh=0;stationProgress=0;activeStation=null;lastStep=0;lastBreath=0;lastChargeSound=0;lastAmbient=0;nextMonsterSound=now+30+Math.random()*30;
+  nextLocationPing=now+20+Math.random()*20;soundAlertUntil=0;locationAlertUntil=0;sightAlertUntil=0;lastSurfaceCellKey='';lastCreakAt=-Infinity;
   generateMaze();buildWorld();setupPlayerAndMonster();updateHud();gameOver=false;
 }
 function startGame(){
