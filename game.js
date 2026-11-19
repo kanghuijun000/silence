@@ -325,6 +325,11 @@ function monsterUpdate(dt,now){
   let targetPoint=null;
   if(path.length){targetPoint=world(path[0]);}
   else if(monsterTarget)targetPoint=world(monsterTarget);
+  // 같은 통로 칸에 들어온 뒤에는 칸 중앙이 아니라 플레이어의 실제 좌표를 추격한다.
+  // 그렇지 않으면 플레이어가 칸 가장자리에 정지했을 때 포획 거리까지 접근하지 못할 수 있다.
+  if(monsterState==='chase'&&mc.x===pc.x&&mc.z===pc.z){
+    targetPoint=new THREE.Vector3(player.position.x,0,player.position.z);
+  }
   const alertLevel=now<sightAlertUntil?4:now<locationAlertUntil?3:now<soundAlertUntil?2:1;
   const speed=[0,2.65,3.35,4.35,5.5][alertLevel];
   let moving=false;
