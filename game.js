@@ -23,6 +23,7 @@ let yaw = 0, pitch = 0, joystick = {x:0,y:0}, runHeld = false;
 let lastStep = 0, lastAmbient = 0, nextMonsterSound = 0;
 let monsterState = 'wander', monsterTarget = null, lastSeen = null, searchUntil = 0;
 let lastHeard = null, lastHeardAt = 0, path = [], pathRefresh = 0;
+let monsterArousal = 0, lastNoiseEventAt = -Infinity, arousalDecayStart = 0;
 let nextLocationPing = 0, soundAlertUntil = 0, locationAlertUntil = 0, sightAlertUntil = 0;
 let lastSurfaceCellKey = '', lastCreakAt = -Infinity;
 let stationProgress = 0, activeStation = null, messageTimer = 0;
@@ -207,11 +208,27 @@ function playNoise(kind,position,volume=1){
 }
 function emitSound(c,type,volume){
   if(!c)return;
-  // 이미 플레이어를 직접 추격 중이면 발소리가 추격 AI에 추가 이점을 주지 않는다.
-  if(monsterState==='chase')return;
-  lastHeard={cell:{x:c.x,z:c.z},type,volume};lastHeardAt=performance.now()/1000;
-  const mc=cellAt(monster.position);const d=Math.hypot(mc.x-c.x,mc.z-c.z);
-  if(soundCanBeHeard(c,mc,volume)){soundAlertUntil=Math.max(soundAlertUntil,performance.now()/1000+8);monsterTarget={...c};monsterState='investigate';pathRefresh=0;}
+  const now=performance.now()/1000;
+  const mc=cellAt(monster.position);
+  const audible=soundCanBeHeard(c,mc,volume);
+
+  // 괴물이 실제로 들을 수 있는 소음만 흥분도에 반영한다.
+  // 첫 소음은 기록만 하고, 3초 안에 두 번째 소음이 들려야 상승이 시작된다.
+  if(audible){
+    if(now-lastNoiseEventAt<=3){
+      monsterArousal=Math.min(100,monsterArousal+1.8+Math.min(1.2,Math.max(0,volume)*.8));
+    }
+    lastNoiseEventAt=now;
+    // 마지막 소음 이후 3초 유지 + 추가 5초 정적이 지나야 감소가 시작된다.
+    arousalDecayStart=now+8;
+  }
+
+  // 직접 추격 중에는 소리 위치로 AI 목표를 덮어쓰지 않지만,
+  // 위의 흥분도 계산은 계속 적용한다.
+  if(monsterState==='chase'||!audible)return;
+  lastHeard={cell:{x:c.x,z:c.z},type,volume};lastHeardAt=now;
+  soundAlertUntil=Math.max(soundAlertUntil,now+8);
+  monsterTarget={...c};monsterState='investigate';pathRefresh=0;
 }
 function wallCountBetween(a,b){
   let blocked=0;const steps=Math.max(Math.abs(b.x-a.x),Math.abs(b.z-a.z))*2;
@@ -412,6 +429,9 @@ function updatePlayer(dt,now){
 }
 let lastBreath=0,lastChargeSound=0;
 function monsterUpdate(dt,now){
+  if(now>=arousalDecayStart&&monsterArousal>0){
+    monsterArousal=Math.max(0,monsterArousal-dt*4.5);
+  }
   const pc=cellAt(player.position),mc=cellAt(monster.position);
   const distance=monster.position.distanceTo(player.position);
   // 20~40초마다 플레이어의 그 순간 위치만 전달한다. 실시간 추적 정보는 아니다.
@@ -451,7 +471,8 @@ function monsterUpdate(dt,now){
     targetPoint=new THREE.Vector3(player.position.x,0,player.position.z);
   }
   const alertLevel=now<sightAlertUntil?4:now<locationAlertUntil?3:now<soundAlertUntil?2:1;
-  const speed=[0,2.65,3.35,4.35,5.5][alertLevel];
+  // 흥분도 0~100%에 비례해 속도를 2.35~4.80으로 부드럽게 보간한다.
+  const speed=2.35+(4.8-2.35)*(monsterArousal/100);
   let moving=false;
   if(targetPoint){
     const dx=targetPoint.x-monster.position.x,dz=targetPoint.z-monster.position.z,len=Math.hypot(dx,dz);
@@ -573,6 +594,7 @@ function resetGame(){
   const now=performance.now()/1000;
   monsterState='wander';monsterTarget=null;lastSeen=null;lastHeard=null;lastHeardAt=0;path=[];pathRefresh=0;stationProgress=0;activeStation=null;lastStep=0;lastBreath=0;lastChargeSound=0;lastAmbient=0;nextMonsterSound=now+30+Math.random()*30;
   nextLocationPing=now+20+Math.random()*20;soundAlertUntil=0;locationAlertUntil=0;sightAlertUntil=0;lastSurfaceCellKey='';lastCreakAt=-Infinity;
+  monsterArousal=0;lastNoiseEventAt=-Infinity;arousalDecayStart=0;
   generateMaze();buildWorld();setupPlayerAndMonster();updateHud();gameOver=false;
 }
 function startGame(){
