@@ -24,6 +24,7 @@ let lastStep = 0, lastAmbient = 0, nextMonsterSound = 0;
 let monsterState = 'wander', monsterTarget = null, lastSeen = null, searchUntil = 0;
 let lastHeard = null, lastHeardAt = 0, path = [], pathRefresh = 0;
 let monsterArousal = 0, lastNoiseEventAt = -Infinity, arousalDecayStart = 0;
+let playerNoiseLevel = 0;
 let nextLocationPing = 0, soundAlertUntil = 0, locationAlertUntil = 0, sightAlertUntil = 0;
 let lastSurfaceCellKey = '', lastCreakAt = -Infinity;
 let stationProgress = 0, activeStation = null, messageTimer = 0;
@@ -212,6 +213,11 @@ function emitSound(c,type,volume){
   const mc=cellAt(monster.position);
   const audible=soundCanBeHeard(c,mc,volume,type);
 
+  // 플레이어가 발생시킨 소리의 순간 크기. 괴물의 청취 여부와는 독립적이다.
+  const noisePeaks={detector:100,charge:58,creak:42,metal:48,rubble:38,water:32,run:27,breath:18};
+  const peak=(noisePeaks[type]||35)*Math.max(.35,volume);
+  playerNoiseLevel=Math.max(playerNoiseLevel,Math.min(100,peak));
+
   // 괴물이 실제로 들을 수 있는 소음만 흥분도에 반영한다.
   // 첫 소음은 기록만 하고, 3초 안에 두 번째 소음이 들려야 상승이 시작된다.
   if(audible){
@@ -375,6 +381,18 @@ function useDetector(){
   triggerDetectorScan();
   setMonsterVisible(true,true);playNoise('detector',player.position,1.15);
   updateHud();
+}
+function updateSoundMeters(dt){
+  // 짧은 큰 소리는 빠르게 치솟고 빠르게 가라앉는다.
+  // 작은 소리가 반복되면 이전 잔량 위로 작은 파동이 겹쳐 낮은 범위에서 흔들린다.
+  playerNoiseLevel*=Math.exp(-dt/.34);
+  if(playerNoiseLevel<.35)playerNoiseLevel=0;
+  const noiseFill=$('noiseFill'),noiseText=$('noiseText');
+  const arousalFill=$('arousalFill'),arousalText=$('arousalText');
+  if(noiseFill)noiseFill.style.width=playerNoiseLevel.toFixed(1)+'%';
+  if(noiseText)noiseText.textContent=Math.round(playerNoiseLevel)+'%';
+  if(arousalFill)arousalFill.style.width=monsterArousal.toFixed(1)+'%';
+  if(arousalText)arousalText.textContent=Math.round(monsterArousal)+'%';
 }
 function updateHud(){
   $('battery').textContent=battery+' / '+CONFIG.detectorCapacity;$('batteryFill').style.width=(battery/CONFIG.detectorCapacity*100)+'%';
@@ -576,6 +594,7 @@ function animate(){
   requestAnimationFrame(animate);if(!renderer)return;
   const dt=Math.min(clock.getDelta(),.05),now=performance.now()/1000;
   if(running&&!gameOver){updatePlayer(dt,now);monsterUpdate(dt,now);updateAmbient(now);setCamera();}
+  updateSoundMeters(dt);
   drawMinimap(now);
   updateDetectorScan(now);
   if(exitMesh)exitMesh.rotation.y+=dt*.08;
@@ -587,7 +606,7 @@ function finish(success){
   $('endEyebrow').textContent=success?'ESCAPED':'FOUND';
   $('endTitle').textContent=success?'탈출 성공':'괴물에게 붙잡혔다';
   $('endText').textContent=success?'미로를 빠져나왔다.':'다음에는 소리를 더 신중하게 관리해야 한다.';
-  $('message').classList.remove('show');$('endScreen').classList.remove('hidden');
+  $('message').classList.remove('show');$('endScreen').classList.remove('hidden');$('game').classList.remove('playing');
 }
 function resetGame(){
   if(scene){
@@ -602,13 +621,14 @@ function resetGame(){
   const now=performance.now()/1000;
   monsterState='wander';monsterTarget=null;lastSeen=null;lastHeard=null;lastHeardAt=0;path=[];pathRefresh=0;stationProgress=0;activeStation=null;lastStep=0;lastBreath=0;lastChargeSound=0;lastAmbient=0;nextMonsterSound=now+30+Math.random()*30;
   nextLocationPing=now+20+Math.random()*20;soundAlertUntil=0;locationAlertUntil=0;sightAlertUntil=0;lastSurfaceCellKey='';lastCreakAt=-Infinity;
-  monsterArousal=0;lastNoiseEventAt=-Infinity;arousalDecayStart=0;
+  monsterArousal=0;lastNoiseEventAt=-Infinity;arousalDecayStart=0;playerNoiseLevel=0;
   generateMaze();buildWorld();setupPlayerAndMonster();updateHud();gameOver=false;
 }
 function startGame(){
   if(updatePending){window.location.reload();return;}
   ensureAudio();if(!renderer)initThree();resetGame();clock.start();running=true;
   $('startScreen').classList.add('hidden');$('endScreen').classList.add('hidden');
+  $('game').classList.add('playing');
   if(screen.orientation?.lock)screen.orientation.lock('landscape').catch(()=>{});
   showMessage('소리를 조심해라. 출구는 하나다.',2400);
 }
