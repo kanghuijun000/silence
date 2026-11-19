@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#080b10">
+  <meta name="description" content="소리를 관리하며 지하 미로에서 탈출하라. SILENCE 3D 공포 탈출 게임을 설치하세요.">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="./manifest.json">
+  <title>SILENCE 설치</title>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:24px;background:radial-gradient(ellipse at 50% 20%,#17212b 0,#080b10 58%);color:#e8edf2;font-family:Arial,"Noto Sans KR",sans-serif}
+    main{width:min(100%,430px);text-align:center}
+    .icon{width:112px;height:112px;object-fit:cover;border-radius:25px;border:1px solid #aebdca35;box-shadow:0 18px 55px #0009}
+    .eyebrow{margin:28px 0 8px;color:#9aa9b7;font-size:11px;letter-spacing:3px}
+    h1{margin:0;font-size:clamp(42px,12vw,60px);letter-spacing:8px}
+    .tagline{margin:12px 0 30px;color:#aab5bf;font-size:14px;line-height:1.7}
+    .install{width:100%;min-height:54px;border:1px solid #d7e2eb;background:#e7edf2;color:#101820;border-radius:9px;font-size:16px;font-weight:800;cursor:pointer}
+    .install:disabled{opacity:.65;cursor:default}
+    .open{display:block;margin-top:13px;padding:15px;border:1px solid #66758266;border-radius:9px;color:#d5dfe7;text-decoration:none;font-size:14px}
+    .hint{min-height:44px;margin:18px 0 0;color:#8e9ba7;font-size:12px;line-height:1.7}
+    .share{margin-top:12px;border:0;background:transparent;color:#aebbc6;text-decoration:underline;text-underline-offset:4px;font-size:13px;padding:10px;cursor:pointer}
+    .foot{margin-top:34px;color:#65727e;font-size:10px;letter-spacing:1px}
+  </style>
+</head>
+<body>
+  <main>
+    <img class="icon" src="./icon.svg" alt="SILENCE 앱 아이콘">
+    <div class="eyebrow">A FIRST-PERSON HORROR ESCAPE</div>
+    <h1>SILENCE</h1>
+    <p class="tagline">소리를 내면, 그것이 찾아온다.<br>어둠 속 지하 미로에서 살아남아 탈출하세요.</p>
+    <button class="install" id="installBtn" type="button">앱 설치하기</button>
+    <a class="open" href="./">웹에서 바로 플레이</a>
+    <p class="hint" id="hint" aria-live="polite">설치 버튼을 눌러 SILENCE를 기기에 추가하세요.</p>
+    <button class="share" id="shareBtn" type="button">설치 링크 공유하기</button>
+    <div class="foot">SILENCE · FREE HORROR ESCAPE GAME</div>
+  </main>
+  <script>
+    let installPrompt=null;
+    const installBtn=document.getElementById('installBtn');
+    const hint=document.getElementById('hint');
+    const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+    const isStandalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
+
+    window.addEventListener('beforeinstallprompt',event=>{
+      event.preventDefault();
+      installPrompt=event;
+      installBtn.disabled=false;
+      installBtn.textContent='앱 설치하기';
+      hint.textContent='기기에 설치할 준비가 됐어요. 버튼을 눌러 설치하세요.';
+    });
+
+    window.addEventListener('appinstalled',()=>{
+      installPrompt=null;
+      installBtn.disabled=true;
+      installBtn.textContent='설치 완료';
+      hint.textContent='SILENCE가 기기에 설치됐어요.';
+    });
+
+    if(isStandalone){
+      installBtn.disabled=true;
+      installBtn.textContent='이미 설치된 앱입니다';
+      hint.textContent='SILENCE가 이미 설치되어 있어요.';
+    }else if(isIOS){
+      hint.textContent='Safari의 공유 버튼을 누른 뒤 ‘홈 화면에 추가’를 선택하세요.';
+    }else if(!('onbeforeinstallprompt' in window)){
+      hint.textContent='설치 창이 자동으로 표시되지 않으면 Chrome 메뉴(⋮)에서 ‘앱 설치’ 또는 ‘홈 화면에 추가’를 선택하세요.';
+    }
+
+    installBtn.addEventListener('click',async()=>{
+      if(isStandalone)return;
+      if(installPrompt){
+        installPrompt.prompt();
+        const choice=await installPrompt.userChoice;
+        if(choice.outcome==='accepted'){
+          hint.textContent='설치를 진행하고 있어요.';
+          installBtn.textContent='설치 진행 중';
+          installBtn.disabled=true;
+        }else{
+          hint.textContent='설치가 취소됐어요. 원할 때 다시 설치할 수 있습니다.';
+        }
+        installPrompt=null;
+      }else if(isIOS){
+        hint.textContent='Safari 하단 공유 버튼 → ‘홈 화면에 추가’를 선택하세요.';
+      }else{
+        hint.textContent='Chrome 우측 상단 ⋮ 메뉴 → ‘앱 설치’ 또는 ‘홈 화면에 추가’를 선택하세요.';
+      }
+    });
+
+    document.getElementById('shareBtn').addEventListener('click',async()=>{
+      const url=location.href;
+      try{
+        if(navigator.share) await navigator.share({title:'SILENCE 앱 설치',text:'SILENCE 3D 공포 탈출 게임을 설치해 보세요.',url});
+        else if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(url);hint.textContent='설치 링크를 복사했어요.';}
+        else{hint.textContent='주소창의 링크를 복사해 공유하세요.';}
+      }catch(error){if(error.name!=='AbortError')hint.textContent='주소창의 링크를 복사해 공유하세요.';}
+    });
+
+    if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+  </script>
+</body>
+</html>
