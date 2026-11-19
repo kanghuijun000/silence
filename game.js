@@ -24,7 +24,7 @@ let monsterState = 'wander', monsterTarget = null, lastSeen = null, searchUntil 
 let lastHeard = null, lastHeardAt = 0, path = [], pathRefresh = 0;
 let stationProgress = 0, activeStation = null, messageTimer = 0;
 let audioCtx = null, masterGain = null, chargingOsc = null, chargingGain = null;
-let monsterGroup, monsterVisible = false;
+let monsterGroup, monsterVisible = false, monsterThroughWalls = false;
 const cell = CONFIG.cellSize;
 const half = (CONFIG.mazeSize - 1) / 2;
 const worldSize = CONFIG.mazeSize * cell;
@@ -156,7 +156,7 @@ function buildMonster(){
   for(const x of [-.3,.3]){const limb=new THREE.Mesh(new THREE.CapsuleGeometry(.14,.85,3,5),dark);limb.position.set(x,.65,0);limb.rotation.z=x*.35;monsterGroup.add(limb);}
   monsterGroup.visible=false;scene.add(monsterGroup);monsterVisible=false;
 }
-function setMonsterVisible(on){monsterVisible=on;if(!monsterGroup)return;monsterGroup.visible=on;monsterGroup.traverse(o=>{if(o.isMesh){o.renderOrder=on?8:0;const ms=Array.isArray(o.material)?o.material:[o.material];for(const m of ms){m.depthTest=!on;m.depthWrite=!on;m.needsUpdate=true;}}});}
+function setMonsterVisible(on,throughWalls=false){if(!monsterGroup)return;if(monsterVisible===on&&monsterThroughWalls===throughWalls)return;monsterVisible=on;monsterThroughWalls=throughWalls;monsterGroup.visible=on;monsterGroup.traverse(o=>{if(o.isMesh){o.renderOrder=on?8:0;const ms=Array.isArray(o.material)?o.material:[o.material];for(const m of ms){m.depthTest=!throughWalls;m.depthWrite=!throughWalls;m.needsUpdate=true;}}});}
 function setCamera(){
   camera.position.copy(player.position);camera.position.y=1.62;
   camera.rotation.order='YXZ';camera.rotation.y=yaw;camera.rotation.x=pitch;
@@ -223,7 +223,7 @@ function useDetector(){
   if(!running||gameOver)return;
   if(battery<=0){showMessage('감지기 배터리가 부족하다.');return;}
   battery--;detectorUntil=performance.now()/1000+CONFIG.detectorSeconds;
-  setMonsterVisible(true);playNoise('detector',player.position,1.15);
+  setMonsterVisible(true,true);playNoise('detector',player.position,1.15);
   updateHud();
 }
 function updateHud(){
@@ -249,15 +249,16 @@ function movePlayer(dt){
   if(!collides(player.position.x,player.position.z+dz)){player.position.z+=dz;moved=true;}
   return moved;
 }
+function distanceToMonster(){return monster.position.distanceTo(player.position);}
 function updatePlayer(dt,now){
   const isMoving=Math.hypot(joystick.x,joystick.y)>.08;
   const wantsRun=isMoving&&runHeld&&!sprintExhausted&&stamina>0.001;
   if(wantsRun){const before=stamina;stamina=Math.max(0,stamina-dt/CONFIG.staminaRunSeconds);if(stamina<=0){sprintExhausted=true;if(before>.001)showMessage('스태미나가 부족합니다.');}}
-  else if(isMoving)stamina=Math.min(1,stamina+dt/CONFIG.staminaRecoverySeconds);
+  else stamina=Math.min(1,stamina+dt/CONFIG.staminaRecoverySeconds);
   if(!runHeld&&stamina>0.001)sprintExhausted=false;
   const moved=movePlayer(dt);
   // 숨소리는 달리기 중·완충 상태에는 없고, 걷는 중 실제 회복 중일 때만 발생
-  if(!wantsRun&&isMoving&&stamina<.999&&now-lastBreath>=1.35){breathingSound();lastBreath=now;}
+  if(!wantsRun&&stamina<.999&&now-lastBreath>=1.35){breathingSound();lastBreath=now;}
   if(moved&&now-lastStep>(wantsRun ? 0.34 : 0.72)){
     lastStep=now;const c=cellAt(player.position),surface=floorNoise[c.z]?.[c.x];
     if(surface)playNoise(surface,player.position,wantsRun?1.25:.72);
@@ -277,7 +278,7 @@ function updatePlayer(dt,now){
     if(battery>=CONFIG.detectorCapacity){if(chargingGain&&audioCtx)chargingGain.gain.setTargetAtTime(0,audioCtx.currentTime,.06);activeStation=null;stationProgress=0;removeStation(station);}
   }else if(activeStation){if(chargingGain&&audioCtx)chargingGain.gain.setTargetAtTime(0,audioCtx.currentTime,.06);const used=activeStation;activeStation=null;stationProgress=0;removeStation(used);
   }else if(chargingGain&&audioCtx){chargingGain.gain.setTargetAtTime(0,audioCtx.currentTime,.1);}
-  if(now<detectorUntil)setMonsterVisible(true);else setMonsterVisible(false);
+  const detectorActive=now<detectorUntil;const nearVisible=distanceToMonster()<5.8&&hasLineOfSight(cellAt(monster.position),cellAt(player.position));setMonsterVisible(detectorActive||nearVisible,detectorActive);
   if(player.position.distanceTo(world(exitCell))<1.55)finish(true);
   updateHud();
 }
@@ -304,7 +305,7 @@ function monsterUpdate(dt,now){
   if(targetPoint){
     const dx=targetPoint.x-monster.position.x,dz=targetPoint.z-monster.position.z,len=Math.hypot(dx,dz);
     if(len<.25){if(path.length)path.shift();}
-    else{const speed=monsterState==='chase'?3.05:monsterState==='investigate'?2.15:monsterState==='search'?1.7:1.05;monster.position.x+=dx/len*speed*dt;monster.position.z+=dz/len*speed*dt;}
+    else{const speed=monsterState==='chase'?5.35:monsterState==='investigate'?2.9:monsterState==='search'?2.55:2.65;monster.position.x+=dx/len*speed*dt;monster.position.z+=dz/len*speed*dt;}
   }
   monsterGroup.position.set(monster.position.x,0,monster.position.z);
   monsterGroup.rotation.y=Math.atan2(player.position.x-monster.position.x,player.position.z-monster.position.z);
