@@ -188,13 +188,14 @@ function noiseBurst(duration=.16,volume=.08,filter=700){
 function breathingSound(){
   // 걷는 동안 스태미나가 실제 회복되는 경우에만 낮은 헐떡임을 반복
   noiseBurst(.26,.035,420);tone(72,.32,'sine',.045,-15);
+  emitSound(cellAt(player.position),'breath',.38);
 }
 function playNoise(kind,position,volume=1){
-  const c=cellAt(position);emitSound(c,kind,volume);
+  const c=cellAt(position);if(kind!=='monster')emitSound(c,kind,volume);
   if(kind==='detector'){tone(980,.12,'sine',.16,-420);tone(560,.24,'sine',.1,-200);}
   else if(kind==='charge'){tone(160,.2,'sine',.07,25);noiseBurst(.12,.025,900);}
   else if(kind==='creak'){tone(115,.28,'triangle',.12,-55);}
-  else if(kind==='metal'){tone(380,.18,'metallic',.12,-170);tone(210,.2,'triangle',.06,-50);}
+  else if(kind==='metal'){tone(380,.18,'triangle',.12,-170);tone(210,.2,'triangle',.06,-50);}
   else if(kind==='rubble'){noiseBurst(.24,.08,1100);}
   else if(kind==='water'){noiseBurst(.22,.06,1800);}
   else if(kind==='run'){tone(65,.08,'triangle',.045,-15);}
