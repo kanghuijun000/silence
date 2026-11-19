@@ -242,6 +242,8 @@ function soundCanBeHeard(a,b,volume,type){
   // 숨소리와 바닥 삐걱임은 바로 근처에서만 들린다.
   // 감지기와 충전음은 기존처럼 벽을 감안해도 먼 거리까지 전달된다.
   if(type==='breath'||type==='creak')return effective<=2.0;
+  // 달리기 발자국은 가까운 거리에서만 들리고, 걷기 발자국 이벤트는 발생시키지 않는다.
+  if(type==='run')return effective<=4.0;
   if(type==='detector'||type==='charge')return effective<=(volume*14+1);
   return effective<=(volume*14+1);
 }
