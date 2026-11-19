@@ -31,6 +31,16 @@
         <div class="stamina-track"><div id="staminaFill"></div></div>
       </div>
     </header>
+    <section id="soundMeters" aria-label="소음 상태">
+      <div class="meter-row">
+        <div class="meter-heading"><span>괴물 흥분도</span><b id="arousalText">0%</b></div>
+        <div class="meter-track arousal-track"><div id="arousalFill"></div></div>
+      </div>
+      <div class="meter-row">
+        <div class="meter-heading"><span>플레이어 소음</span><b id="noiseText">0%</b></div>
+        <div class="meter-track noise-track"><div id="noiseFill"></div></div>
+      </div>
+    </section>
     <div id="crosshair"></div>
     <section id="minimapPanel" aria-label="주변 미니맵"><div class="map-caption">주변 지형</div><canvas id="minimap" width="156" height="156"></canvas><div class="map-legend">흰색 나 · 노랑 출구 · 청록 충전 · 빨강 괴물</div></section>
     <div id="message" aria-live="polite"></div>
