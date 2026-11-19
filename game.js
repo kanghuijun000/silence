@@ -12,9 +12,6 @@ const CONFIG = {
 };
 
 const $ = id => document.getElementById(id);
-let deferredInstallPrompt=null;
-window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredInstallPrompt=event;const button=$('installBtn');if(button){button.textContent='앱 설치';button.disabled=false;}const status=$('installStatus');if(status)status.textContent='설치할 준비가 완료되었습니다.';});
-window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;const button=$('installBtn');if(button){button.textContent='설치 완료';button.disabled=true;}const status=$('installStatus');if(status)status.textContent='SILENCE가 설치되었습니다.';});
 const view = $('view');
 let scene, camera, renderer, clock;
 let maze = [], floorNoise = [], stations = [], stationMeshes = [];
@@ -84,23 +81,22 @@ function findPath(start,goal){
 }
 
 function initThree(){
-  scene=new THREE.Scene(); scene.background=new THREE.Color(0x18232b); scene.fog=new THREE.FogExp2(0x18232b,0.012);
+  scene=new THREE.Scene(); scene.background=new THREE.Color(0x080d11); scene.fog=new THREE.FogExp2(0x10171b,0.018);
   camera=new THREE.PerspectiveCamera(76,innerWidth/innerHeight,.08,110);
   renderer=new THREE.WebGLRenderer({antialias:false,powerPreference:'high-performance'});
   renderer.setPixelRatio(Math.min(devicePixelRatio,1.5)); const portrait=innerHeight>innerWidth; renderer.setSize(portrait?innerHeight:innerWidth,portrait?innerWidth:innerHeight,false);
   renderer.outputColorSpace=THREE.SRGBColorSpace; view.replaceChildren(renderer.domElement);
   clock=new THREE.Clock();
-  scene.add(new THREE.HemisphereLight(0xc8d8e5,0x4b5358,1.65));
-  const light=new THREE.DirectionalLight(0xe1e9ef,.85);light.position.set(-10,20,8);scene.add(light);
-  const ambient=new THREE.AmbientLight(0x9aa8b2,.72);scene.add(ambient);
+  scene.add(new THREE.HemisphereLight(0x8497a5,0x171c20,.62));const light=new THREE.DirectionalLight(0x9aa8b4,.28);light.position.set(-10,20,8);scene.add(light);scene.add(new THREE.AmbientLight(0x66727b,.22));const flashlight=new THREE.SpotLight(0xd5e3e8,2.1,22,Math.PI/7,.55,1.4);flashlight.position.set(0,0,0);flashlight.target.position.set(0,0,-1);camera.add(flashlight);camera.add(flashlight.target);scene.add(camera);
 }
 function addBox(x,y,z,sx,sy,sz,mat){
   const mesh=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),mat);mesh.position.set(x,y,z);scene.add(mesh);return mesh;
 }
+function makeConcreteTexture(base){const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');g.fillStyle=base;g.fillRect(0,0,256,256);for(let i=0;i<2300;i++){const v=Math.random()>.5?255:0,a=.025+Math.random()*.11,s=1+Math.random()*4;g.fillStyle='rgba('+v+','+v+','+v+','+a+')';g.fillRect(Math.random()*256,Math.random()*256,s,s);}for(let i=0;i<6;i++){const x=Math.random()*256,y=Math.random()*256;g.strokeStyle='rgba(5,9,11,.25)';g.lineWidth=1.5;g.beginPath();g.moveTo(x,y);g.lineTo(x+Math.random()*20-10,y+20+Math.random()*30);g.lineTo(x+Math.random()*35-15,y+40+Math.random()*35);g.stroke();}const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=2;return t;}
 function buildWorld(){
-  const wallMat=new THREE.MeshStandardMaterial({color:0x78858b,roughness:1,emissive:0x182126,emissiveIntensity:.22});
-  const floorMat=new THREE.MeshStandardMaterial({color:0x465158,roughness:1,emissive:0x11191d,emissiveIntensity:.12});
-  const ceilingMat=new THREE.MeshStandardMaterial({color:0x59656c,roughness:1,emissive:0x1b252b,emissiveIntensity:.2});
+ const wallMat=new THREE.MeshStandardMaterial({color:0xa3adb1,map:makeConcreteTexture('#687176'),roughness:1,bumpMap:makeConcreteTexture('#555b5e'),bumpScale:.12});
+ const floorMat=new THREE.MeshStandardMaterial({color:0x899397,map:makeConcreteTexture('#3a4245'),roughness:.96,bumpMap:makeConcreteTexture('#4a5052'),bumpScale:.08,metalness:.03});
+ const ceilingMat=new THREE.MeshStandardMaterial({color:0x8b969a,map:makeConcreteTexture('#50595d'),roughness:1});
   const floor=addBox(0,-.18,0,worldSize,.36,worldSize,floorMat);
   addBox(0,CONFIG.wallHeight+.12,0,worldSize,.24,worldSize,ceilingMat);
   const wallGeo=new THREE.BoxGeometry(cell,CONFIG.wallHeight,cell);
@@ -115,10 +111,9 @@ function buildWorld(){
     dummy.position.set((x-half)*cell,CONFIG.wallHeight/2,(z-half)*cell);dummy.updateMatrix();walls.setMatrixAt(i++,dummy.matrix);
   }
   scene.add(walls);walls.instanceMatrix.needsUpdate=true;
-  // 벽면에 낮은 조명 느낌의 드문 표시등
-  for(let z=2;z<CONFIG.mazeSize-2;z+=6)for(let x=2;x<CONFIG.mazeSize-2;x+=6)if(isOpen(x,z)){
-    const p=world({x,z});const lamp=new THREE.PointLight(0x8ba6b8,.24,7,2);lamp.position.set(p.x,2.65,p.z);scene.add(lamp);
-  }
+  // 낡은 비상등과 노출 배관
+  for(let z=3;z<CONFIG.mazeSize-3;z+=7)for(let x=3;x<CONFIG.mazeSize-3;x+=7)if(isOpen(x,z)){const p=world({x,z});const f=new THREE.Mesh(new THREE.BoxGeometry(.52,.12,.18),new THREE.MeshStandardMaterial({color:0x354047,emissive:0x17232a,emissiveIntensity:.35}));f.position.set(p.x,2.82,p.z);scene.add(f);const l=new THREE.PointLight(0x91a9b5,.42,8,2);l.position.set(p.x,2.62,p.z);scene.add(l);}
+  const pm=new THREE.MeshStandardMaterial({color:0x343d40,metalness:.62,roughness:.72});for(let z=4;z<CONFIG.mazeSize-4;z+=9)for(let x=4;x<CONFIG.mazeSize-5;x++)if(isOpen(x,z)&&isOpen(x+1,z)&&isOpen(x+2,z)&&Math.random()<.12){const p=world({x,z}),pipe=new THREE.Mesh(new THREE.CylinderGeometry(.055,.055,cell*2.5,7),pm);pipe.rotation.z=Math.PI/2;pipe.position.set(p.x,2.72,p.z);scene.add(pipe);x+=2;}
   floorNoise=Array.from({length:CONFIG.mazeSize},()=>Array(CONFIG.mazeSize).fill(null));
   for(let z=1;z<CONFIG.mazeSize-1;z++)for(let x=1;x<CONFIG.mazeSize-1;x++)if(isOpen(x,z)&&Math.random()<.065){
     floorNoise[z][x]=['creak','metal','rubble','water'][randInt(4)];
@@ -141,8 +136,8 @@ function buildStations(){
   stations=[];stationMeshes=[];
   for(let i=0;i<CONFIG.stationCount;i++)spawnStation();
 }
-function spawnStation(){
-  const exclusions=[spawnCell,exitCell,...stations.map(s=>s.cell),cellAt(player.position),cellAt(monster.position)];
+function spawnStation(extra=[]){
+  const exclusions=[spawnCell,exitCell,...stations.map(s=>s.cell),cellAt(player.position),cellAt(monster.position),...extra];
   const c=randomOpen(exclusions);stations.push({cell:c,mesh:null});
   const p=world(c),g=new THREE.Group();
   const base=new THREE.Mesh(new THREE.CylinderGeometry(.52,.6,.22,12),makeMarker(0x687783,0x17232c));base.position.y=.11;g.add(base);
@@ -150,9 +145,7 @@ function spawnStation(){
   const ring=new THREE.Mesh(new THREE.TorusGeometry(.42,.045,6,18),makeMarker(0xb6d9dc,0x387a82));ring.rotation.x=Math.PI/2;ring.position.y=.35;g.add(ring);
   g.position.set(p.x,0,p.z);scene.add(g);stations[stations.length-1].mesh=g;stationMeshes.push(g);
 }
-function removeStation(s){
-  if(s.mesh)scene.remove(s.mesh);stations=stations.filter(v=>v!==s);stationMeshes=stations.filter(v=>v!==s.mesh);spawnStation();
-}
+function removeStation(s){if(!s||!stations.includes(s))return;const old={...s.cell};if(s.mesh)scene.remove(s.mesh);stations=stations.filter(v=>v!==s);stationMeshes=stationMeshes.filter(v=>v!==s.mesh);spawnStation([old]);}
 function buildMonster(){
   monsterGroup=new THREE.Group();
   const dark=new THREE.MeshStandardMaterial({color:0x090b0e,roughness:.9});
@@ -163,14 +156,14 @@ function buildMonster(){
   for(const x of [-.3,.3]){const limb=new THREE.Mesh(new THREE.CapsuleGeometry(.14,.85,3,5),dark);limb.position.set(x,.65,0);limb.rotation.z=x*.35;monsterGroup.add(limb);}
   monsterGroup.visible=false;scene.add(monsterGroup);monsterVisible=false;
 }
-function setMonsterVisible(on){monsterVisible=on;monsterGroup.visible=on;}
+function setMonsterVisible(on){monsterVisible=on;if(!monsterGroup)return;monsterGroup.visible=on;monsterGroup.traverse(o=>{if(o.isMesh){o.renderOrder=on?8:0;const ms=Array.isArray(o.material)?o.material:[o.material];for(const m of ms){m.depthTest=!on;m.depthWrite=!on;m.needsUpdate=true;}}});}
 function setCamera(){
   camera.position.copy(player.position);camera.position.y=1.62;
   camera.rotation.order='YXZ';camera.rotation.y=yaw;camera.rotation.x=pitch;
 }
 function setupPlayerAndMonster(){
   const p=world(spawnCell);player={position:new THREE.Vector3(p.x,0,p.z),radius:.34};
-  const mc=randomOpen([spawnCell,exitCell]);const mp=world(mc);monster={position:new THREE.Vector3(mp.x,0,mp.z),cell:mc};
+  const reach=bfsDistances(spawnCell),opts=[];for(const [k,d] of reach)if(d>=9&&d<=20){const [x,z]=k.split(',').map(Number);opts.push({x,z});}const mc=opts.length?opts[randInt(opts.length)]:randomOpen([spawnCell,exitCell]);const mp=world(mc);monster={position:new THREE.Vector3(mp.x,0,mp.z),cell:mc};
   buildMonster();buildExit();buildStations();setCamera();
 }
 function ensureAudio(){
@@ -225,12 +218,12 @@ function hasLineOfSight(a,b){
   const steps=Math.max(Math.abs(b.x-a.x),Math.abs(b.z-a.z))*3;
   for(let i=1;i<steps;i++){const t=i/steps,x=Math.round(a.x+(b.x-a.x)*t),z=Math.round(a.z+(b.z-a.z)*t);if(!isOpen(x,z))return false;}return true;
 }
-function showMessage(text,duration=1800){$('message').textContent=text;$('message').classList.add('show');messageTimer=duration;}
+function showMessage(text,duration=1900){const e=$('message');e.textContent=text;e.classList.add('show');clearTimeout(messageTimer);messageTimer=setTimeout(()=>e.classList.remove('show'),duration);}
 function useDetector(){
   if(!running||gameOver)return;
   if(battery<=0){showMessage('감지기 배터리가 부족하다.');return;}
   battery--;detectorUntil=performance.now()/1000+CONFIG.detectorSeconds;
-  setMonsterVisible(true);playNoise('detector',player.position,1.15);showMessage('감지기 작동 · 5초 동안 괴물 탐지');
+  setMonsterVisible(true);playNoise('detector',player.position,1.15);
   updateHud();
 }
 function updateHud(){
@@ -259,7 +252,7 @@ function movePlayer(dt){
 function updatePlayer(dt,now){
   const isMoving=Math.hypot(joystick.x,joystick.y)>.08;
   const wantsRun=isMoving&&runHeld&&!sprintExhausted&&stamina>0.001;
-  if(wantsRun){stamina=Math.max(0,stamina-dt/CONFIG.staminaRunSeconds);if(stamina<=0)sprintExhausted=true;}
+  if(wantsRun){const before=stamina;stamina=Math.max(0,stamina-dt/CONFIG.staminaRunSeconds);if(stamina<=0){sprintExhausted=true;if(before>.001)showMessage('스태미나가 부족합니다.');}}
   else if(isMoving)stamina=Math.min(1,stamina+dt/CONFIG.staminaRecoverySeconds);
   if(!runHeld&&stamina>0.001)sprintExhausted=false;
   const moved=movePlayer(dt);
@@ -280,12 +273,10 @@ function updatePlayer(dt,now){
     stationProgress+=dt;
     if(chargingGain)chargingGain.gain.setTargetAtTime(.075,audioCtx.currentTime,.08);
     if(now-lastChargeSound>.95){playNoise('charge',player.position,.85);lastChargeSound=now;}
-    while(stationProgress>=1&&battery<CONFIG.detectorCapacity){stationProgress-=1;battery++;updateHud();showMessage('배터리 충전 '+battery+'/5',650);}
-    if(battery>=CONFIG.detectorCapacity){removeStation(station);activeStation=null;stationProgress=0;showMessage('감지기 완전 충전');}
-  }else if(activeStation){
-    if(chargingGain)chargingGain.gain.setTargetAtTime(0,audioCtx.currentTime,.06);
-    removeStation(activeStation);activeStation=null;stationProgress=0;showMessage('충전 중단 · 충전기가 사라졌다');
-  }else if(chargingGain){chargingGain.gain.setTargetAtTime(0,audioCtx.currentTime,.1);}
+    while(stationProgress>=1&&battery<CONFIG.detectorCapacity){stationProgress-=1;battery++;updateHud();showMessage('배터리 충전 중 · '+battery+'/5',900);}
+    if(battery>=CONFIG.detectorCapacity){if(chargingGain&&audioCtx)chargingGain.gain.setTargetAtTime(0,audioCtx.currentTime,.06);activeStation=null;stationProgress=0;removeStation(station);}
+  }else if(activeStation){if(chargingGain&&audioCtx)chargingGain.gain.setTargetAtTime(0,audioCtx.currentTime,.06);const used=activeStation;activeStation=null;stationProgress=0;removeStation(used);
+  }else if(chargingGain&&audioCtx){chargingGain.gain.setTargetAtTime(0,audioCtx.currentTime,.1);}
   if(now<detectorUntil)setMonsterVisible(true);else setMonsterVisible(false);
   if(player.position.distanceTo(world(exitCell))<1.55)finish(true);
   updateHud();
@@ -323,24 +314,7 @@ function monsterUpdate(dt,now){
 function updateAmbient(now){
   if(now-lastAmbient>12){lastAmbient=now;if(Math.random()<.35)tone(42+Math.random()*18,1.4,'sine',.018,-8);}
 }
-function drawMinimap(now){
-  const canvas=$('minimap');if(!canvas||!player||!maze.length)return;
-  const ctx=canvas.getContext('2d');const size=canvas.width,center=size/2,radius=7,cellPx=size/(radius*2+1);
-  ctx.clearRect(0,0,size,size);ctx.fillStyle='#10171c';ctx.fillRect(0,0,size,size);
-  const pc=cellAt(player.position);
-  for(let dz=-radius;dz<=radius;dz++)for(let dx=-radius;dx<=radius;dx++){
-    const mx=pc.x+dx,mz=pc.z+dz,px=center+dx*cellPx-cellPx/2,py=center+dz*cellPx-cellPx/2;
-    if(!inside(mx,mz)){ctx.fillStyle='#080d11';ctx.fillRect(px,py,cellPx+.5,cellPx+.5);continue;}
-    if(maze[mz][mx]===1){ctx.fillStyle='#87949b';ctx.fillRect(px,py,cellPx+.5,cellPx+.5);}
-    else{ctx.fillStyle='#293940';ctx.fillRect(px,py,cellPx+.5,cellPx+.5);}
-    if(exitCell.x===mx&&exitCell.z===mz){ctx.fillStyle='#d7c77c';ctx.fillRect(px+cellPx*.28,py+cellPx*.28,cellPx*.44,cellPx*.44);}
-    if(stations.some(st=>st.cell.x===mx&&st.cell.z===mz)){ctx.fillStyle='#66d4d2';ctx.beginPath();ctx.arc(px+cellPx/2,py+cellPx/2,cellPx*.2,0,Math.PI*2);ctx.fill();}
-  }
-  // 감지기 작동 중이고 괴물이 미니맵 범위 안에 있을 때만 위치를 표시
-  if(now<detectorUntil){const mc=cellAt(monster.position),dx=mc.x-pc.x,dz=mc.z-pc.z;if(Math.abs(dx)<=radius&&Math.abs(dz)<=radius){const mx=center+dx*cellPx,my=center+dz*cellPx;ctx.fillStyle='#ff3434';ctx.shadowColor='#ff2424';ctx.shadowBlur=9;ctx.beginPath();ctx.arc(mx,my,cellPx*.34,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;}}
-  ctx.save();ctx.translate(center,center);ctx.rotate(-yaw);ctx.fillStyle='#f4f6f7';ctx.strokeStyle='#101820';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(0,-cellPx*.48);ctx.lineTo(cellPx*.34,cellPx*.38);ctx.lineTo(0,cellPx*.2);ctx.lineTo(-cellPx*.34,cellPx*.38);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();
-  ctx.strokeStyle='#c0ccd2';ctx.lineWidth=1;ctx.strokeRect(.5,.5,size-1,size-1);
-}
+function drawMinimap(now){const canvas=$('minimap');if(!canvas||!player||!maze.length)return;const ctx=canvas.getContext('2d'),size=canvas.width,c=size/2,r=7,step=size/(r*2+1),pc=cellAt(player.position);ctx.clearRect(0,0,size,size);ctx.save();ctx.beginPath();ctx.arc(c,c,size/2-2,0,Math.PI*2);ctx.clip();ctx.fillStyle='#10171c';ctx.fillRect(0,0,size,size);ctx.save();ctx.translate(c,c);ctx.rotate(yaw);for(let dz=-r;dz<=r;dz++)for(let dx=-r;dx<=r;dx++){const x=pc.x+dx,z=pc.z+dz,px=dx*step-step/2,py=dz*step-step/2;ctx.fillStyle=!inside(x,z)?'#080d11':maze[z][x]?'#87949b':'#293940';ctx.fillRect(px,py,step+.5,step+.5);if(exitCell.x===x&&exitCell.z===z){ctx.fillStyle='#e2d18a';ctx.fillRect(px+step*.27,py+step*.27,step*.46,step*.46);}if(stations.some(s=>s.cell.x===x&&s.cell.z===z)){ctx.fillStyle='#66d4d2';ctx.beginPath();ctx.arc(dx*step,dz*step,step*.22,0,Math.PI*2);ctx.fill();}}if(now<detectorUntil){const mc=cellAt(monster.position),dx=mc.x-pc.x,dz=mc.z-pc.z;if(Math.abs(dx)<=r&&Math.abs(dz)<=r){ctx.fillStyle='#ff3434';ctx.shadowColor='#ff2424';ctx.shadowBlur=10;ctx.beginPath();ctx.arc(dx*step,dz*step,step*.36,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;}}ctx.restore();ctx.fillStyle='#f4f6f7';ctx.strokeStyle='#101820';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(c,c-step*.48);ctx.lineTo(c+step*.34,c+step*.38);ctx.lineTo(c,c+step*.2);ctx.lineTo(c-step*.34,c+step*.38);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();ctx.strokeStyle='#c0ccd2';ctx.lineWidth=2;ctx.beginPath();ctx.arc(c,c,size/2-1.5,0,Math.PI*2);ctx.stroke();}
 function animate(){
   requestAnimationFrame(animate);if(!renderer)return;
   const dt=Math.min(clock.getDelta(),.05),now=performance.now()/1000;
@@ -355,7 +329,7 @@ function finish(success){
   $('endEyebrow').textContent=success?'ESCAPED':'FOUND';
   $('endTitle').textContent=success?'탈출 성공':'괴물에게 붙잡혔다';
   $('endText').textContent=success?'미로를 빠져나왔다.':'다음에는 소리를 더 신중하게 관리해야 한다.';
-  $('endScreen').classList.remove('hidden');
+  $('message').classList.remove('show');$('endScreen').classList.remove('hidden');
 }
 function resetGame(){
   if(scene){
@@ -391,7 +365,7 @@ function bindControls(){
   $('runBtn').addEventListener('pointerup',runEnd);$('runBtn').addEventListener('pointercancel',runEnd);$('runBtn').addEventListener('pointerleave',runEnd);
   $('scanBtn').addEventListener('click',useDetector);
   $('startBtn').addEventListener('click',startGame);$('restartBtn').addEventListener('click',startGame);
-  $('installBtn').addEventListener('click',async()=>{const status=$('installStatus');if(deferredInstallPrompt){deferredInstallPrompt.prompt();const choice=await deferredInstallPrompt.userChoice;status.textContent=choice.outcome==='accepted'?'설치를 시작했습니다.':'설치가 취소되었습니다.';deferredInstallPrompt=null;}else{status.textContent='설치 창을 아직 열 수 없습니다. Chrome 메뉴(⋮)에서 “앱 설치” 또는 “홈 화면에 추가”를 선택해 주세요.';}});
+  $('guideBtn').addEventListener('click',()=>{$('guideModal').classList.remove('hidden');});$('closeGuideBtn').addEventListener('click',()=>$('guideModal').classList.add('hidden'));$('menuBtn').addEventListener('click',()=>{$('endScreen').classList.add('hidden');$('startScreen').classList.remove('hidden');});window.addEventListener('keydown',e=>{if(e.key==='Escape')$('guideModal').classList.add('hidden');});
   window.addEventListener('resize',()=>{if(!camera||!renderer)return;const portrait=innerHeight>innerWidth,w=portrait?innerHeight:innerWidth,h=portrait?innerWidth:innerHeight;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false);});
   document.addEventListener('visibilitychange',()=>{if(document.hidden){runHeld=false;joystick={x:0,y:0};}});
 }
