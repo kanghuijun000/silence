@@ -87,20 +87,82 @@ export function createMonsterModel(THREE) {
 }
 
 function makeSkinMaterial(THREE) {
-  const size=128, data=new Uint8Array(size*size);
-  let seed=193;
-  for(let y=0;y<size;y++) for(let x=0;x<size;x++){
-    seed=(seed*1664525+1013904223)>>>0;
-    const fine=(seed>>>24)/255;
-    const wave=(Math.sin(x*.21+Math.sin(y*.08)*2)+Math.sin(y*.29+x*.035))*.5;
-    data[y*size+x]=Math.max(0,Math.min(255,118+wave*34+(fine-.5)*68));
+  // Multi-channel procedural PBR skin: mottled albedo, pore-scale height,
+  // variable roughness and a tangent-space normal texture.
+  const size = 1024;
+  const height = new Uint8Array(size * size);
+  const rough = new Uint8Array(size * size);
+  const color = new Uint8Array(size * size * 4);
+  let seed = 193;
+  const rand = () => {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const i = y * size + x;
+      const n1 = Math.sin(x * .071 + Math.sin(y * .019) * 2.2);
+      const n2 = Math.sin(y * .113 + x * .013);
+      const n3 = Math.sin(x * .39 + Math.sin(y * .27) * 1.7) * Math.sin(y * .33);
+      const pore = (rand() - .5) * 48;
+      const h = Math.max(0, Math.min(255, 128 + n1 * 12 + n2 * 9 + n3 * 8 + pore));
+      height[i] = h;
+      rough[i] = Math.max(150, Math.min(255, 218 + n1 * 10 + n3 * 12 + (rand() - .5) * 22));
+      const mottling = n1 * 8 + n2 * 6 + n3 * 5 + (rand() - .5) * 14;
+      const p = i * 4;
+      color[p] = Math.max(0, Math.min(255, 76 + mottling));
+      color[p + 1] = Math.max(0, Math.min(255, 88 + mottling));
+      color[p + 2] = Math.max(0, Math.min(255, 91 + mottling));
+      color[p + 3] = 255;
+    }
   }
-  const bump=new THREE.DataTexture(data,size,size,THREE.RedFormat);
-  bump.wrapS=bump.wrapT=THREE.RepeatWrapping;
-  bump.repeat.set(3,4); bump.needsUpdate=true;
-  return new THREE.MeshStandardMaterial({
-    color:0x596164, roughness:0.96, metalness:0,
-    vertexColors:true, bumpMap:bump, bumpScale:0.022
+  const normal = new Uint8Array(size * size * 4);
+  for (let y = 0; y < size; y++) {
+    const ym = (y + size - 1) % size, yp = (y + 1) % size;
+    for (let x = 0; x < size; x++) {
+      const xm = (x + size - 1) % size, xp = (x + 1) % size;
+      const dx = (height[y * size + xp] - height[y * size + xm]) / 255 * 2.6;
+      const dy = (height[yp * size + x] - height[ym * size + x]) / 255 * 2.6;
+      const inv = 1 / Math.hypot(dx, dy, 1);
+      const p = (y * size + x) * 4;
+      normal[p] = Math.round((-.0 - dx * inv) * 127 + 128);
+      normal[p + 1] = Math.round((-.0 - dy * inv) * 127 + 128);
+      normal[p + 2] = Math.round(inv * 127 + 128);
+      normal[p + 3] = 255;
+    }
+  }
+  const makeTexture = (data, format, channels) => {
+    const tex = new THREE.DataTexture(data, size, size, format);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(2.5, 3.5);
+    tex.generateMipmaps = true;
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.anisotropy = 8;
+    tex.needsUpdate = true;
+    return tex;
+  };
+  const albedo = makeTexture(color, THREE.RGBAFormat, 4);
+  albedo.colorSpace = THREE.SRGBColorSpace;
+  const bump = makeTexture(height, THREE.RedFormat, 1);
+  const roughness = makeTexture(rough, THREE.RedFormat, 1);
+  const normalMap = makeTexture(normal, THREE.RGBAFormat, 4);
+  return new THREE.MeshPhysicalMaterial({
+    color: 0xffffff,
+    map: albedo,
+    roughness: 0.88,
+    roughnessMap: roughness,
+    metalness: 0,
+    bumpMap: bump,
+    bumpScale: 0.032,
+    normalMap,
+    normalScale: new THREE.Vector2(0.42, 0.42),
+    clearcoat: 0.16,
+    clearcoatRoughness: 0.58,
+    sheen: 0.12,
+    sheenColor: new THREE.Color(0x59666a),
+    sheenRoughness: 0.96,
+    vertexColors: true
   });
 }
 
