@@ -1,1 +1,43 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#080b10"/><path d="M80 256h352M256 80v352" stroke="#263640" stroke-width="18"/><path d="M156 356V156h200v200z" fill="none" stroke="#9eabb7" stroke-width="18"/><path d="M206 306V206h100v100z" fill="#d2d8d9"/><circle cx="256" cy="256" r="24" fill="#080b10"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="43%" r="72%">
+      <stop offset="0" stop-color="#172127"/>
+      <stop offset=".62" stop-color="#0b1116"/>
+      <stop offset="1" stop-color="#030609"/>
+    </radialGradient>
+    <linearGradient id="body" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#788286"/>
+      <stop offset=".42" stop-color="#394449"/>
+      <stop offset="1" stop-color="#151d21"/>
+    </linearGradient>
+    <linearGradient id="face" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#667176"/>
+      <stop offset="1" stop-color="#222c31"/>
+    </linearGradient>
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="12"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <path d="M72 112h86v-34h196v34h86M72 400h70v34h228v-34h70" fill="none" stroke="#29383e" stroke-width="7" opacity=".55"/>
+  <path d="M104 170v172m304-172v172" stroke="#26353b" stroke-width="6" opacity=".38"/>
+  <ellipse cx="256" cy="394" rx="126" ry="24" fill="#000" opacity=".72" filter="url(#shadow)"/>
+  <!-- Long, narrow shoulders and hanging arms form the creature's silhouette. -->
+  <path d="M205 225 169 242 139 294 123 382 144 390 177 315 198 286 212 273
+           M307 225 343 242 373 294 389 382 368 390 335 315 314 286 300 273"
+        fill="none" stroke="#11191d" stroke-width="31" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M205 225 169 242 139 294 123 382 144 390 177 315 198 286 212 273
+           M307 225 343 242 373 294 389 382 368 390 335 315 314 286 300 273"
+        fill="none" stroke="url(#body)" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M212 220 184 246 190 300 205 353 226 376 286 376 307 353 322 300 328 246 300 220Z" fill="url(#body)" stroke="#11191d" stroke-width="9"/>
+  <path d="M225 105 207 133 199 184 211 235 232 260 280 260 301 235 313 184 305 133 287 105 256 91Z" fill="url(#face)" stroke="#0b1115" stroke-width="10"/>
+  <path d="M215 161 242 151 250 165 229 177Z M297 161 270 151 262 165 283 177Z" fill="#0a1013"/>
+  <path d="M224 166 240 163 246 170 229 174Z M288 166 272 163 266 170 283 174Z" fill="#c2d0ca"/>
+  <path d="M256 171 245 211 256 221 267 211Z" fill="#1b2529"/>
+  <path d="M228 233Q256 224 284 233" fill="none" stroke="#080d10" stroke-width="9" stroke-linecap="round"/>
+  <path d="M232 238 280 238" stroke="#697579" stroke-width="3" opacity=".55"/>
+  <path d="M214 271 197 302 207 330M298 271 315 302 305 330" fill="none" stroke="#899397" stroke-width="4" opacity=".25"/>
+  <path d="M230 379 220 419 205 442 229 448 249 418 256 390 263 418 283 448 307 442 292 419 282 379" fill="url(#body)" stroke="#11191d" stroke-width="8" stroke-linejoin="round"/>
+  <path d="M128 382 116 409 124 421 143 398M384 382 396 409 388 421 369 398" fill="#252f34" stroke="#11191d" stroke-width="6"/>
+  <path d="M256 38v34M256 440v34" stroke="#53646a" stroke-width="3" opacity=".5"/>
+</svg>
