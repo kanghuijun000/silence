@@ -1,289 +1,260 @@
-// SILENCE creature: custom sculpt-like BufferGeometry model.
-// Built from continuous, tapered organic surfaces rather than primitive body parts.
+// SILENCE — THE FOLDED WITNESS
+// Bespoke asymmetric creature sculpt. Organic continuous surfaces, non-human silhouette,
+// deeply recessed facial forms, irregular anatomy and layered micro-surface detail.
 export function createMonsterModel(THREE) {
   const root = new THREE.Group();
-  root.name = 'SILENCE_Organic_Creature';
+  root.name = 'SILENCE_FOLDED_WITNESS';
   const skin = makeSkinMaterial(THREE);
-  const dark = new THREE.MeshStandardMaterial({ color: 0x111719, roughness: 0.98, metalness: 0 });
-  const deep = new THREE.MeshStandardMaterial({ color: 0x050708, roughness: 1, metalness: 0 });
-  const eyeMat = new THREE.MeshStandardMaterial({ color: 0x9daea6, roughness: 0.32, metalness: 0.02, emissive: 0x202b28, emissiveIntensity: 0.22 });
-  const irisMat = new THREE.MeshStandardMaterial({ color: 0x18211f, roughness: 0.42 });
-  const ridgeMat = new THREE.MeshStandardMaterial({ color: 0x343f42, roughness: 0.96 });
-  const body = new THREE.Mesh(makeRingSculpt(THREE, [
-    [0.035,0.055,0.06,-0.005],[0.12,0.105,0.105,-0.005],[0.28,0.15,0.13,-0.005],
-    [0.48,0.205,0.16,-0.005],[0.68,0.205,0.155,-0.005],[0.88,0.225,0.17,-0.005],
-    [1.08,0.275,0.19,-0.005],[1.29,0.315,0.205,-0.005],[1.48,0.36,0.21,-0.005],
-    [1.63,0.385,0.205,-0.005],[1.76,0.33,0.18,0.0],[1.86,0.235,0.15,0.005],
-    [1.98,0.155,0.135,0.015],[2.10,0.13,0.12,0.02],[2.18,0.09,0.085,0.02]
-  ], 116, 88), skin);
-  body.name = 'Continuous_Torso_Neck_Sculpt';
-  body.castShadow = true; body.receiveShadow = true;
-  root.add(body);
+  const paleRidge = new THREE.MeshStandardMaterial({color:0x596568,roughness:.94});
+  const darkFold = new THREE.MeshStandardMaterial({color:0x080d10,roughness:1});
+  const socketMat = new THREE.MeshStandardMaterial({color:0x020506,roughness:1});
+  const eyeMat = new THREE.MeshPhysicalMaterial({color:0xb7c2b4,roughness:.2,metalness:0,emissive:0x283b35,emissiveIntensity:.3,clearcoat:.7});
+  const pupilMat = new THREE.MeshStandardMaterial({color:0x020606,roughness:.18});
+  const cartilage = new THREE.MeshStandardMaterial({color:0x303b3d,roughness:.82,metalness:0});
+  const rootScale = 1;
 
-  // Raised tendons and rib folds are subtle sculpted surface details.
-  for (const side of [-1, 1]) {
-    addTubeMesh(THREE, root, [
-      [side*0.105,2.13,0.075],[side*0.13,1.98,0.105],[side*0.19,1.81,0.13],[side*0.29,1.69,0.12]
-    ], [0.018,0.019,0.013,0.004], skin, 12, 22, 'Neck_Tendon');
-    for (let j=0;j<3;j++) {
-      const y=1.25-j*0.15;
-      addTubeMesh(THREE, root, [
-        [side*0.07,y+0.045,0.174],[side*0.15,y,0.187],[side*0.235,y-0.045,0.145]
-      ], [0.008,0.009,0.003], ridgeMat, 8, 16, 'Subtle_Rib_Fold');
-    }
+  // A single asymmetrical torso/neck volume. The shoulders are deliberately uneven;
+  // the sternum twists away from the pelvis instead of reading as a human mannequin.
+  const torso = new THREE.Mesh(makeSculpt(THREE,[
+    [.02,.10,.095,-.015,-.015],[.16,.16,.13,-.005,-.02],[.34,.19,.15,.0,-.025],
+    [.55,.205,.16,.005,-.035],[.76,.235,.18,.005,-.055],[.96,.29,.205,.015,-.065],
+    [1.15,.34,.225,.025,-.045],[1.32,.39,.22,.025,-.005],[1.48,.43,.205,.015,.055],
+    [1.62,.37,.18,.0,.075],[1.76,.27,.15,.0,.045],[1.9,.18,.13,.015,.005],
+    [2.05,.145,.12,.025,-.055],[2.18,.12,.105,.03,-.09],[2.27,.075,.075,.03,-.105]
+  ],144,112,1.35),skin);
+  torso.name='Twisted_Continuous_Torso';
+  torso.castShadow=true;torso.receiveShadow=true;root.add(torso);
+
+  // Raised, irregular shoulder and rib structures are grown from the torso surface.
+  addTube(THREE,root,[[-.34,1.55,.02],[-.43,1.68,.035],[-.48,1.79,.01],[-.39,1.88,-.015]], [.07,.09,.055,.012],skin,18,36,'Raised_Left_Shoulder');
+  addTube(THREE,root,[[.29,1.48,.02],[.39,1.59,.035],[.44,1.72,.015],[.38,1.83,-.02]], [.055,.075,.045,.01],skin,16,30,'Raised_Right_Shoulder');
+  for(let i=0;i<5;i++){
+    const y=1.28-i*.205;
+    addTube(THREE,root,[[-.24,y+.07,.12],[-.08,y,.19],[.12,y-.035,.17],[.28,y-.11,.08]],
+      [.014,.022,.012,.002],i%2?skin:paleRidge,10,28,'Uneven_Rib_Ridge_'+i);
+  }
+  // A broken vertebral ridge on the back gives the silhouette a jagged, non-human profile.
+  for(let i=0;i<8;i++){
+    const y=.48+i*.185, side=i%2?1:-1, len=.13+(i%3)*.035;
+    addTube(THREE,root,[[side*.015,y,-.145],[side*.055,y+.035,-.22],[side*len,y+.075,-.27],[side*(len+.055),y+.12,-.235]],
+      [.035,.045,.022,.002],i%3===0?paleRidge:skin,10,22,'Dorsal_Verterbra_'+i);
   }
 
-  // The skull is its own detailed sculpt so it can tilt independently.
+  // The neck rises off-axis and kinks before the skull. The head has its own pivot.
   const head = new THREE.Group();
-  head.name = 'Head_Pivot';
-  head.position.set(0, 2.045, 0.018);
+  head.name='Cranium_Pivot';
+  head.position.set(-.105,2.08,.025);
+  head.rotation.z=-.13;
   root.add(head);
-  const skull = new THREE.Mesh(makeRingSculpt(THREE, [
-    [0.00,0.115,0.11,0.0],[0.07,0.16,0.14,0.0],[0.17,0.205,0.17,0.0],
-    [0.30,0.218,0.185,-0.005],[0.43,0.198,0.17,-0.012],
-    [0.54,0.165,0.145,-0.018],[0.62,0.105,0.095,-0.018],[0.66,0.025,0.03,-0.018]
-  ], 88, 72, 0.82), skin);
-  skull.name = 'Elongated_Facial_Sculpt';
-  skull.castShadow = true; skull.receiveShadow = true;
-  head.add(skull);
+  const skull = new THREE.Mesh(makeSculpt(THREE,[
+    [0,.10,.09,.0,.015],[.07,.15,.13,.0,.025],[.16,.205,.16,-.005,.035],
+    [.28,.235,.18,-.015,.025],[.4,.22,.17,-.025,-.005],[.52,.19,.145,-.035,-.045],
+    [.63,.145,.115,-.04,-.075],[.71,.075,.07,-.035,-.09],[.75,.018,.025,-.025,-.09]
+  ],112,96,1.8),skin);
+  skull.name='Asymmetric_Elongated_Cranium';skull.castShadow=true;skull.receiveShadow=true;head.add(skull);
 
-  // Deep sockets, small recessed eyes, pronounced brows and cheek planes.
-  for (const side of [-1,1]) {
-    addEllipsoid(THREE, head, [side*0.092,0.355,0.158], [0.067,0.052,0.027], deep, 'Recessed_Eye_Socket');
-    addEllipsoid(THREE, head, [side*0.092,0.354,0.178], [0.027,0.018,0.018], eyeMat, 'Pale_Eye');
-    addEllipsoid(THREE, head, [side*0.092,0.354,0.193], [0.008,0.013,0.006], irisMat, 'Dark_Iris');
-    addTubeMesh(THREE, head, [
-      [side*0.17,0.405,0.153],[side*0.115,0.425,0.174],[side*0.055,0.407,0.166]
-    ], [0.018,0.024,0.009], skin, 10, 18, 'Heavy_Brow_Ridge');
-    addTubeMesh(THREE, head, [
-      [side*0.18,0.245,0.135],[side*0.12,0.225,0.17],[side*0.045,0.245,0.18]
-    ], [0.014,0.018,0.006], ridgeMat, 9, 16, 'Cheek_Plane');
+  // One exposed, pale eye; the opposite side is an empty collapsed socket.
+  addOrganicOrb(THREE,head,[-.125,.39,.151],[.09,.073,.035],socketMat,'Collapsed_Left_Orbit',.22);
+  addOrganicOrb(THREE,head,[-.128,.397,.18],[.031,.023,.02],eyeMat,'Single_Pale_Eye',.18);
+  addOrganicOrb(THREE,head,[-.13,.397,.197],[.009,.016,.007],pupilMat,'Pin_Pupil',.08);
+  addOrganicOrb(THREE,head,[.105,.355,.15],[.105,.09,.026],darkFold,'Empty_Right_Orbit',.3);
+  addTube(THREE,head,[[.015,.46,.14],[.11,.48,.145],[.205,.43,.105],[.18,.37,.15]],
+    [.035,.05,.045,.012],skin,12,30,'Broken_Orbital_Rim');
+  addTube(THREE,head,[[-.22,.47,.105],[-.16,.52,.145],[-.07,.49,.18],[.015,.44,.16]],
+    [.025,.043,.03,.006],paleRidge,12,28,'Overhanging_Brow');
+  // A narrow, displaced nasal keel instead of a recognizable human nose.
+  addTube(THREE,head,[[-.035,.48,.13],[-.015,.34,.19],[.045,.23,.205],[.105,.16,.16]],
+    [.035,.042,.026,.006],skin,14,32,'Displaced_Facial_Keel');
+  addOrganicOrb(THREE,head,[.13,.19,.166],[.025,.018,.012],socketMat,'Nasal_Cavity',.2);
+
+  // A long, off-centre vertical fissure makes the face read as an unknown organism,
+  // not a human face with decorative eyes.
+  addOrganicOrb(THREE,head,[-.005,.19,.177],[.047,.17,.018],darkFold,'Vertical_Facial_Fissure',.42);
+  addTube(THREE,head,[[-.055,.34,.17],[-.035,.25,.202],[-.055,.15,.203],[-.025,.035,.155]],
+    [.018,.025,.019,.004],paleRidge,10,28,'Left_Fissure_Lip');
+  addTube(THREE,head,[[.045,.33,.17],[.025,.24,.205],[.055,.13,.195],[.03,.025,.15]],
+    [.012,.02,.015,.003],skin,10,28,'Right_Fissure_Lip');
+  for(let i=0;i<7;i++){
+    const y=.30-i*.037, x=-.012+(i%2)*.026;
+    addTube(THREE,head,[[x,y,.19],[x+.012,y-.018,.214],[x+.005,y-.038,.19]],
+      [.009,.012,.001],i%2?cartilage:paleRidge,7,10,'Irregular_Fissure_Ridge');
   }
-  addTubeMesh(THREE, head, [[0,0.47,0.12],[0,0.37,0.185],[0,0.27,0.205],[0,0.235,0.19]],
-    [0.035,0.029,0.021,0.012], skin, 12, 22, 'Narrow_Nasal_Ridge');
-  addEllipsoid(THREE, head, [-0.026,0.222,0.201], [0.012,0.008,0.006], deep, 'Left_Nostril');
-  addEllipsoid(THREE, head, [0.026,0.222,0.201], [0.012,0.008,0.006], deep, 'Right_Nostril');
-  addEllipsoid(THREE, head, [0,0.115,0.153], [0.094,0.014,0.012], deep, 'Thin_Mouth_Cavity');
-  addTubeMesh(THREE, head, [
-    [-0.102,0.132,0.158],[-0.05,0.139,0.169],[0,0.133,0.173],[0.05,0.139,0.169],[0.102,0.132,0.158]
-  ], [0.008,0.009,0.006,0.009,0.008], ridgeMat, 8, 20, 'Upper_Lip');
-  addTubeMesh(THREE, head, [
-    [-0.085,0.096,0.158],[0,0.09,0.169],[0.085,0.096,0.158]
-  ], [0.007,0.011,0.007], skin, 8, 16, 'Lower_Lip');
-  for(let i=0;i<4;i++){
-    const x=(i-1.5)*0.033;
-    addTubeMesh(THREE, head, [[x,0.126,0.168],[x+0.002,0.108,0.171]], [0.006,0.0015],
-      new THREE.MeshStandardMaterial({color:0x777b72,roughness:0.8}), 6, 5, 'Uneven_Tooth');
+  // Fine facial creases and raised skin folds break up the smooth planes.
+  for(let i=0;i<9;i++){
+    const side=i%2?1:-1, y=.12+(i%4)*.085;
+    addTube(THREE,head,[[side*.07,y+.08,.14],[side*.13,y+.035,.17],[side*.19,y,.125]],
+      [.006,.012,.001],i%3===0?paleRidge:skin,8,16,'Facial_Crease');
   }
 
-  // Long arms: each is a custom tapered surface with a sculpted palm and five separate tapered digits.
-  const armLeft = makeArm(THREE, root, -1, skin, 'Arm_Left');
-  const armRight = makeArm(THREE, root, 1, skin, 'Arm_Right');
-  const legLeft = makeLeg(THREE, root, -1, skin, 'Leg_Left');
-  const legRight = makeLeg(THREE, root, 1, skin, 'Leg_Right');
+  const armLeft=makeArm(THREE,root,-1,skin,paleRidge,'Arm_Left',1.48);
+  const armRight=makeArm(THREE,root,1,skin,paleRidge,'Arm_Right',1.78);
+  const legLeft=makeLeg(THREE,root,-1,skin,paleRidge,'Leg_Left',.92);
+  const legRight=makeLeg(THREE,root,1,skin,paleRidge,'Leg_Right',1.12);
 
-  root.scale.setScalar(0.93);
-  return { group: root, head, armLeft, armRight, legLeft, legRight };
+  // Sparse surface filaments and contracted skin folds add readable close-up detail.
+  for(let i=0;i<18;i++){
+    const side=i%2?1:-1, y=.45+(i*.097)%1.55, x=side*(.13+((i*7)%9)*.018);
+    addTube(THREE,root,[[x,y,.11],[x+side*.025,y+.035,.16],[x+side*.012,y+.075,.12]],
+      [.003,.008,.001],i%4===0?cartilage:skin,6,10,'Surface_Filament');
+  }
+  root.scale.setScalar(rootScale);
+  return {group:root,head,armLeft,armRight,legLeft,legRight};
 }
 
-function makeSkinMaterial(THREE) {
-  // Multi-channel procedural PBR skin: mottled albedo, pore-scale height,
-  // variable roughness and a tangent-space normal texture.
-  const size = 1024;
-  const height = new Uint8Array(size * size);
-  const rough = new Uint8Array(size * size);
-  const color = new Uint8Array(size * size * 4);
-  let seed = 193;
-  const rand = () => {
-    seed = (seed * 1664525 + 1013904223) >>> 0;
-    return seed / 4294967296;
-  };
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const i = y * size + x;
-      const n1 = Math.sin(x * .071 + Math.sin(y * .019) * 2.2);
-      const n2 = Math.sin(y * .113 + x * .013);
-      const n3 = Math.sin(x * .39 + Math.sin(y * .27) * 1.7) * Math.sin(y * .33);
-      const pore = (rand() - .5) * 48;
-      const h = Math.max(0, Math.min(255, 128 + n1 * 12 + n2 * 9 + n3 * 8 + pore));
-      height[i] = h;
-      rough[i] = Math.max(150, Math.min(255, 218 + n1 * 10 + n3 * 12 + (rand() - .5) * 22));
-      const mottling = n1 * 8 + n2 * 6 + n3 * 5 + (rand() - .5) * 14;
-      const p = i * 4;
-      color[p] = Math.max(0, Math.min(255, 76 + mottling));
-      color[p + 1] = Math.max(0, Math.min(255, 88 + mottling));
-      color[p + 2] = Math.max(0, Math.min(255, 91 + mottling));
-      color[p + 3] = 255;
+function makeSkinMaterial(THREE){
+  const size=1024, height=new Uint8Array(size*size), rough=new Uint8Array(size*size), color=new Uint8Array(size*size*4);
+  let seed=78131;
+  const rand=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};
+  for(let y=0;y<size;y++)for(let x=0;x<size;x++){
+    const i=y*size+x;
+    const broad=Math.sin(x*.018+Math.sin(y*.013)*2.7)*.5+Math.sin(y*.027-x*.009)*.35;
+    const folds=Math.sin(x*.16+Math.sin(y*.07)*2)*Math.sin(y*.12+x*.035);
+    const pores=(rand()-.5)*.32, h=Math.max(0,Math.min(255,128+broad*19+folds*15+pores*58));
+    height[i]=h;
+    rough[i]=Math.max(115,Math.min(255,218+broad*12+folds*18+(rand()-.5)*30));
+    const mottled=broad*13+folds*10+(rand()-.5)*23;
+    const p=i*4;
+    color[p]=Math.max(0,Math.min(255,68+mottled));
+    color[p+1]=Math.max(0,Math.min(255,79+mottled));
+    color[p+2]=Math.max(0,Math.min(255,81+mottled));
+    color[p+3]=255;
+  }
+  const normal=new Uint8Array(size*size*4);
+  for(let y=0;y<size;y++){
+    const ym=(y+size-1)%size,yp=(y+1)%size;
+    for(let x=0;x<size;x++){
+      const xm=(x+size-1)%size,xp=(x+1)%size;
+      const dx=(height[y*size+xp]-height[y*size+xm])/255*3.1;
+      const dy=(height[yp*size+x]-height[ym*size+x])/255*3.1;
+      const inv=1/Math.hypot(dx,dy,1),p=(y*size+x)*4;
+      normal[p]=Math.round((-dx*inv)*127+128);
+      normal[p+1]=Math.round((-dy*inv)*127+128);
+      normal[p+2]=Math.round(inv*127+128);normal[p+3]=255;
     }
   }
-  const normal = new Uint8Array(size * size * 4);
-  for (let y = 0; y < size; y++) {
-    const ym = (y + size - 1) % size, yp = (y + 1) % size;
-    for (let x = 0; x < size; x++) {
-      const xm = (x + size - 1) % size, xp = (x + 1) % size;
-      const dx = (height[y * size + xp] - height[y * size + xm]) / 255 * 2.6;
-      const dy = (height[yp * size + x] - height[ym * size + x]) / 255 * 2.6;
-      const inv = 1 / Math.hypot(dx, dy, 1);
-      const p = (y * size + x) * 4;
-      normal[p] = Math.round((-.0 - dx * inv) * 127 + 128);
-      normal[p + 1] = Math.round((-.0 - dy * inv) * 127 + 128);
-      normal[p + 2] = Math.round(inv * 127 + 128);
-      normal[p + 3] = 255;
-    }
-  }
-  const makeTexture = (data, format, channels) => {
-    const tex = new THREE.DataTexture(data, size, size, format);
-    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    tex.repeat.set(2.5, 3.5);
-    tex.generateMipmaps = true;
-    tex.minFilter = THREE.LinearMipmapLinearFilter;
-    tex.magFilter = THREE.LinearFilter;
-    tex.anisotropy = 8;
-    tex.needsUpdate = true;
-    return tex;
+  const texture=(data,format)=>{
+    const t=new THREE.DataTexture(data,size,size,format);
+    t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(2.4,3.2);
+    t.generateMipmaps=true;t.minFilter=THREE.LinearMipmapLinearFilter;t.magFilter=THREE.LinearFilter;
+    t.anisotropy=8;t.needsUpdate=true;return t;
   };
-  const albedo = makeTexture(color, THREE.RGBAFormat, 4);
-  albedo.colorSpace = THREE.SRGBColorSpace;
-  const bump = makeTexture(height, THREE.RedFormat, 1);
-  const roughness = makeTexture(rough, THREE.RedFormat, 1);
-  const normalMap = makeTexture(normal, THREE.RGBAFormat, 4);
+  const albedo=texture(color,THREE.RGBAFormat);albedo.colorSpace=THREE.SRGBColorSpace;
+  const bump=texture(height,THREE.RedFormat),roughMap=texture(rough,THREE.RedFormat),normalMap=texture(normal,THREE.RGBAFormat);
   return new THREE.MeshPhysicalMaterial({
-    color: 0xffffff,
-    map: albedo,
-    roughness: 0.88,
-    roughnessMap: roughness,
-    metalness: 0,
-    bumpMap: bump,
-    bumpScale: 0.032,
-    normalMap,
-    normalScale: new THREE.Vector2(0.42, 0.42),
-    clearcoat: 0.16,
-    clearcoatRoughness: 0.58,
-    sheen: 0.12,
-    sheenColor: new THREE.Color(0x59666a),
-    sheenRoughness: 0.96,
-    vertexColors: true
+    color:0xffffff,map:albedo,roughness:.9,roughnessMap:roughMap,metalness:0,
+    bumpMap:bump,bumpScale:.046,normalMap,normalScale:new THREE.Vector2(.62,.62),
+    clearcoat:.12,clearcoatRoughness:.72,sheen:.08,sheenColor:new THREE.Color(0x455256),
+    vertexColors:true
   });
 }
 
-function makeRingSculpt(THREE, profile, verticalSegments=100, radialSegments=72, detail=1) {
-  const samples=[];
-  const cat=(p0,p1,p2,p3,t)=>0.5*((2*p1)+(-p0+p2)*t+(2*p0-5*p1+4*p2-p3)*t*t+(-p0+3*p1-3*p2+p3)*t*t*t);
-  for(let i=0;i<verticalSegments;i++){
-    const u=i/(verticalSegments-1)*(profile.length-1), k=Math.min(profile.length-2,Math.floor(u)), t=u-k;
+// Profile-driven sculpt with angular asymmetry, warped cross-sections and multi-scale surface breakup.
+function makeSculpt(THREE,profile,vertical=120,radial=96,detail=1){
+  const samples=[],cat=(p0,p1,p2,p3,t)=>.5*((2*p1)+(-p0+p2)*t+(2*p0-5*p1+4*p2-p3)*t*t+(-p0+3*p1-3*p2+p3)*t*t*t);
+  for(let i=0;i<vertical;i++){
+    const u=i/(vertical-1)*(profile.length-1),k=Math.min(profile.length-2,Math.floor(u)),t=u-k;
     const a=profile[Math.max(0,k-1)],b=profile[k],c=profile[k+1],d=profile[Math.min(profile.length-1,k+2)];
-    samples.push([0,1,2,3].map(j=>cat(a[j],b[j],c[j],d[j],t)));
+    samples.push([0,1,2,3,4].map(j=>cat(a[j]??0,b[j]??0,c[j]??0,d[j]??0,t)));
   }
-  const positions=[], colors=[], indices=[];
+  const p=[],col=[],idx=[];
   for(let i=0;i<samples.length;i++){
-    const [y,rx,rz,cz]=samples[i];
-    for(let j=0;j<radialSegments;j++){
-      const a=j/radialSegments*Math.PI*2, cs=Math.cos(a), sn=Math.sin(a);
-      const wave=Math.sin(a*5+i*.31)*.006+Math.sin(a*11-i*.17)*.0025;
-      const pore=Math.sin(a*31+i*1.73)*Math.sin(i*.91+a*13)*.0018*detail;
-      const x=cs*Math.max(.002,rx+wave+pore);
-      const z=cz+sn*Math.max(.002,rz+wave*.7+pore);
-      positions.push(x,y+Math.sin(a*4+i*.13)*.003*detail,z);
-      const grain=Math.sin(x*81+y*47+z*69)*.055+Math.sin(x*137-y*93+z*111)*.025;
-      const fold=Math.abs(Math.sin(y*37+a*2.3))*.055;
-      const shade=Math.max(.42,Math.min(1.12,.82+grain-fold));
-      colors.push(shade,shade*1.035,shade*1.045);
-    }
-  }
-  for(let i=0;i<verticalSegments-1;i++) for(let j=0;j<radialSegments;j++){
-    const a=i*radialSegments+j,b=i*radialSegments+(j+1)%radialSegments,c=(i+1)*radialSegments+(j+1)%radialSegments,d=(i+1)*radialSegments+j;
-    indices.push(a,d,b,b,d,c);
-  }
-  const g=new THREE.BufferGeometry();
-  g.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
-  g.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
-  g.setIndex(indices); g.computeVertexNormals();
-  return g;
-}
-
-function makeTaperedTubeGeometry(THREE, points, radii, radial=14, tubular=28) {
-  const curve=new THREE.CatmullRomCurve3(points.map(p=>new THREE.Vector3(...p)));
-  const frames=curve.computeFrenetFrames(tubular,false), positions=[], colors=[], indices=[];
-  for(let i=0;i<=tubular;i++){
-    const t=i/tubular, center=curve.getPointAt(t);
-    const q=t*(radii.length-1), k=Math.min(radii.length-2,Math.floor(q)), f=q-k;
-    const radius=radii[k]*(1-f)+radii[k+1]*f;
+    const [y,rx,rz,cz,cx]=samples[i];
     for(let j=0;j<radial;j++){
-      const a=j/radial*Math.PI*2;
-      const wobble=1+Math.sin(a*3+i*.38)*.035+Math.sin(a*7-i*.23)*.014;
-      const v=center.clone().addScaledVector(frames.normals[i],Math.cos(a)*radius*wobble)
-        .addScaledVector(frames.binormals[i],Math.sin(a)*radius*wobble);
-      positions.push(v.x,v.y,v.z);
-      const grain=.84+Math.sin(v.x*93+v.y*51+v.z*67)*.08;
-      colors.push(grain,grain*1.025,grain*1.035);
+      const a=j/radial*Math.PI*2,cs=Math.cos(a),sn=Math.sin(a);
+      const asym=1+Math.sin(a*2.1+.7)*.11+Math.sin(a*5.3+i*.11)*.045;
+      const folds=Math.sin(a*7.2+i*.23)*.014+Math.sin(a*13-i*.31)*.006;
+      const fine=Math.sin(a*29+i*1.7)*Math.sin(i*.8+a*11)*.003*detail;
+      const x=cx+cs*(rx*asym+folds+fine);
+      const z=cz+sn*(rz*asym+folds*.8+fine);
+      const warpedY=y+Math.sin(a*3.4+i*.12)*.012*detail;
+      p.push(x,warpedY,z);
+      const grain=.83+Math.sin(x*71+y*43+z*67)*.075+Math.sin(x*139-y*87+z*103)*.035;
+      col.push(grain,grain*1.025,grain*1.04);
     }
   }
-  for(let i=0;i<tubular;i++) for(let j=0;j<radial;j++){
+  for(let i=0;i<vertical-1;i++)for(let j=0;j<radial;j++){
     const a=i*radial+j,b=i*radial+(j+1)%radial,c=(i+1)*radial+(j+1)%radial,d=(i+1)*radial+j;
-    indices.push(a,b,d,b,c,d);
-  }
-  const g=new THREE.BufferGeometry();
-  g.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
-  g.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
-  g.setIndex(indices);g.computeVertexNormals();
-  return g;
-}
-
-function addTubeMesh(THREE, parent, points, radii, material, radial=12, tubular=24, name='Organic_Detail') {
-  const mesh=new THREE.Mesh(makeTaperedTubeGeometry(THREE,points,radii,radial,tubular),material);
-  mesh.name=name;mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);return mesh;
-}
-
-function makeEllipsoidGeometry(THREE, scale, segW=28, segH=18, flatten=1) {
-  const p=[],c=[],idx=[];
-  for(let y=0;y<=segH;y++){
-    const v=y/segH*Math.PI, sy=Math.cos(v), ring=Math.sin(v);
-    for(let x=0;x<=segW;x++){
-      const u=x/segW*Math.PI*2;
-      const n=1+Math.sin(u*5+v*7)*.018+Math.sin(u*11-v*9)*.009;
-      p.push(Math.cos(u)*ring*scale[0]*n,sy*scale[1]*n,Math.sin(u)*ring*scale[2]*n*flatten);
-      const shade=.86+Math.sin(u*13+v*17)*.05;
-      c.push(shade,shade*1.025,shade*1.035);
-    }
-  }
-  for(let y=0;y<segH;y++)for(let x=0;x<segW;x++){
-    const a=y*(segW+1)+x,b=a+1,d=(y+1)*(segW+1)+x,e=d+1;
-    idx.push(a,b,d,b,e,d);
+    idx.push(a,d,b,b,d,c);
   }
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(p,3));
-  g.setAttribute('color',new THREE.Float32BufferAttribute(c,3));g.setIndex(idx);g.computeVertexNormals();return g;
-}
-function addEllipsoid(THREE,parent,position,scale,material,name){
-  const mesh=new THREE.Mesh(makeEllipsoidGeometry(THREE,scale),material);
-  mesh.position.set(...position);mesh.name=name;mesh.castShadow=true;parent.add(mesh);return mesh;
+  g.setAttribute('color',new THREE.Float32BufferAttribute(col,3));g.setIndex(idx);g.computeVertexNormals();return g;
 }
 
-function makeArm(THREE, root, side, skin, name) {
-  const pivot=new THREE.Group();pivot.name=name+'_Pivot';pivot.position.set(side*.345,1.79,0);root.add(pivot);
-  addTubeMesh(THREE,pivot,[[0,0,0],[side*.105,-.2,.015],[side*.15,-.52,.045],[side*.12,-.78,.075],[side*.13,-1.12,.115],[side*.12,-1.31,.13]],
-    [.19,.16,.125,.115,.078,.058],skin,20,42,name+'_Continuous_Limb');
-  addTubeMesh(THREE,pivot,[[side*.12,-1.25,.13],[side*.13,-1.39,.18],[side*.13,-1.49,.19]],
-    [.075,.09,.065],skin,18,18,name+'_Palm');
-  for(let i=0;i<4;i++){
-    const spread=(i-1.5)*.038, length=[.19,.25,.27,.21][i], sx=side*.13+spread;
-    addTubeMesh(THREE,pivot,[[sx,-1.45,.19],[sx+spread*.25,-1.52,.22],[sx+spread*.55,-1.45-length*.78,.24],[sx+spread*.7,-1.45-length,.235]],
-      [.027,.024,.016,.005],skin,9,18,name+'_Finger_'+i);
+function tubeGeometry(THREE,points,radii,radial=14,tubular=28,rough=.035){
+  const curve=new THREE.CatmullRomCurve3(points.map(p=>new THREE.Vector3(...p)));
+  const frames=curve.computeFrenetFrames(tubular,false),p=[],col=[],idx=[];
+  for(let i=0;i<=tubular;i++){
+    const t=i/tubular,center=curve.getPointAt(t),q=t*(radii.length-1),k=Math.min(radii.length-2,Math.floor(q)),f=q-k;
+    const radius=radii[k]*(1-f)+radii[k+1]*f;
+    for(let j=0;j<radial;j++){
+      const a=j/radial*Math.PI*2,w=1+Math.sin(a*3+i*.41)*rough+Math.sin(a*7-i*.19)*rough*.45;
+      const v=center.clone().addScaledVector(frames.normals[i],Math.cos(a)*radius*w)
+        .addScaledVector(frames.binormals[i],Math.sin(a)*radius*w);
+      p.push(v.x,v.y,v.z);
+      const shade=.82+Math.sin(v.x*87+v.y*59+v.z*73)*.09;
+      col.push(shade,shade*1.025,shade*1.04);
+    }
   }
-  addTubeMesh(THREE,pivot,[[side*.055,-1.39,.17],[side*.015,-1.46,.21],[side*-.04,-1.56,.23],[side*-.06,-1.62,.22]],
-    [.038,.032,.019,.005],skin,10,18,name+'_Thumb');
+  for(let i=0;i<tubular;i++)for(let j=0;j<radial;j++){
+    const a=i*radial+j,b=i*radial+(j+1)%radial,c=(i+1)*radial+(j+1)%radial,d=(i+1)*radial+j;
+    idx.push(a,b,d,b,c,d);
+  }
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(p,3));
+  g.setAttribute('color',new THREE.Float32BufferAttribute(col,3));g.setIndex(idx);g.computeVertexNormals();return g;
+}
+function addTube(THREE,parent,points,radii,material,radial=12,tubular=24,name='Organic_Ridge'){
+  const m=new THREE.Mesh(tubeGeometry(THREE,points,radii,radial,tubular),material);
+  m.name=name;m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;
+}
+function makeOrbGeometry(THREE,scale,detail=.2){
+  const g=new THREE.SphereGeometry(1,40,28),p=g.attributes.position;
+  for(let i=0;i<p.count;i++){
+    const x=p.getX(i),y=p.getY(i),z=p.getZ(i);
+    const n=1+Math.sin(x*8+y*11+z*5)*detail*.09+Math.sin(x*17-y*9+z*13)*detail*.035;
+    p.setXYZ(i,x*scale[0]*n,y*scale[1]*n,z*scale[2]*n);
+  }
+  p.needsUpdate=true;g.computeVertexNormals();return g;
+}
+function addOrganicOrb(THREE,parent,pos,scale,mat,name,detail=.2){
+  const m=new THREE.Mesh(makeOrbGeometry(THREE,scale,detail),mat);
+  m.position.set(...pos);m.name=name;m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;
+}
+
+function makeArm(THREE,root,side,skin,ridge,name,length){
+  const pivot=new THREE.Group();pivot.name=name+'_Pivot';
+  pivot.position.set(side*(side<0?.39:.34),1.73,side<0?-.015:.025);root.add(pivot);
+  const extra=length-1.48;
+  const points=side<0
+    ?[[0,0,0],[side*.12,-.2,.025],[side*.18,-.48,.08],[side*.11,-.76,.12],[side*.16,-1.08,.16],[side*.19,-1.35-extra*.45,.18],[side*.21,-1.58-extra,.16]]
+    :[[0,0,0],[side*.13,-.18,.02],[side*.19,-.42,.065],[side*.16,-.68,.11],[side*.23,-.92,.14],[side*.27,-1.12-extra*.4,.16]];
+  const radii=side<0?[.205,.17,.13,.115,.083,.061,.043]:[.22,.18,.15,.12,.092,.055];
+  addTube(THREE,pivot,points,radii,skin,22,52,name+'_Sculpted_Limb');
+  const end=points[points.length-1];
+  addTube(THREE,pivot,[end,[end[0]+side*.025,end[1]-.11,end[2]+.055],[end[0]+side*.035,end[1]-.2,end[2]+.075]],
+    [.07,.09,.055],skin,18,24,name+'_Palm_Form');
+  for(let i=0;i<4;i++){
+    const spread=(i-1.5)*.052,flen=.25+(i%2)*.11+(side<0?.09:0),x=end[0]+spread;
+    addTube(THREE,pivot,[[x,end[1]-.13,end[2]+.08],[x+spread*.3,end[1]-.25,end[2]+.13],
+      [x+spread*.55,end[1]-.25-flen*.7,end[2]+.17],[x+spread*.8,end[1]-.23-flen,end[2]+.13]],
+      [.032,.027,.014,.002],skin,9,22,name+'_Long_Digit_'+i);
+  }
+  addTube(THREE,pivot,[[end[0]-side*.045,end[1]-.13,end[2]+.06],[end[0]-side*.12,end[1]-.23,end[2]+.12],
+    [end[0]-side*.17,end[1]-.37,end[2]+.15]],[.045,.028,.002],skin,10,20,name+'_Hooked_Thumb');
   return pivot;
 }
-
-function makeLeg(THREE, root, side, skin, name) {
-  const pivot=new THREE.Group();pivot.name=name+'_Pivot';pivot.position.set(side*.155,.77,0);root.add(pivot);
-  addTubeMesh(THREE,pivot,[[0,0,0],[side*.025,-.18,-.085],[side*.055,-.38,-.14],[side*.07,-.53,-.055],[side*.075,-.69,.02]],
-    [.17,.145,.105,.087,.06],skin,18,34,name+'_Bent_Limb');
-  addTubeMesh(THREE,pivot,[[side*.075,-.66,.015],[side*.075,-.75,.12],[side*.075,-.76,.26]],
-    [.065,.09,.06],skin,16,20,name+'_Long_Foot');
+function makeLeg(THREE,root,side,skin,ridge,name,length){
+  const pivot=new THREE.Group();pivot.name=name+'_Pivot';pivot.position.set(side*.17,.76,0);root.add(pivot);
+  const pts=side<0
+    ?[[0,0,0],[side*.04,-.18,-.09],[side*.11,-.39,-.15],[side*.04,-.57,-.04],[side*.12,-.76,.04],[side*.16,-.9,.13]]
+    :[[0,0,0],[side*.03,-.2,-.07],[side*.06,-.4,-.13],[side*.14,-.55,-.035],[side*.18,-.76,.08]];
+  addTube(THREE,pivot,pts,side<0?[.18,.15,.11,.09,.07,.045]:[.19,.15,.12,.085,.05],skin,20,42,name+'_Bent_Sculpted_Leg');
+  const foot=pts[pts.length-1];
+  addTube(THREE,pivot,[foot,[foot[0],foot[1]-.025,foot[2]+.16],[foot[0]+side*.035,foot[1]-.04,foot[2]+.29]],
+    [.075,.085,.035],skin,16,22,name+'_Distorted_Foot');
   for(let i=0;i<4;i++){
-    const x=side*.075+(i-1.5)*.032;
-    addTubeMesh(THREE,pivot,[[x,-.75,.22],[x,-.78,.30],[x+(i-1.5)*.007,-.79,.355]],
-      [.026,.018,.004],skin,8,12,name+'_Toe_'+i);
+    const x=foot[0]+(i-1.5)*.045;
+    addTube(THREE,pivot,[[x,foot[1]-.025,foot[2]+.22],[x+(i-1.5)*.012,foot[1]-.06,foot[2]+.31],
+      [x+(i-1.5)*.02,foot[1]-.075,foot[2]+.39]],[.027,.015,.001],skin,8,16,name+'_Toe_'+i);
   }
   return pivot;
 }
