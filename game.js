@@ -210,7 +210,7 @@ function emitSound(c,type,volume){
   if(!c)return;
   const now=performance.now()/1000;
   const mc=cellAt(monster.position);
-  const audible=soundCanBeHeard(c,mc,volume);
+  const audible=soundCanBeHeard(c,mc,volume,type);
 
   // 괴물이 실제로 들을 수 있는 소음만 흥분도에 반영한다.
   // 첫 소음은 기록만 하고, 3초 안에 두 번째 소음이 들려야 상승이 시작된다.
@@ -235,9 +235,15 @@ function wallCountBetween(a,b){
   for(let i=1;i<steps;i++){const t=i/steps,x=Math.round(a.x+(b.x-a.x)*t),z=Math.round(a.z+(b.z-a.z)*t);if(!isOpen(x,z))blocked++;}
   return blocked;
 }
-function soundCanBeHeard(a,b,volume){
+function soundCanBeHeard(a,b,volume,type){
   const d=Math.hypot(a.x-b.x,a.z-b.z),walls=wallCountBetween(a,b);
-  const effective=d+walls*1.5;return effective<=(volume*14+1);
+  const effective=d+walls*1.5;
+
+  // 숨소리와 바닥 삐걱임은 바로 근처에서만 들린다.
+  // 감지기와 충전음은 기존처럼 벽을 감안해도 먼 거리까지 전달된다.
+  if(type==='breath'||type==='creak')return effective<=2.0;
+  if(type==='detector'||type==='charge')return effective<=(volume*14+1);
+  return effective<=(volume*14+1);
 }
 function hasLineOfSight(a,b){
   const steps=Math.max(Math.abs(b.x-a.x),Math.abs(b.z-a.z))*3;
