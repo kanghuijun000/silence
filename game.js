@@ -16,7 +16,7 @@ const view = $('view');
 let scene, camera, renderer, clock;
 let maze = [], floorNoise = [], stations = [], stationMeshes = [];
 let player, monster, exitMesh, exitCell, spawnCell;
-let running = false, gameOver = false;
+let running = false, gameOver = false, sprintExhausted = false;
 let stamina = 1, battery = CONFIG.detectorCapacity, detectorUntil = 0;
 let yaw = 0, pitch = 0, joystick = {x:0,y:0}, runHeld = false;
 let lastStep = 0, lastAmbient = 0, nextMonsterSound = 0;
@@ -202,7 +202,10 @@ function playNoise(kind,position,volume=1){
   else if(kind==='monster'){tone(58,.75,'sawtooth',.055,-25);noiseBurst(.55,.06,300);}
 }
 function emitSound(c,type,volume){
-  if(!c)return;lastHeard={cell:{x:c.x,z:c.z},type,volume};lastHeardAt=performance.now()/1000;
+  if(!c)return;
+  // 이미 플레이어를 직접 추격 중이면 발소리가 추격 AI에 추가 이점을 주지 않는다.
+  if(monsterState==='chase')return;
+  lastHeard={cell:{x:c.x,z:c.z},type,volume};lastHeardAt=performance.now()/1000;
   const mc=cellAt(monster.position);const d=Math.hypot(mc.x-c.x,mc.z-c.z);
   if(soundCanBeHeard(c,mc,volume)){monsterTarget={...c};monsterState='investigate';pathRefresh=0;}
 }
@@ -242,7 +245,7 @@ function movePlayer(dt){
   const forward=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw));
   const right=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw));
   const dir=forward.clone().multiplyScalar(-joystick.y).add(right.multiplyScalar(joystick.x)).normalize();
-  const wantsRun=runHeld&&stamina>0.002;
+  const wantsRun=runHeld&&!sprintExhausted&&stamina>0.002;
   const speed=wantsRun?5.0:2.35;
   const dx=dir.x*speed*dt,dz=dir.z*speed*dt;
   let moved=false;
@@ -252,8 +255,9 @@ function movePlayer(dt){
 }
 function updatePlayer(dt,now){
   const isMoving=Math.hypot(joystick.x,joystick.y)>.08;
-  const wantsRun=isMoving&&runHeld&&stamina>0.001;
-  if(wantsRun)stamina=Math.max(0,stamina-dt/CONFIG.staminaRunSeconds);
+  const wantsRun=isMoving&&runHeld&&!sprintExhausted&&stamina>0.001;
+  if(wantsRun){stamina=Math.max(0,stamina-dt/CONFIG.staminaRunSeconds);if(stamina<=0)sprintExhausted=true;}
+  else if(!runHeld)sprintExhausted=false;
   else if(isMoving)stamina=Math.min(1,stamina+dt/CONFIG.staminaRecoverySeconds);
   const moved=movePlayer(dt);
   // 숨소리는 달리기 중·완충 상태에는 없고, 걷는 중 실제 회복 중일 때만 발생
@@ -339,7 +343,7 @@ function resetGame(){
     scene.add(new THREE.AmbientLight(0x34414e,.28));
   }
   if(chargingGain&&audioCtx)chargingGain.gain.setValueAtTime(0,audioCtx.currentTime);
-  stamina=1;battery=CONFIG.detectorCapacity;detectorUntil=0;joystick={x:0,y:0};runHeld=false;
+  stamina=1;sprintExhausted=false;battery=CONFIG.detectorCapacity;detectorUntil=0;joystick={x:0,y:0};runHeld=false;
   monsterState='wander';monsterTarget=null;lastSeen=null;lastHeard=null;lastHeardAt=0;path=[];pathRefresh=0;stationProgress=0;activeStation=null;lastStep=0;lastBreath=0;lastChargeSound=0;lastAmbient=0;nextMonsterSound=performance.now()/1000+30+Math.random()*30;
   generateMaze();buildWorld();setupPlayerAndMonster();updateHud();gameOver=false;
 }
