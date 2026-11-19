@@ -12,6 +12,9 @@ const CONFIG = {
 };
 
 const $ = id => document.getElementById(id);
+let deferredInstallPrompt=null;
+window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredInstallPrompt=event;const button=$('installBtn');if(button){button.textContent='앱 설치';button.disabled=false;}const status=$('installStatus');if(status)status.textContent='설치할 준비가 완료되었습니다.';});
+window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;const button=$('installBtn');if(button){button.textContent='설치 완료';button.disabled=true;}const status=$('installStatus');if(status)status.textContent='SILENCE가 설치되었습니다.';});
 const view = $('view');
 let scene, camera, renderer, clock;
 let maze = [], floorNoise = [], stations = [], stationMeshes = [];
@@ -388,6 +391,7 @@ function bindControls(){
   $('runBtn').addEventListener('pointerup',runEnd);$('runBtn').addEventListener('pointercancel',runEnd);$('runBtn').addEventListener('pointerleave',runEnd);
   $('scanBtn').addEventListener('click',useDetector);
   $('startBtn').addEventListener('click',startGame);$('restartBtn').addEventListener('click',startGame);
+  $('installBtn').addEventListener('click',async()=>{const status=$('installStatus');if(deferredInstallPrompt){deferredInstallPrompt.prompt();const choice=await deferredInstallPrompt.userChoice;status.textContent=choice.outcome==='accepted'?'설치를 시작했습니다.':'설치가 취소되었습니다.';deferredInstallPrompt=null;}else{status.textContent='설치 창을 아직 열 수 없습니다. Chrome 메뉴(⋮)에서 “앱 설치” 또는 “홈 화면에 추가”를 선택해 주세요.';}});
   window.addEventListener('resize',()=>{if(!camera||!renderer)return;const portrait=innerHeight>innerWidth,w=portrait?innerHeight:innerWidth,h=portrait?innerWidth:innerHeight;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false);});
   document.addEventListener('visibilitychange',()=>{if(document.hidden){runHeld=false;joystick={x:0,y:0};}});
 }
