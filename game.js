@@ -5,7 +5,7 @@ const CONFIG = {
   mazeSize: 51,          // 약 50x50 규모의 홀수 격자
   cellSize: 3,
   wallHeight: 3.3,
-  stationCount: 5,
+  stationCount: 10,
   staminaRunSeconds: 10,
   staminaRecoverySeconds: 8,
   detectorSeconds: 5,
