@@ -227,12 +227,127 @@ function hasLineOfSight(a,b){
   for(let i=1;i<steps;i++){const t=i/steps,x=Math.round(a.x+(b.x-a.x)*t),z=Math.round(a.z+(b.z-a.z)*t);if(!isOpen(x,z))return false;}return true;
 }
 function showMessage(text,duration=1900){const e=$('message');e.textContent=text;e.classList.add('show');clearTimeout(messageTimer);messageTimer=setTimeout(()=>e.classList.remove('show'),duration);}
+let detectorScanEffect = null;
+function triggerDetectorScan(){
+  if(detectorScanEffect){
+    scene.remove(detectorScanEffect.group);
+    detectorScanEffect.geometry.dispose();
+    detectorScanEffect.material.dispose();
+    detectorScanEffect=null;
+  }
+  const origin=player.position.clone();
+  const radius=40;
+  const radiusCells=Math.ceil(radius/cell);
+  const positions=[];
+  const addLine=(x1,y1,z1,x2,y2,z2)=>{
+    positions.push(x1,y1,z1,x2,y2,z2);
+  };
+
+  // 바닥과 천장: 플레이어를 중심으로 한 원형 범위 안에 촘촘한 스캔 격자 생성
+  const gridStep=.6;
+  for(let offset=-radius;offset<=radius;offset+=gridStep){
+    const extent=Math.sqrt(Math.max(0,radius*radius-offset*offset));
+    for(const y of [.018,CONFIG.wallHeight-.018]){
+      addLine(origin.x+offset,y,origin.z-extent,origin.x+offset,y,origin.z+extent);
+      addLine(origin.x-extent,y,origin.z+offset,origin.x+extent,y,origin.z+offset);
+    }
+  }
+
+  // 벽의 통로 쪽 면마다 격자를 배치해 파동이 모서리를 따라 이어지는 느낌 구현
+  const center=cellAt(origin);
+  for(let z=Math.max(0,center.z-radiusCells);z<=Math.min(CONFIG.mazeSize-1,center.z+radiusCells);z++){
+    for(let x=Math.max(0,center.x-radiusCells);x<=Math.min(CONFIG.mazeSize-1,center.x+radiusCells);x++){
+      if(!maze[z][x])continue;
+      const wx=(x-half)*cell,wz=(z-half)*cell;
+      if(Math.hypot(wx-origin.x,wz-origin.z)>radius+cell)continue;
+      const faces=[[1,0],[-1,0],[0,1],[0,-1]];
+      for(const [dx,dz] of faces){
+        if(!isOpen(x+dx,z+dz))continue;
+        const y0=.025,y1=CONFIG.wallHeight-.025;
+        if(dx!==0){
+          const px=wx+dx*cell/2+dx*.018;
+          for(let u=-cell/2;u<=cell/2+.001;u+=gridStep){
+            const zz=wz+u;
+            addLine(px,y0,zz,px,y1,zz);
+          }
+          for(let y=y0;y<=y1+.001;y+=gridStep){
+            addLine(px,y,wz-cell/2,px,y,wz+cell/2);
+          }
+        }else{
+          const pz=wz+dz*cell/2+dz*.018;
+          for(let u=-cell/2;u<=cell/2+.001;u+=gridStep){
+            const xx=wx+u;
+            addLine(xx,y0,pz,xx,y1,pz);
+          }
+          for(let y=y0;y<=y1+.001;y+=gridStep){
+            addLine(wx-cell/2,y,pz,wx+cell/2,y,pz);
+          }
+        }
+      }
+    }
+  }
+
+  const geometry=new THREE.BufferGeometry();
+  geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+  const material=new THREE.ShaderMaterial({
+    uniforms:{
+      uOrigin:{value:new THREE.Vector2(origin.x,origin.z)},
+      uTime:{value:0},
+      uColor:{value:new THREE.Color(0x65eaff)}
+    },
+    vertexShader:`varying vec3 vWorldPosition;
+      void main(){
+        vec4 worldPosition=modelMatrix*vec4(position,1.0);
+        vWorldPosition=worldPosition.xyz;
+        gl_Position=projectionMatrix*viewMatrix*worldPosition;
+      }`,
+    fragmentShader:`uniform vec2 uOrigin;
+      uniform float uTime;
+      uniform vec3 uColor;
+      varying vec3 vWorldPosition;
+      void main(){
+        float distanceFromSource=distance(vWorldPosition.xz,uOrigin);
+        float waveFront=uTime*15.0;
+        float ring=1.0-smoothstep(.12,1.45,abs(distanceFromSource-waveFront));
+        float trail=exp(-max(waveFront-distanceFromSource,0.0)*.19)*step(distanceFromSource,waveFront);
+        float fade=1.0-smoothstep(2.05,2.65,uTime);
+        float flicker=.88+.12*sin(uTime*21.0+vWorldPosition.x*2.7+vWorldPosition.y*4.1+vWorldPosition.z*2.2);
+        float alpha=clamp((ring*.95+trail*.34)*fade*flicker,0.0,.92);
+        if(alpha<.012)discard;
+        gl_FragColor=vec4(uColor,alpha);
+      }`,
+    transparent:true,
+    blending:THREE.AdditiveBlending,
+    depthTest:true,
+    depthWrite:false,
+    side:THREE.DoubleSide,
+    toneMapped:false
+  });
+  const lines=new THREE.LineSegments(geometry,material);
+  lines.renderOrder=3;
+  lines.frustumCulled=false;
+  scene.add(lines);
+  detectorScanEffect={group:lines,geometry,material,startedAt:performance.now()/1000};
+}
+function updateDetectorScan(now){
+  if(!detectorScanEffect)return;
+  const elapsed=now-detectorScanEffect.startedAt;
+  detectorScanEffect.material.uniforms.uTime.value=elapsed;
+  if(elapsed>=2.7){
+    scene.remove(detectorScanEffect.group);
+    detectorScanEffect.geometry.dispose();
+    detectorScanEffect.material.dispose();
+    detectorScanEffect=null;
+  }
+}
+
 function useDetector(){
   if(!running||gameOver)return;
   const now=performance.now()/1000;
   if(activeStation||now<detectorCooldownUntil)return;
   if(battery<=0){showMessage('감지기 배터리가 부족하다.');return;}
   battery--;detectorUntil=now+CONFIG.detectorSeconds;detectorCooldownUntil=now+5;
+  triggerDetectorScan();
   setMonsterVisible(true,true);playNoise('detector',player.position,1.15);
   updateHud();
 }
@@ -433,6 +548,7 @@ function animate(){
   const dt=Math.min(clock.getDelta(),.05),now=performance.now()/1000;
   if(running&&!gameOver){updatePlayer(dt,now);monsterUpdate(dt,now);updateAmbient(now);setCamera();}
   drawMinimap(now);
+  updateDetectorScan(now);
   if(exitMesh)exitMesh.rotation.y+=dt*.08;
   for(const s of stations)if(s.mesh){s.mesh.rotation.y+=dt*.35;}
   renderer.render(scene,camera);
