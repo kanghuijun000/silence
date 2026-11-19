@@ -37,7 +37,6 @@
     <div id="touch-ui">
       <div id="joystick"><div id="stick"></div></div>
       <div class="actions">
-        <button id="lookHint" class="action small">시야 회전</button>
         <button id="runBtn" class="action">달리기</button>
         <button id="scanBtn" class="action">감지기 <small>5초</small></button>
       </div>
@@ -46,22 +45,15 @@
       <div class="eyebrow">A FIRST-PERSON HORROR ESCAPE</div>
       <h1>SILENCE</h1>
       <p>소리를 내면, 그것이 찾아온다.</p>
-      <div class="instructions">
-        <span>왼쪽 조이스틱 · 이동</span>
-        <span>화면 오른쪽 드래그 · 시야 회전</span>
-        <span>달리기 · 최대 10초 / 회복 8초</span>
-        <span>감지기 · 5초 동안 괴물 확인</span>
-      </div>
-      <button id="startBtn" class="primary">게임 시작</button>
-      <button id="installBtn" class="install-button" type="button">앱 설치</button>
-      <p id="installStatus" class="install-status" aria-live="polite">Chrome에서 앱으로 설치할 수 있습니다.</p>
+      <div class="start-actions"><button id="startBtn" class="primary">게임 시작</button><button id="guideBtn" class="secondary">게임방법</button></div>
       <small>이어폰 사용을 권장합니다.</small>
     </div>
+    <section id="guideModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="guideTitle"><div class="guide-window"><header class="guide-header"><h2 id="guideTitle">게임 설명서</h2><button id="closeGuideBtn" class="close-guide" aria-label="설명서 닫기">×</button></header><div class="guide-content"><article><h3>탈출 목표</h3><p>지하 미로를 탐험해 출구를 찾아 탈출하세요. 괴물의 추적을 피해야 합니다.</p></article><article><h3>이동과 시야</h3><p>왼쪽 조이스틱으로 이동하고 화면 오른쪽을 드래그해 시야를 회전합니다. 달리기 버튼을 누르고 있는 동안 빠르게 이동합니다.</p></article><article><h3>감지기</h3><p>감지기를 사용하면 5초 동안 괴물의 위치를 확인할 수 있습니다. 배터리는 최대 5회분이며 충전 구역에서 충전할 수 있습니다.</p></article><article><h3>스태미나</h3><p>최대 10초 동안 달릴 수 있고 완전히 회복하는 데 약 8초가 걸립니다. 회복 중 발생하는 숨소리도 괴물에게 들릴 수 있습니다.</p></article><article><h3>충전 구역</h3><p>충전 구역에 머무르면 초당 배터리 1칸이 충전됩니다. 충전 중에는 소리가 발생합니다. 충전을 중단하거나 완전히 충전하면 충전기가 사라지고 다른 위치에 다시 나타납니다.</p></article><article><h3>소리와 괴물</h3><p>달리기, 감지기 사용, 충전, 숨소리는 괴물의 주의를 끌 수 있습니다. 괴물은 벽을 통과하지 못하며 소리를 수색하거나 시야에 들어온 플레이어를 추격합니다.</p></article><article><h3>미니맵</h3><p>주변 지형을 표시하며, 감지기 작동 중 범위 안의 괴물은 빨간 점으로 표시됩니다.</p></article><article><h3>게임오버</h3><p>괴물에게 붙잡히면 게임이 종료됩니다. 다시 시작하면 새로운 미로에서 도전할 수 있습니다.</p></article></div></div></section>
     <div id="endScreen" class="screen hidden">
       <div class="eyebrow" id="endEyebrow">RESULT</div>
       <h1 id="endTitle">탈출 실패</h1>
       <p id="endText"></p>
-      <button id="restartBtn" class="primary">다시 시작</button>
+      <div class="end-actions"><button id="restartBtn" class="primary">다시 시작</button><button id="menuBtn" class="secondary">메인 화면</button></div>
     </div>
   </main>
   <script type="module" src="./game.js"></script>
