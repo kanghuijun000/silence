@@ -84,7 +84,7 @@ function initThree(){
   scene=new THREE.Scene(); scene.background=new THREE.Color(0x18232b); scene.fog=new THREE.FogExp2(0x18232b,0.012);
   camera=new THREE.PerspectiveCamera(76,innerWidth/innerHeight,.08,110);
   renderer=new THREE.WebGLRenderer({antialias:false,powerPreference:'high-performance'});
-  renderer.setPixelRatio(Math.min(devicePixelRatio,1.5)); renderer.setSize(innerWidth,innerHeight);
+  renderer.setPixelRatio(Math.min(devicePixelRatio,1.5)); const portrait=innerHeight>innerWidth; renderer.setSize(portrait?innerHeight:innerWidth,portrait?innerWidth:innerHeight,false);
   renderer.outputColorSpace=THREE.SRGBColorSpace; view.replaceChildren(renderer.domElement);
   clock=new THREE.Clock();
   scene.add(new THREE.HemisphereLight(0xc8d8e5,0x4b5358,1.65));
@@ -380,15 +380,15 @@ function bindControls(){
   const joyEnd=e=>{if(joyPointer===e.pointerId){joyPointer=null;joystick={x:0,y:0};stick.style.transform='';}};
   joy.addEventListener('pointerup',joyEnd);joy.addEventListener('pointercancel',joyEnd);
   let lookPointer=null,lastX=0,lastY=0;
-  renderer?.domElement.addEventListener('pointerdown',e=>{if(e.clientX<innerWidth*.38)return;lookPointer=e.pointerId;lastX=e.clientX;lastY=e.clientY;});
-  window.addEventListener('pointermove',e=>{if(lookPointer!==e.pointerId)return;const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;yaw-=dx*.0045;pitch=Math.max(-1.05,Math.min(1.05,pitch-dy*.0035));});
+  renderer?.domElement.addEventListener('pointerdown',e=>{const portrait=innerHeight>innerWidth;if(portrait?e.clientY<innerHeight*.38:e.clientX<innerWidth*.38)return;lookPointer=e.pointerId;lastX=e.clientX;lastY=e.clientY;});
+  window.addEventListener('pointermove',e=>{if(lookPointer!==e.pointerId)return;const rawX=e.clientX-lastX,rawY=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;const portrait=innerHeight>innerWidth,dx=portrait?rawY:rawX,dy=portrait?-rawX:rawY;yaw-=dx*.0045;pitch=Math.max(-1.05,Math.min(1.05,pitch-dy*.0035));});
   window.addEventListener('pointerup',e=>{if(lookPointer===e.pointerId)lookPointer=null;});
   $('runBtn').addEventListener('pointerdown',e=>{e.preventDefault();runHeld=true;$('runBtn').classList.add('active');});
   const runEnd=()=>{runHeld=false;$('runBtn').classList.remove('active');};
   $('runBtn').addEventListener('pointerup',runEnd);$('runBtn').addEventListener('pointercancel',runEnd);$('runBtn').addEventListener('pointerleave',runEnd);
   $('scanBtn').addEventListener('click',useDetector);
   $('startBtn').addEventListener('click',startGame);$('restartBtn').addEventListener('click',startGame);
-  window.addEventListener('resize',()=>{if(!camera||!renderer)return;camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+  window.addEventListener('resize',()=>{if(!camera||!renderer)return;const portrait=innerHeight>innerWidth,w=portrait?innerHeight:innerWidth,h=portrait?innerWidth:innerHeight;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false);});
   document.addEventListener('visibilitychange',()=>{if(document.hidden){runHeld=false;joystick={x:0,y:0};}});
 }
 function boot(){
