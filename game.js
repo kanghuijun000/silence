@@ -2,10 +2,10 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.m
 import { createMonsterModel } from './monster-model.js';
 
 const CONFIG = {
-  mazeSize: 51,          // 약 50x50 규모의 홀수 격자
+  mazeSize: 41,          // 탐색 부담을 줄인 약 40x40 규모의 홀수 격자
   cellSize: 3,
   wallHeight: 3.3,
-  stationCount: 10,
+  stationCount: 7,
   staminaRunSeconds: 10,
   staminaRecoverySeconds: 8,
   detectorSeconds: 5,
