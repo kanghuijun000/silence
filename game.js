@@ -87,11 +87,14 @@ function findPath(start,goal){
 function initThree(){
   scene=new THREE.Scene(); scene.background=new THREE.Color(0x080d11); scene.fog=new THREE.FogExp2(0x10171b,0.018);
   camera=new THREE.PerspectiveCamera(76,innerWidth/innerHeight,.08,110);
-  renderer=new THREE.WebGLRenderer({antialias:false,powerPreference:'high-performance'});
-  renderer.setPixelRatio(Math.min(devicePixelRatio,1.5)); const portrait=innerHeight>innerWidth; renderer.setSize(portrait?innerHeight:innerWidth,portrait?innerWidth:innerHeight,false);
-  renderer.outputColorSpace=THREE.SRGBColorSpace; view.replaceChildren(renderer.domElement);
+  renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance',stencil:false,depth:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,1.75)); const portrait=innerHeight>innerWidth; renderer.setSize(portrait?innerHeight:innerWidth,portrait?innerWidth:innerHeight,false);
+  renderer.outputColorSpace=THREE.SRGBColorSpace;
+  renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.12;
+  renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  view.replaceChildren(renderer.domElement);
   clock=new THREE.Clock();
-  scene.add(new THREE.HemisphereLight(0x8497a5,0x171c20,.74));const light=new THREE.DirectionalLight(0x9aa8b4,.34);light.position.set(-10,20,8);scene.add(light);scene.add(new THREE.AmbientLight(0x66727b,.27));const flashlight=new THREE.SpotLight(0xd5e3e8,2.3,22,Math.PI/7,.55,1.4);flashlight.position.set(0,0,0);flashlight.target.position.set(0,0,-1);camera.add(flashlight);camera.add(flashlight.target);scene.add(camera);
+  scene.add(new THREE.HemisphereLight(0x8497a5,0x171c20,.74));const light=new THREE.DirectionalLight(0x9aa8b4,.42);light.position.set(-10,20,8);light.castShadow=true;light.shadow.mapSize.set(1024,1024);light.shadow.camera.near=.5;light.shadow.camera.far=55;light.shadow.bias=-.00018;scene.add(light);scene.add(new THREE.AmbientLight(0x66727b,.27));const flashlight=new THREE.SpotLight(0xd5e3e8,2.45,22,Math.PI/7,.55,1.4);flashlight.position.set(0,0,0);flashlight.target.position.set(0,0,-1);flashlight.castShadow=true;flashlight.shadow.mapSize.set(1024,1024);flashlight.shadow.camera.near=.1;flashlight.shadow.camera.far=24;camera.add(flashlight);camera.add(flashlight.target);scene.add(camera);
 }
 function addBox(x,y,z,sx,sy,sz,mat){
   const mesh=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),mat);mesh.position.set(x,y,z);scene.add(mesh);return mesh;
