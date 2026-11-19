@@ -258,7 +258,7 @@ function updatePlayer(dt,now){
   const moved=movePlayer(dt);
   // 숨소리는 달리기 중·완충 상태에는 없고, 걷는 중 실제 회복 중일 때만 발생
   if(!wantsRun&&isMoving&&stamina<.999&&now-lastBreath>=1.35){breathingSound();lastBreath=now;}
-  if(moved&&now-lastStep>(wantsRun?.34:.72)){
+  if(moved&&now-lastStep>(wantsRun ? 0.34 : 0.72)){
     lastStep=now;const c=cellAt(player.position),surface=floorNoise[c.z]?.[c.x];
     if(surface)playNoise(surface,player.position,wantsRun?1.25:.72);
     else if(wantsRun)playNoise('run',player.position,1.15);
@@ -332,7 +332,13 @@ function finish(success){
   $('endScreen').classList.remove('hidden');
 }
 function resetGame(){
-  if(scene){while(scene.children.length)scene.remove(scene.children[0]);}
+  if(scene){
+    while(scene.children.length)scene.remove(scene.children[0]);
+    scene.add(new THREE.HemisphereLight(0x91a7bd,0x15191c,1.05));
+    const keyLight=new THREE.DirectionalLight(0xc2d1dc,.35);keyLight.position.set(-10,20,8);scene.add(keyLight);
+    scene.add(new THREE.AmbientLight(0x34414e,.28));
+  }
+  if(chargingGain&&audioCtx)chargingGain.gain.setValueAtTime(0,audioCtx.currentTime);
   stamina=1;battery=CONFIG.detectorCapacity;detectorUntil=0;joystick={x:0,y:0};runHeld=false;
   monsterState='wander';monsterTarget=null;lastSeen=null;lastHeard=null;lastHeardAt=0;path=[];pathRefresh=0;stationProgress=0;activeStation=null;lastStep=0;lastBreath=0;lastChargeSound=0;lastAmbient=0;nextMonsterSound=performance.now()/1000+30+Math.random()*30;
   generateMaze();buildWorld();setupPlayerAndMonster();updateHud();gameOver=false;
