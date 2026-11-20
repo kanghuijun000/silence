@@ -30,6 +30,7 @@ let nextLocationPing = 0, soundAlertUntil = 0, locationAlertUntil = 0, sightAler
 let lastSurfaceCellKey = '', lastCreakAt = -Infinity;
 let stationProgress = 0, activeStation = null, messageTimer = 0;
 let audioCtx = null, masterGain = null, chargingOsc = null, chargingGain = null;
+let musicGain = null, musicNodes = [], musicTimer = null, musicStep = 0;
 let monsterGroup, monsterVisible = false, monsterThroughWalls = false;
 let monsterRig = null, monsterAnimTime = 0;
 const cell = CONFIG.cellSize;
@@ -207,6 +208,56 @@ function ensureAudio(){
   masterGain=audioCtx.createGain();masterGain.gain.value=.55;masterGain.connect(audioCtx.destination);
   chargingGain=audioCtx.createGain();chargingGain.gain.value=0;chargingGain.connect(masterGain);
   chargingOsc=audioCtx.createOscillator();chargingOsc.type='sine';chargingOsc.frequency.value=118;chargingOsc.connect(chargingGain);chargingOsc.start();
+  setupHorrorMusic();
+}
+function setupHorrorMusic(){
+  musicGain=audioCtx.createGain();musicGain.gain.value=0;musicGain.connect(masterGain);
+  const makeDrone=(frequency,type,level,detune=0)=>{
+    const osc=audioCtx.createOscillator(),gain=audioCtx.createGain(),filter=audioCtx.createBiquadFilter();
+    osc.type=type;osc.frequency.value=frequency;osc.detune.value=detune;
+    filter.type='lowpass';filter.frequency.value=type==='sine'?260:190;filter.Q.value=.55;
+    gain.gain.value=level;osc.connect(filter);filter.connect(gain);gain.connect(musicGain);osc.start();
+    musicNodes.push(osc);
+  };
+  makeDrone(43.65,'sine',.105);
+  makeDrone(65.41,'triangle',.035,-7);
+  makeDrone(87.31,'sine',.024,5);
+  makeDrone(130.81,'sine',.012,-11);
+  const length=Math.floor(audioCtx.sampleRate*6),buffer=audioCtx.createBuffer(1,length,audioCtx.sampleRate),data=buffer.getChannelData(0);
+  let last=0;
+  for(let i=0;i<length;i++){last=last*.985+(Math.random()*2-1)*.015;data[i]=last*2.2;}
+  const wind=audioCtx.createBufferSource(),windFilter=audioCtx.createBiquadFilter(),windGain=audioCtx.createGain();
+  wind.buffer=buffer;wind.loop=true;windFilter.type='lowpass';windFilter.frequency.value=460;windFilter.Q.value=.7;
+  windGain.gain.value=.42;wind.connect(windFilter);windFilter.connect(windGain);windGain.connect(musicGain);wind.start();musicNodes.push(wind);
+  const lfo=audioCtx.createOscillator(),lfoGain=audioCtx.createGain(),droneBus=audioCtx.createGain();
+  // 아주 느린 음량 변화로 지하 공간의 압박감을 만든다.
+  droneBus.gain.value=1;lfo.type='sine';lfo.frequency.value=.035;lfoGain.gain.value=.12;
+  lfo.connect(lfoGain);lfoGain.connect(droneBus.gain);lfo.start();musicNodes.push(lfo);
+}
+function playHorrorNote(frequency){
+  if(!audioCtx||!musicGain)return;
+  const now=audioCtx.currentTime,osc=audioCtx.createOscillator(),overtone=audioCtx.createOscillator();
+  const filter=audioCtx.createBiquadFilter(),envelope=audioCtx.createGain();
+  osc.type='sine';osc.frequency.setValueAtTime(frequency,now);
+  overtone.type='triangle';overtone.frequency.setValueAtTime(frequency*1.498,now);
+  filter.type='lowpass';filter.frequency.value=520;filter.Q.value=.65;
+  envelope.gain.setValueAtTime(.0001,now);envelope.gain.linearRampToValueAtTime(.045,now+.18);
+  envelope.gain.exponentialRampToValueAtTime(.0001,now+5.8);
+  osc.connect(filter);overtone.connect(filter);filter.connect(envelope);envelope.connect(musicGain);
+  osc.start(now);overtone.start(now);osc.stop(now+6);overtone.stop(now+6);
+}
+function startHorrorMusic(){
+  if(!audioCtx||!musicGain)return;
+  if(musicTimer)clearInterval(musicTimer);
+  musicGain.gain.cancelScheduledValues(audioCtx.currentTime);
+  musicGain.gain.setTargetAtTime(.72,audioCtx.currentTime,.9);
+  const notes=[110,82.41,98,73.42,65.41,87.31,73.42,98];
+  musicStep=0;playHorrorNote(notes[musicStep++]);
+  musicTimer=setInterval(()=>{if(!running||paused||gameOver)return;playHorrorNote(notes[musicStep++%notes.length]);},7600);
+}
+function stopHorrorMusic(){
+  if(musicTimer){clearInterval(musicTimer);musicTimer=null;}
+  if(musicGain&&audioCtx)musicGain.gain.setTargetAtTime(0,audioCtx.currentTime,.65);
 }
 function tone(freq,duration,type='sine',volume=.12,slide=0){
   if(!audioCtx)return;const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=type;o.frequency.setValueAtTime(freq,audioCtx.currentTime);if(slide)o.frequency.exponentialRampToValueAtTime(Math.max(25,freq+slide),audioCtx.currentTime+duration);
@@ -627,7 +678,7 @@ function animate(){
   renderer.render(scene,camera);
 }
 function finish(success){
-  if(gameOver)return;gameOver=true;running=false;paused=false;runHeld=false;$('pauseModal').classList.add('hidden');
+  if(gameOver)return;stopHorrorMusic();gameOver=true;running=false;paused=false;runHeld=false;$('pauseModal').classList.add('hidden');
   $('endEyebrow').textContent=success?'ESCAPED':'FOUND';
   $('endTitle').textContent=success?'탈출 성공':'괴물에게 붙잡혔다';
   $('endText').textContent=success?'미로를 빠져나왔다.':'다음에는 소리를 더 신중하게 관리해야 한다.';
@@ -651,7 +702,7 @@ function resetGame(){
 }
 function startGame(){
   if(updatePending){window.location.reload();return;}
-  ensureAudio();if(!renderer)initThree();resetGame();paused=false;$('pauseModal').classList.add('hidden');clock.start();running=true;
+  ensureAudio();startHorrorMusic();if(!renderer)initThree();resetGame();paused=false;$('pauseModal').classList.add('hidden');clock.start();running=true;
   $('startScreen').classList.add('hidden');$('endScreen').classList.add('hidden');
   $('game').classList.add('playing');
   if(screen.orientation?.lock)screen.orientation.lock('landscape').catch(()=>{});
@@ -675,7 +726,7 @@ function resumeGame(){
   updateAudioOutput();
 }
 function exitToMenu(){
-  running=false;paused=false;gameOver=true;runHeld=false;joystick={x:0,y:0};
+  stopHorrorMusic();running=false;paused=false;gameOver=true;runHeld=false;joystick={x:0,y:0};
   if(chargingGain&&audioCtx)chargingGain.gain.setTargetAtTime(0,audioCtx.currentTime,.03);
   $('pauseModal').classList.add('hidden');$('endScreen').classList.add('hidden');
   $('game').classList.remove('playing');$('message').classList.remove('show');
