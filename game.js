@@ -269,16 +269,16 @@ function noiseBurst(duration=.16,volume=.08,filter=700){
   const src=audioCtx.createBufferSource(),f=audioCtx.createBiquadFilter(),g=audioCtx.createGain();src.buffer=buf;f.type='lowpass';f.frequency.value=filter;g.gain.value=volume;src.connect(f);f.connect(g);g.connect(masterGain);src.start();
 }
 function monsterAudioOutput(baseVolume){
-  if(!audioCtx||!masterGain||audioMuted||paused||!running)return null;
+  if(!audioCtx||!masterGain||audioMuted||paused||!running||!monster||!player)return null;
   const distance=monster.position.distanceTo(player.position);
   const from=cellAt(player.position),to=cellAt(monster.position);
   const walls=wallCountBetween(from,to);
-  const effective=distance/cell+walls*.9;
-  if(effective>17)return null;
-  const distanceGain=1/(1+effective*.17);
-  const wallGain=Math.pow(.76,Math.min(walls,7));
+  const effective=distance/cell+walls*.55;
+  // 멀리 있어도 소리가 완전히 끊기지 않도록 완만한 거리 감쇠를 적용한다.
+  const distanceGain=Math.max(.16,1/(1+effective*.075));
+  const wallGain=Math.max(.48,Math.pow(.91,Math.min(walls,9)));
   const gain=audioCtx.createGain();
-  gain.gain.value=baseVolume*distanceGain*wallGain;
+  gain.gain.value=Math.min(.52,baseVolume*distanceGain*wallGain);
   const panner=audioCtx.createStereoPanner();
   const dx=monster.position.x-player.position.x,dz=monster.position.z-player.position.z;
   const pan=(dx*Math.cos(yaw)-dz*Math.sin(yaw))/Math.max(.001,distance);
@@ -286,60 +286,69 @@ function monsterAudioOutput(baseVolume){
   gain.connect(panner);panner.connect(masterGain);
   return gain;
 }
-function monsterNoise(out,duration,volume,cutoff,attack=.012){
+function monsterNoise(out,duration,volume,cutoff,attack=.012,highpass=90){
   if(!out||!audioCtx)return;
   const length=Math.max(1,Math.floor(audioCtx.sampleRate*duration));
   const buffer=audioCtx.createBuffer(1,length,audioCtx.sampleRate),data=buffer.getChannelData(0);
   for(let i=0;i<length;i++){
     const t=i/length;
-    const fade=Math.min(1,t/Math.max(.001,attack))*(1-t);
+    const fade=Math.min(1,t/Math.max(.001,attack))*Math.pow(1-t,.72);
     data[i]=(Math.random()*2-1)*fade;
   }
-  const source=audioCtx.createBufferSource(),filter=audioCtx.createBiquadFilter(),env=audioCtx.createGain();
-  source.buffer=buffer;filter.type='lowpass';filter.frequency.value=cutoff;filter.Q.value=.8;
+  const source=audioCtx.createBufferSource(),low=audioCtx.createBiquadFilter(),high=audioCtx.createBiquadFilter(),env=audioCtx.createGain();
+  source.buffer=buffer;
+  high.type='highpass';high.frequency.value=highpass;high.Q.value=.55;
+  low.type='lowpass';low.frequency.value=cutoff;low.Q.value=.75;
   env.gain.setValueAtTime(volume,audioCtx.currentTime);
-  env.gain.setTargetAtTime(.0001,audioCtx.currentTime+duration*.62,.12);
-  source.connect(filter);filter.connect(env);env.connect(out);
-  source.start();source.stop(audioCtx.currentTime+duration+.03);
+  env.gain.setTargetAtTime(.0001,audioCtx.currentTime+duration*.55,.09);
+  source.connect(high);high.connect(low);low.connect(env);env.connect(out);
+  source.start();source.stop(audioCtx.currentTime+duration+.04);
 }
-function monsterTone(out,frequency,duration,volume,type='sine',slide=0,filterFrequency=900,delay=0){
+function monsterTone(out,frequency,duration,volume,type='sine',slide=0,filterFrequency=1600,delay=0){
   if(!out||!audioCtx)return;
   const now=audioCtx.currentTime+delay,osc=audioCtx.createOscillator(),filter=audioCtx.createBiquadFilter(),env=audioCtx.createGain();
   osc.type=type;osc.frequency.setValueAtTime(frequency,now);
-  if(slide)osc.frequency.exponentialRampToValueAtTime(Math.max(24,frequency+slide),now+duration);
-  filter.type='lowpass';filter.frequency.value=filterFrequency;filter.Q.value=1.1;
-  env.gain.setValueAtTime(.0001,now);env.gain.linearRampToValueAtTime(volume,now+.035);
+  if(slide)osc.frequency.exponentialRampToValueAtTime(Math.max(35,frequency+slide),now+duration);
+  filter.type='lowpass';filter.frequency.value=filterFrequency;filter.Q.value=1.35;
+  env.gain.setValueAtTime(.0001,now);env.gain.linearRampToValueAtTime(volume,now+.025);
   env.gain.exponentialRampToValueAtTime(.0001,now+duration);
   osc.connect(filter);filter.connect(env);env.connect(out);
-  osc.start(now);osc.stop(now+duration+.04);
+  osc.start(now);osc.stop(now+duration+.05);
 }
 function playMonsterAudio(kind,intensity=1){
-  const base={breath:.17,vocal:.23,scream:.27,wall:.3,step:.2}[kind]||.18;
-  const out=monsterAudioOutput(base*Math.max(.55,Math.min(1.35,intensity)));
+  const base={breath:.36,vocal:.43,scream:.49,wall:.46,step:.39}[kind]||.34;
+  const out=monsterAudioOutput(base*Math.max(.7,Math.min(1.4,intensity)));
   if(!out)return;
   if(kind==='breath'){
-    monsterNoise(out,.82,.7,390,.12);
-    monsterTone(out,48,.9,.48,'triangle',-12,180,.02);
-    monsterTone(out,72,.55,.18,'sine',-18,260,.12);
+    // 저음 호흡 위에 중역의 거친 공기 흐름을 겹쳐 작은 스피커에서도 식별되게 한다.
+    monsterNoise(out,.95,.78,1750,.1,170);
+    monsterTone(out,118,.88,.34,'triangle',-34,850,.02);
+    monsterTone(out,238,.58,.16,'sawtooth',-68,1150,.12);
   }else if(kind==='vocal'){
-    monsterNoise(out,1.35,.72,1150,.025);
-    monsterTone(out,92,1.25,.58,'sawtooth',-48,620);
-    monsterTone(out,137,.95,.28,'triangle',-72,780,.08);
-    monsterTone(out,54,1.55,.42,'sine',-19,210,.16);
+    // 의도적으로 내는 듯한 불규칙한 목소리: 갈라지는 중역과 낮은 공명을 겹친다.
+    monsterNoise(out,1.42,.88,2600,.018,140);
+    monsterTone(out,148,1.3,.46,'sawtooth',-76,1900);
+    monsterTone(out,292,1.05,.25,'triangle',-132,2100,.07);
+    monsterTone(out,438,.82,.13,'sawtooth',-190,2400,.14);
+    monsterTone(out,82,1.5,.24,'sine',-24,430,.12);
   }else if(kind==='scream'){
-    monsterNoise(out,1.65,.92,1850,.018);
-    monsterTone(out,165,1.45,.64,'sawtooth',-112,1250);
-    monsterTone(out,246,1.1,.25,'triangle',-155,1450,.08);
-    monsterTone(out,62,1.8,.45,'sine',-24,250,.12);
+    monsterNoise(out,1.72,.95,3300,.012,180);
+    monsterTone(out,220,1.48,.48,'sawtooth',-145,2500);
+    monsterTone(out,365,1.12,.3,'triangle',-205,2800,.06);
+    monsterTone(out,510,.88,.16,'sawtooth',-270,3000,.13);
+    monsterTone(out,105,1.8,.28,'sine',-36,520,.1);
   }else if(kind==='wall'){
-    monsterTone(out,74,.42,.78,'sine',-35,190);
-    monsterNoise(out,.2,.9,520,.006);
-    monsterTone(out,168,.62,.32,'triangle',-48,460,.035);
-    monsterTone(out,42,.8,.3,'sine',-8,120,.08);
+    // 벽 타격: 짧은 고역 충격 + 둔탁한 중저역 잔향
+    monsterNoise(out,.28,.95,2800,.003,130);
+    monsterTone(out,112,.48,.55,'sine',-52,520);
+    monsterTone(out,246,.58,.3,'triangle',-96,1150,.025);
+    monsterTone(out,392,.34,.12,'sawtooth',-130,1800,.04);
   }else if(kind==='step'){
-    monsterTone(out,58,.16,.72,'sine',-20,150);
-    monsterNoise(out,.14,.55,360,.004);
-    monsterTone(out,96,.1,.2,'triangle',-28,260,.025);
+    // 발소리마다 선명한 어택과 두 겹의 둔탁한 울림을 넣는다.
+    monsterNoise(out,.18,.8,2100,.003,150);
+    monsterTone(out,104,.2,.5,'sine',-38,520);
+    monsterTone(out,208,.14,.24,'triangle',-70,950,.018);
+    monsterTone(out,312,.1,.1,'sawtooth',-100,1300,.025);
   }
 }
 function monsterHasNearbyWall(){
@@ -349,28 +358,28 @@ function monsterHasNearbyWall(){
 function updateMonsterAudio(now,distance,moving,speed){
   if(!audioCtx||!running||paused||gameOver)return;
   const arousal=monsterArousal;
-  const intensity=.72+arousal/210;
-  // 실제 이동 속도에 맞춰 발소리를 발생시킨다. 추격 시 더 빠르고 무거워진다.
+  const intensity=.78+arousal/145;
   const chargingPlayer=monsterState==='chase';
-  if(moving&&(chargingPlayer||speed>2.7)&&now-lastMonsterStepAt>(chargingPlayer?.37:speed>3.5?.34:.48)){
-    playMonsterAudio('step',intensity+(chargingPlayer?.12:0));lastMonsterStepAt=now;
+  // 추격 상태는 흥분도가 낮아도 실제 달리는 발소리를 낸다.
+  if(moving&&(chargingPlayer||speed>2.7)&&now-lastMonsterStepAt>(chargingPlayer?.34:speed>3.5?.38:.52)){
+    playMonsterAudio('step',intensity+(chargingPlayer?.16:0));lastMonsterStepAt=now;
   }
   if(now>=nextMonsterBreathAt){
-    if(distance<cell*16)playMonsterAudio('breath',intensity);
-    nextMonsterBreathAt=now+(arousal>=70?3.2+Math.random()*2.1:arousal>=35?4.8+Math.random()*3:6.5+Math.random()*4.5);
+    if(distance<cell*22)playMonsterAudio('breath',intensity);
+    nextMonsterBreathAt=now+(arousal>=70?2.8+Math.random()*1.8:arousal>=35?4+Math.random()*2.4:5.5+Math.random()*3.2);
   }
   if(now>=nextMonsterVocalAt){
-    if(distance<cell*16){
-      const kind=arousal>=72&&Math.random()<.38?'scream':'vocal';
+    if(distance<cell*22){
+      const kind=arousal>=68&&Math.random()<.48?'scream':'vocal';
       playMonsterAudio(kind,intensity);
     }
-    const interval=arousal>=75?6.5+Math.random()*4:arousal>=50?9+Math.random()*5:arousal>=25?13+Math.random()*7:19+Math.random()*10;
+    const interval=arousal>=75?5.5+Math.random()*3.5:arousal>=50?7.5+Math.random()*4:arousal>=25?10+Math.random()*5:13+Math.random()*7;
     nextMonsterVocalAt=now+interval;
   }
-  // 괴물이 벽 가까이에서 멈춰 있거나 탐색할 때만 간헐적으로 벽을 친다.
+  // 추격 중이 아니면 벽을 두드리는 행동을 불규칙하게 섞는다.
   if(now>=nextMonsterWallAt){
-    if(!chargingPlayer&&monsterHasNearbyWall()&&distance<cell*15)playMonsterAudio('wall',intensity);
-    nextMonsterWallAt=now+13+Math.random()*13;
+    if(!chargingPlayer&&monsterHasNearbyWall()&&distance<cell*20)playMonsterAudio('wall',intensity);
+    nextMonsterWallAt=now+9+Math.random()*10;
   }
 }
 function breathingSound(){
