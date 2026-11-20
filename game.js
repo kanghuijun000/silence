@@ -7,7 +7,7 @@ const CONFIG = {
   wallHeight: 3.3,
   stationCount: 7,
   staminaRunSeconds: 3,
-  staminaRecoverySeconds: 8,
+  staminaRecoverySeconds: 10,
   detectorSeconds: 5,
   detectorCapacity: 5
 };
