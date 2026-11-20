@@ -18,7 +18,7 @@ let scene, camera, renderer, clock;
 let maze = [], floorNoise = [], stations = [], stationMeshes = [];
 let player, monster, exitMesh, exitCell, spawnCell;
 let running = false, gameOver = false, sprintExhausted = false;
-let paused = false, audioMuted = false, displayBrightness = 3.1, brightnessPercent = 100;
+let paused = false, audioMuted = false, displayBrightness = 1.25, brightnessPercent = 100;
 let stamina = 1, battery = CONFIG.detectorCapacity, detectorUntil = 0, detectorCooldownUntil = 0;
 let yaw = 0, pitch = 0, joystick = {x:0,y:0}, runHeld = false;
 let lastStep = 0, lastAmbient = 0, nextMonsterSound = 0;
@@ -88,7 +88,7 @@ function findPath(start,goal){
 }
 
 function initThree(){
-  scene=new THREE.Scene(); scene.background=new THREE.Color(0x11191d); scene.fog=new THREE.FogExp2(0x1b252a,0.007);
+  scene=new THREE.Scene(); scene.background=new THREE.Color(0x05080b); scene.fog=new THREE.FogExp2(0x080d11,0.008);
   camera=new THREE.PerspectiveCamera(76,innerWidth/innerHeight,.08,110);
   renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance',stencil:false,depth:true});
   renderer.setPixelRatio(Math.min(devicePixelRatio,1.75)); const portrait=innerHeight>innerWidth; renderer.setSize(portrait?innerHeight:innerWidth,portrait?innerWidth:innerHeight,false);
@@ -97,7 +97,7 @@ function initThree(){
   renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   view.replaceChildren(renderer.domElement);
   clock=new THREE.Clock();
-  scene.add(new THREE.HemisphereLight(0xb8c8d1,0x41494c,1.5));const light=new THREE.DirectionalLight(0xc3d0d7,.72);light.position.set(-10,20,8);light.castShadow=true;light.shadow.mapSize.set(1024,1024);light.shadow.camera.near=.5;light.shadow.camera.far=55;light.shadow.bias=-.00018;scene.add(light);scene.add(new THREE.AmbientLight(0xa1adb4,.82));const flashlight=new THREE.SpotLight(0xf0f7fa,7.5,38,Math.PI/5,.42,1.05);flashlight.position.set(0,0,0);flashlight.target.position.set(0,0,-1);flashlight.castShadow=true;flashlight.shadow.mapSize.set(1024,1024);flashlight.shadow.camera.near=.1;flashlight.shadow.camera.far=24;camera.add(flashlight);camera.add(flashlight.target);scene.add(camera);
+  scene.add(new THREE.HemisphereLight(0x9aaab4,0x252b30,.22));const light=new THREE.DirectionalLight(0x9eabb3,.10);light.position.set(-10,20,8);light.castShadow=true;light.shadow.mapSize.set(1024,1024);light.shadow.camera.near=.5;light.shadow.camera.far=55;light.shadow.bias=-.00018;scene.add(light);scene.add(new THREE.AmbientLight(0x87939a,.12));const flashlight=new THREE.SpotLight(0xf0f7fa,9.5,38,Math.PI/5,.42,1.05);flashlight.position.set(0,0,0);flashlight.target.position.set(0,0,-1);flashlight.castShadow=true;flashlight.shadow.mapSize.set(1024,1024);flashlight.shadow.camera.near=.1;flashlight.shadow.camera.far=24;camera.add(flashlight);camera.add(flashlight.target);scene.add(camera);
 }
 function addBox(x,y,z,sx,sy,sz,mat){
   const mesh=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),mat);mesh.position.set(x,y,z);scene.add(mesh);return mesh;
@@ -122,7 +122,7 @@ function buildWorld(){
   }
   walls.castShadow=true;walls.receiveShadow=true;scene.add(walls);walls.instanceMatrix.needsUpdate=true;
   // 낡은 비상등과 노출 배관
-  for(let z=3;z<CONFIG.mazeSize-3;z+=7)for(let x=3;x<CONFIG.mazeSize-3;x+=7)if(isOpen(x,z)){const p=world({x,z});const housing=new THREE.Mesh(new THREE.BoxGeometry(.78,.13,.28),new THREE.MeshStandardMaterial({color:0x56636a,emissive:0xa8c4ce,emissiveIntensity:1.15,roughness:.72}));housing.position.set(p.x,2.82,p.z);scene.add(housing);const tube=new THREE.Mesh(new THREE.BoxGeometry(.62,.035,.17),new THREE.MeshBasicMaterial({color:0xf4fcff}));tube.position.set(p.x,2.735,p.z);scene.add(tube);const l=new THREE.PointLight(0xd8edf4,2.4,17,1.8);l.position.set(p.x,2.58,p.z);scene.add(l);}
+  for(let z=3;z<CONFIG.mazeSize-3;z+=7)for(let x=3;x<CONFIG.mazeSize-3;x+=7)if(isOpen(x,z)){const p=world({x,z});const housing=new THREE.Mesh(new THREE.BoxGeometry(.78,.13,.28),new THREE.MeshStandardMaterial({color:0x56636a,emissive:0xa8c4ce,emissiveIntensity:1.15,roughness:.72}));housing.position.set(p.x,2.82,p.z);scene.add(housing);const tube=new THREE.Mesh(new THREE.BoxGeometry(.62,.035,.17),new THREE.MeshBasicMaterial({color:0xf4fcff}));tube.position.set(p.x,2.735,p.z);scene.add(tube);const l=new THREE.PointLight(0xd8edf4,1.35,15,1.8);l.position.set(p.x,2.58,p.z);scene.add(l);}
   const pm=new THREE.MeshStandardMaterial({color:0x343d40,metalness:.62,roughness:.72});for(let z=4;z<CONFIG.mazeSize-4;z+=9)for(let x=4;x<CONFIG.mazeSize-5;x++)if(isOpen(x,z)&&isOpen(x+1,z)&&isOpen(x+2,z)&&Math.random()<.12){const p=world({x,z}),pipe=new THREE.Mesh(new THREE.CylinderGeometry(.055,.055,cell*2.5,7),pm);pipe.rotation.z=Math.PI/2;pipe.position.set(p.x,2.72,p.z);scene.add(pipe);x+=2;}
   floorNoise=Array.from({length:CONFIG.mazeSize},()=>Array(CONFIG.mazeSize).fill(null));
   for(let z=1;z<CONFIG.mazeSize-1;z++)for(let x=1;x<CONFIG.mazeSize-1;x++)if(isOpen(x,z)&&Math.random()<.04){
@@ -612,9 +612,9 @@ function finish(success){
 function resetGame(){
   if(scene){
     while(scene.children.length)scene.remove(scene.children[0]);
-    scene.add(new THREE.HemisphereLight(0xb8c8d1,0x41494c,1.5));
-    const keyLight=new THREE.DirectionalLight(0xc3d0d7,.72);keyLight.position.set(-10,20,8);scene.add(keyLight);
-    scene.add(new THREE.AmbientLight(0xa1adb4,.82));
+    scene.add(new THREE.HemisphereLight(0x9aaab4,0x252b30,.22));
+    const keyLight=new THREE.DirectionalLight(0x9eabb3,.10);keyLight.position.set(-10,20,8);scene.add(keyLight);
+    scene.add(new THREE.AmbientLight(0x87939a,.12));
     scene.add(camera);
   }
   if(chargingGain&&audioCtx)chargingGain.gain.setValueAtTime(0,audioCtx.currentTime);
@@ -680,7 +680,7 @@ function bindControls(){
   });
   $('brightnessSlider').addEventListener('input',e=>{
     brightnessPercent=Number(e.target.value);
-    displayBrightness=3.1*(brightnessPercent/100);
+    displayBrightness=1.25*(brightnessPercent/100);
     $('brightnessValue').textContent=brightnessPercent+'%';
     if(renderer)renderer.toneMappingExposure=displayBrightness;
   });
