@@ -6,7 +6,7 @@ const CONFIG = {
   cellSize: 3,
   wallHeight: 3.3,
   stationCount: 7,
-  staminaRunSeconds: 10,
+  staminaRunSeconds: 3,
   staminaRecoverySeconds: 8,
   detectorSeconds: 5,
   detectorCapacity: 5
