@@ -683,7 +683,6 @@ function bindControls(){
     $('brightnessValue').textContent=Math.round(displayBrightness*100)+'%';
     if(renderer)renderer.toneMappingExposure=displayBrightness;
   });
-  $('pauseRestartBtn').addEventListener('click',startGame);
   $('exitGameBtn').addEventListener('click',exitToMenu);
   $('scanBtn').addEventListener('click',useDetector);
   $('startBtn').addEventListener('click',startGame);$('restartBtn').addEventListener('click',startGame);
