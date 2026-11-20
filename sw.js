@@ -1,5 +1,5 @@
-const CACHE_NAME = 'silence-cache-v26';
-const APP_FILES = ['./', './index.html', './style.css', './game.js', './monster-model.js', './manifest.json', './icon.svg', './install.html'];
+const CACHE_NAME = 'silence-cache-v27';
+const APP_FILES = ['./', './index.html', './style.css', './game.js', './monster-model.js', './manifest.json', './icon.svg', './icon-192.png', './install.html'];
 
 self.addEventListener('install', event => {
   event.waitUntil(
