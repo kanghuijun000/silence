@@ -48,62 +48,81 @@
     const installBtn=document.getElementById('installBtn');
     const hint=document.getElementById('hint');
     const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
-    const isStandalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
+    const isAppWindow=window.matchMedia('(display-mode: standalone)').matches
+      ||window.matchMedia('(display-mode: fullscreen)').matches
+      ||window.navigator.standalone===true;
+
+    installBtn.disabled=true;
 
     window.addEventListener('beforeinstallprompt',event=>{
       event.preventDefault();
       installPrompt=event;
-      installBtn.disabled=false;
-      installBtn.textContent='앱 설치하기';
-      hint.textContent='기기에 설치할 준비가 됐어요. 버튼을 눌러 설치하세요.';
+      if(!isAppWindow){
+        installBtn.disabled=false;
+        installBtn.textContent='정식 앱으로 설치하기';
+        hint.textContent='SILENCE를 독립 앱으로 설치할 수 있어요. 아래 버튼을 눌러 설치하세요.';
+      }
     });
 
     window.addEventListener('appinstalled',()=>{
       installPrompt=null;
       installBtn.disabled=true;
       installBtn.textContent='설치 완료';
-      hint.textContent='SILENCE가 기기에 설치됐어요.';
+      hint.textContent='설치가 완료됐어요. 홈 화면의 SILENCE 아이콘으로 실행하세요.';
     });
 
-    if(isStandalone){
-      installBtn.disabled=true;
-      installBtn.textContent='이미 설치된 앱입니다';
-      hint.textContent='SILENCE가 이미 설치되어 있어요.';
+    if(isAppWindow){
+      installBtn.textContent='앱에서 실행 중';
+      hint.textContent='SILENCE 앱 창에서 열렸어요.';
     }else if(isIOS){
-      hint.textContent='Safari의 공유 버튼을 누른 뒤 ‘홈 화면에 추가’를 선택하세요.';
-    }else if(!('onbeforeinstallprompt' in window)){
-      hint.textContent='설치 창이 자동으로 표시되지 않으면 Chrome 메뉴(⋮)에서 ‘앱 설치’ 또는 ‘홈 화면에 추가’를 선택하세요.';
+      installBtn.textContent='iOS 설치 안내';
+      hint.textContent='Safari 공유 메뉴에서 ‘홈 화면에 추가’를 이용하세요.';
+    }else{
+      installBtn.textContent='설치 가능 여부 확인 중';
+      hint.textContent='Chrome이 정식 앱 설치를 지원하는지 확인하고 있어요.';
+      window.setTimeout(()=>{
+        if(!installPrompt&&!isAppWindow){
+          installBtn.disabled=true;
+          installBtn.textContent='정식 설치를 사용할 수 없음';
+          hint.textContent='Chrome에서 정식 앱 설치 요청이 확인되지 않았어요. Chrome 메뉴에 ‘앱 설치’가 표시될 때만 설치하세요. ‘홈 화면에 추가’는 Chrome 바로가기를 만들 수 있어 최근 앱 아이콘이 Chrome으로 남을 수 있어요.';
+        }
+      },2500);
     }
 
     installBtn.addEventListener('click',async()=>{
-      if(isStandalone)return;
-      if(installPrompt){
-        installPrompt.prompt();
-        const choice=await installPrompt.userChoice;
+      if(isAppWindow||!installPrompt)return;
+      const prompt=installPrompt;
+      installPrompt=null;
+      try{
+        await prompt.prompt();
+        const choice=await prompt.userChoice;
         if(choice.outcome==='accepted'){
-          hint.textContent='설치를 진행하고 있어요.';
           installBtn.textContent='설치 진행 중';
           installBtn.disabled=true;
+          hint.textContent='설치가 끝나면 홈 화면의 SILENCE 아이콘으로 실행하세요.';
         }else{
-          hint.textContent='설치가 취소됐어요. 원할 때 다시 설치할 수 있습니다.';
+          installBtn.disabled=false;
+          installBtn.textContent='정식 앱으로 설치하기';
+          hint.textContent='설치가 취소됐어요. 원할 때 다시 시도할 수 있어요.';
         }
-        installPrompt=null;
-      }else if(isIOS){
-        hint.textContent='Safari 하단 공유 버튼 → ‘홈 화면에 추가’를 선택하세요.';
-      }else{
-        hint.textContent='Chrome 우측 상단 ⋮ 메뉴 → ‘앱 설치’ 또는 ‘홈 화면에 추가’를 선택하세요.';
+      }catch(error){
+        installBtn.disabled=true;
+        installBtn.textContent='설치 요청 실패';
+        hint.textContent='Chrome이 설치 요청을 처리하지 못했어요. 페이지를 새로고침한 뒤 다시 확인하세요.';
       }
     });
 
     document.getElementById('shareBtn').addEventListener('click',async()=>{
       try{
         if(navigator.share) await navigator.share({title:'SILENCE 앱 설치',text:'SILENCE 3D 공포 탈출 게임을 설치해 보세요.',url:INSTALL_URL});
-        else if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(INSTALL_URL);hint.textContent='최신 설치 링크를 복사했어요.';}
-        else{hint.textContent='아래 설치 링크를 주소창에서 복사해 공유하세요.';}
+        else if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(INSTALL_URL);hint.textContent='설치 링크를 복사했어요.';}
+        else{hint.textContent='주소창의 설치 링크를 복사해 공유하세요.';}
       }catch(error){if(error.name!=='AbortError')hint.textContent='설치 링크를 복사해 공유하세요.';}
     });
 
-    if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+    if('serviceWorker' in navigator){
+      navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).catch(()=>{});
+    }
   </script>
 </body>
 </html>
