@@ -37,6 +37,26 @@ const half = (CONFIG.mazeSize - 1) / 2;
 const worldSize = CONFIG.mazeSize * cell;
 const tmpVec = new THREE.Vector3();
 
+function getViewportSize(){
+  const viewport=window.visualViewport;
+  const width=Math.max(1,viewport?.width||document.documentElement.clientWidth||window.innerWidth);
+  const height=Math.max(1,viewport?.height||document.documentElement.clientHeight||window.innerHeight);
+  return {width,height,portrait:height>width};
+}
+function syncGameViewport(){
+  const {width,height,portrait}=getViewportSize();
+  const root=document.documentElement;
+  root.style.setProperty('--screen-w',width+'px');
+  root.style.setProperty('--screen-h',height+'px');
+  if(camera&&renderer){
+    const renderWidth=portrait?height:width;
+    const renderHeight=portrait?width:height;
+    camera.aspect=renderWidth/renderHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(renderWidth,renderHeight,false);
+  }
+}
+
 function randInt(n){ return Math.floor(Math.random()*n); }
 function key(c){ return c.x+','+c.z; }
 function inside(x,z){ return x>=0&&z>=0&&x<CONFIG.mazeSize&&z<CONFIG.mazeSize; }
@@ -89,9 +109,13 @@ function findPath(start,goal){
 
 function initThree(){
   scene=new THREE.Scene(); scene.background=new THREE.Color(0x05080b); scene.fog=new THREE.FogExp2(0x080d11,0.008);
-  camera=new THREE.PerspectiveCamera(76,innerWidth/innerHeight,.08,110);
+  syncGameViewport();
+  const viewport=getViewportSize();
+  const renderWidth=viewport.portrait?viewport.height:viewport.width;
+  const renderHeight=viewport.portrait?viewport.width:viewport.height;
+  camera=new THREE.PerspectiveCamera(76,renderWidth/renderHeight,.08,110);
   renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance',stencil:false,depth:true});
-  renderer.setPixelRatio(Math.min(devicePixelRatio,1.75)); const portrait=innerHeight>innerWidth; renderer.setSize(portrait?innerHeight:innerWidth,portrait?innerWidth:innerHeight,false);
+  renderer.setPixelRatio(Math.min(devicePixelRatio,1.75)); renderer.setSize(renderWidth,renderHeight,false);
   renderer.outputColorSpace=THREE.SRGBColorSpace;
   renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=displayBrightness;
   renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
@@ -665,8 +689,8 @@ function bindControls(){
   const joyEnd=e=>{if(joyPointer===e.pointerId){joyPointer=null;joystick={x:0,y:0};stick.style.transform='';}};
   joy.addEventListener('pointerup',joyEnd);joy.addEventListener('pointercancel',joyEnd);
   let lookPointer=null,lastX=0,lastY=0;
-  renderer?.domElement.addEventListener('pointerdown',e=>{const portrait=innerHeight>innerWidth;if(portrait?e.clientY<innerHeight*.38:e.clientX<innerWidth*.38)return;lookPointer=e.pointerId;lastX=e.clientX;lastY=e.clientY;});
-  window.addEventListener('pointermove',e=>{if(lookPointer!==e.pointerId)return;const rawX=e.clientX-lastX,rawY=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;const portrait=innerHeight>innerWidth,dx=portrait?rawY:rawX,dy=portrait?-rawX:rawY;yaw-=dx*.0045;pitch=Math.max(-1.05,Math.min(1.05,pitch-dy*.0035));});
+  renderer?.domElement.addEventListener('pointerdown',e=>{const portrait=getViewportSize().portrait;if(portrait?e.clientY<innerHeight*.38:e.clientX<innerWidth*.38)return;lookPointer=e.pointerId;lastX=e.clientX;lastY=e.clientY;});
+  window.addEventListener('pointermove',e=>{if(lookPointer!==e.pointerId)return;const rawX=e.clientX-lastX,rawY=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;const portrait=getViewportSize().portrait,dx=portrait?rawY:rawX,dy=portrait?-rawX:rawY;yaw-=dx*.0045;pitch=Math.max(-1.05,Math.min(1.05,pitch-dy*.0035));});
   window.addEventListener('pointerup',e=>{if(lookPointer===e.pointerId)lookPointer=null;});
   $('runBtn').addEventListener('pointerdown',e=>{e.preventDefault();runHeld=true;$('runBtn').classList.add('active');});
   const runEnd=()=>{runHeld=false;$('runBtn').classList.remove('active');};
@@ -688,7 +712,13 @@ function bindControls(){
   $('scanBtn').addEventListener('click',useDetector);
   $('startBtn').addEventListener('click',startGame);$('restartBtn').addEventListener('click',startGame);
   $('guideBtn').addEventListener('click',()=>{$('guideModal').classList.remove('hidden');});$('closeGuideBtn').addEventListener('click',()=>$('guideModal').classList.add('hidden'));$('menuBtn').addEventListener('click',()=>{if(updatePending){window.location.reload();return;}$('endScreen').classList.add('hidden');$('startScreen').classList.remove('hidden');});window.addEventListener('keydown',e=>{if(e.key==='Escape')$('guideModal').classList.add('hidden');});
-  window.addEventListener('resize',()=>{if(!camera||!renderer)return;const portrait=innerHeight>innerWidth,w=portrait?innerHeight:innerWidth,h=portrait?innerWidth:innerHeight;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false);});
+  const handleViewportChange=()=>syncGameViewport();
+  window.addEventListener('resize',handleViewportChange,{passive:true});
+  window.addEventListener('orientationchange',()=>setTimeout(handleViewportChange,120),{passive:true});
+  if(window.visualViewport){
+    window.visualViewport.addEventListener('resize',handleViewportChange,{passive:true});
+    window.visualViewport.addEventListener('scroll',handleViewportChange,{passive:true});
+  }
   document.addEventListener('visibilitychange',()=>{if(document.hidden){runHeld=false;joystick={x:0,y:0};}});
 }
 let updatePending=false;
