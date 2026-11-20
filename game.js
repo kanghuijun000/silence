@@ -679,8 +679,9 @@ function bindControls(){
     updateAudioOutput();
   });
   $('brightnessSlider').addEventListener('input',e=>{
-    displayBrightness=Number(e.target.value);
-    $('brightnessValue').textContent=Math.round(displayBrightness*100)+'%';
+    brightnessPercent=Number(e.target.value);
+    displayBrightness=1.55*(brightnessPercent/100);
+    $('brightnessValue').textContent=brightnessPercent+'%';
     if(renderer)renderer.toneMappingExposure=displayBrightness;
   });
   $('exitGameBtn').addEventListener('click',exitToMenu);
