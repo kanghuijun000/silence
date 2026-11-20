@@ -254,7 +254,7 @@ function startHorrorMusic(){
   musicGain.gain.setTargetAtTime(.72,audioCtx.currentTime,.9);
   const notes=[110,82.41,98,73.42,65.41,87.31,73.42,98];
   musicStep=0;playHorrorNote(notes[musicStep++]);
-  musicTimer=setInterval(()=>{if(!running||paused||gameOver)return;playHorrorNote(notes[musicStep++%notes.length]);},7600);
+  musicTimer=setInterval(()=>{if(document.hidden||!running||paused||gameOver)return;playHorrorNote(notes[musicStep++%notes.length]);},7600);
 }
 function stopHorrorMusic(){
   if(musicTimer){clearInterval(musicTimer);musicTimer=null;}
@@ -356,8 +356,8 @@ function monsterHasNearbyWall(){
   return [[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dz])=>!isOpen(c.x+dx,c.z+dz));
 }
 function updateMonsterAudio(now,distance,moving,speed){
-  if(!audioCtx||!running||paused||gameOver)return;
-  const arousal=monsterArousal;
+  if(!audioCtx||document.hidden||!running||paused||gameOver)return;
+  const arousal=monsterArousal
   const intensity=.78+arousal/145;
   const chargingPlayer=monsterState==='chase';
   // 추격 상태는 흥분도가 낮아도 실제 달리는 발소리를 낸다.
@@ -826,7 +826,27 @@ function startGame(){
 function updateAudioOutput(){
   if(!masterGain||!audioCtx)return;
   masterGain.gain.cancelScheduledValues(audioCtx.currentTime);
-  masterGain.gain.setTargetAtTime(audioMuted||paused?0:.55,audioCtx.currentTime,.035);
+  masterGain.gain.setTargetAtTime(audioMuted||paused||document.hidden||!running||gameOver?0:.55,audioCtx.currentTime,.035);
+}
+function suspendGameAudio(){
+  if(!audioCtx)return;
+  if(masterGain){
+    masterGain.gain.cancelScheduledValues(audioCtx.currentTime);
+    masterGain.gain.setValueAtTime(0,audioCtx.currentTime);
+  }
+  if(audioCtx.state==='running')audioCtx.suspend().catch(()=>{});
+}
+function restoreGameAudio(){
+  if(!audioCtx||document.hidden||!running||paused||gameOver||audioMuted)return;
+  if(audioCtx.state==='suspended'){
+    audioCtx.resume().then(()=>updateAudioOutput()).catch(()=>{});
+  }else updateAudioOutput();
+}
+function handleAppVisibility(){
+  if(document.hidden){
+    runHeld=false;joystick={x:0,y:0};
+    suspendGameAudio();
+  }else restoreGameAudio();
 }
 function pauseGame(){
   if(!running||gameOver||paused)return;
@@ -885,7 +905,11 @@ function bindControls(){
     window.visualViewport.addEventListener('resize',handleViewportChange,{passive:true});
     window.visualViewport.addEventListener('scroll',handleViewportChange,{passive:true});
   }
-  document.addEventListener('visibilitychange',()=>{if(document.hidden){runHeld=false;joystick={x:0,y:0};}});
+  document.addEventListener('visibilitychange',handleAppVisibility);
+  window.addEventListener('pagehide',suspendGameAudio);
+  window.addEventListener('pageshow',handleAppVisibility);
+  document.addEventListener('freeze',suspendGameAudio);
+  document.addEventListener('resume',handleAppVisibility);
 }
 let updatePending=false;
 function applyPendingUpdate(){
