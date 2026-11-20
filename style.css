@@ -48,3 +48,10 @@
 .pause-actions .secondary{min-height:44px}
 .pause-actions .danger-option{color:#e5b2ad;border-color:#9c625d77;background:#2a1719}
 @media(max-height:430px){.pause-window{padding:13px 18px;width:min(360px,90vw)}.pause-window h2{margin:4px 0 12px;font-size:19px}.brightness-setting{padding:8px 10px;margin-bottom:8px}.pause-option{min-height:39px;margin-bottom:9px}.pause-actions{gap:6px}.pause-actions .primary{min-height:40px;padding:8px 20px}.pause-actions .secondary{min-height:36px}}
+
+/* 모바일 브라우저의 동적 주소창/화면 영역 변화에 맞춰 게임 캔버스를 재배치 */
+:root{--screen-w:100vw;--screen-h:100dvh}
+#game{position:fixed;width:var(--screen-w);height:var(--screen-h);left:0;top:0}
+@media(orientation:portrait){
+  #game{position:fixed;width:var(--screen-h);height:var(--screen-w);left:calc((var(--screen-w) - var(--screen-h))/2);top:calc((var(--screen-h) - var(--screen-w))/2);transform:rotate(90deg);transform-origin:center center}
+}
