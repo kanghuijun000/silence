@@ -18,6 +18,7 @@ let scene, camera, renderer, clock;
 let maze = [], floorNoise = [], stations = [], stationMeshes = [];
 let player, monster, exitMesh, exitCell, spawnCell;
 let running = false, gameOver = false, sprintExhausted = false;
+let paused = false, audioMuted = false, displayBrightness = 1.65;
 let stamina = 1, battery = CONFIG.detectorCapacity, detectorUntil = 0, detectorCooldownUntil = 0;
 let yaw = 0, pitch = 0, joystick = {x:0,y:0}, runHeld = false;
 let lastStep = 0, lastAmbient = 0, nextMonsterSound = 0;
@@ -92,7 +93,7 @@ function initThree(){
   renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance',stencil:false,depth:true});
   renderer.setPixelRatio(Math.min(devicePixelRatio,1.75)); const portrait=innerHeight>innerWidth; renderer.setSize(portrait?innerHeight:innerWidth,portrait?innerWidth:innerHeight,false);
   renderer.outputColorSpace=THREE.SRGBColorSpace;
-  renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.65;
+  renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=displayBrightness;
   renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   view.replaceChildren(renderer.domElement);
   clock=new THREE.Clock();
@@ -602,7 +603,7 @@ function animate(){
   renderer.render(scene,camera);
 }
 function finish(success){
-  if(gameOver)return;gameOver=true;running=false;runHeld=false;
+  if(gameOver)return;gameOver=true;running=false;paused=false;runHeld=false;$('pauseModal').classList.add('hidden');
   $('endEyebrow').textContent=success?'ESCAPED':'FOUND';
   $('endTitle').textContent=success?'탈출 성공':'괴물에게 붙잡혔다';
   $('endText').textContent=success?'미로를 빠져나왔다.':'다음에는 소리를 더 신중하게 관리해야 한다.';
@@ -611,13 +612,13 @@ function finish(success){
 function resetGame(){
   if(scene){
     while(scene.children.length)scene.remove(scene.children[0]);
-    scene.add(new THREE.HemisphereLight(0x9aabb8,0x20272b,.9));
-    const keyLight=new THREE.DirectionalLight(0xaab8c2,.48);keyLight.position.set(-10,20,8);scene.add(keyLight);
-    scene.add(new THREE.AmbientLight(0x7d8991,.38));
+    scene.add(new THREE.HemisphereLight(0xb8c8d1,0x41494c,1.5));
+    const keyLight=new THREE.DirectionalLight(0xc3d0d7,.72);keyLight.position.set(-10,20,8);scene.add(keyLight);
+    scene.add(new THREE.AmbientLight(0xa1adb4,.82));
     scene.add(camera);
   }
   if(chargingGain&&audioCtx)chargingGain.gain.setValueAtTime(0,audioCtx.currentTime);
-  stamina=1;sprintExhausted=false;battery=CONFIG.detectorCapacity;detectorUntil=0;detectorCooldownUntil=0;joystick={x:0,y:0};runHeld=false;
+  paused=false;stamina=1;sprintExhausted=false;battery=CONFIG.detectorCapacity;detectorUntil=0;detectorCooldownUntil=0;joystick={x:0,y:0};runHeld=false;
   const now=performance.now()/1000;
   monsterState='wander';monsterTarget=null;lastSeen=null;lastHeard=null;lastHeardAt=0;path=[];pathRefresh=0;stationProgress=0;activeStation=null;lastStep=0;lastBreath=0;lastChargeSound=0;lastAmbient=0;nextMonsterSound=now+30+Math.random()*30;
   nextLocationPing=now+20+Math.random()*20;soundAlertUntil=0;locationAlertUntil=0;sightAlertUntil=0;lastSurfaceCellKey='';lastCreakAt=-Infinity;
@@ -626,11 +627,35 @@ function resetGame(){
 }
 function startGame(){
   if(updatePending){window.location.reload();return;}
-  ensureAudio();if(!renderer)initThree();resetGame();clock.start();running=true;
+  ensureAudio();if(!renderer)initThree();resetGame();paused=false;$('pauseModal').classList.add('hidden');clock.start();running=true;
   $('startScreen').classList.add('hidden');$('endScreen').classList.add('hidden');
   $('game').classList.add('playing');
   if(screen.orientation?.lock)screen.orientation.lock('landscape').catch(()=>{});
   showMessage('소리를 조심해라. 출구는 하나다.',2400);
+}
+function updateAudioOutput(){
+  if(!masterGain||!audioCtx)return;
+  masterGain.gain.cancelScheduledValues(audioCtx.currentTime);
+  masterGain.gain.setTargetAtTime(audioMuted||paused?0:.55,audioCtx.currentTime,.035);
+}
+function pauseGame(){
+  if(!running||gameOver||paused)return;
+  paused=true;running=false;runHeld=false;joystick={x:0,y:0};
+  $('runBtn').classList.remove('active');
+  $('pauseModal').classList.remove('hidden');
+  updateAudioOutput();
+}
+function resumeGame(){
+  if(!paused||gameOver)return;
+  paused=false;running=true;$('pauseModal').classList.add('hidden');
+  updateAudioOutput();
+}
+function exitToMenu(){
+  running=false;paused=false;gameOver=true;runHeld=false;joystick={x:0,y:0};
+  if(chargingGain&&audioCtx)chargingGain.gain.setTargetAtTime(0,audioCtx.currentTime,.03);
+  $('pauseModal').classList.add('hidden');$('endScreen').classList.add('hidden');
+  $('game').classList.remove('playing');$('message').classList.remove('show');
+  $('startScreen').classList.remove('hidden');updateAudioOutput();
 }
 function bindControls(){
   const joy=$('joystick'),stick=$('stick');let joyPointer=null;
@@ -646,6 +671,20 @@ function bindControls(){
   $('runBtn').addEventListener('pointerdown',e=>{e.preventDefault();runHeld=true;$('runBtn').classList.add('active');});
   const runEnd=()=>{runHeld=false;$('runBtn').classList.remove('active');};
   $('runBtn').addEventListener('pointerup',runEnd);$('runBtn').addEventListener('pointercancel',runEnd);$('runBtn').addEventListener('pointerleave',runEnd);
+  $('pauseBtn').addEventListener('click',pauseGame);
+  $('resumeBtn').addEventListener('click',resumeGame);
+  $('soundToggleBtn').addEventListener('click',()=>{
+    audioMuted=!audioMuted;
+    $('soundToggleBtn').textContent=audioMuted?'소리 켜기':'소리 끄기';
+    updateAudioOutput();
+  });
+  $('brightnessSlider').addEventListener('input',e=>{
+    displayBrightness=Number(e.target.value);
+    $('brightnessValue').textContent=Math.round(displayBrightness*100)+'%';
+    if(renderer)renderer.toneMappingExposure=displayBrightness;
+  });
+  $('pauseRestartBtn').addEventListener('click',startGame);
+  $('exitGameBtn').addEventListener('click',exitToMenu);
   $('scanBtn').addEventListener('click',useDetector);
   $('startBtn').addEventListener('click',startGame);$('restartBtn').addEventListener('click',startGame);
   $('guideBtn').addEventListener('click',()=>{$('guideModal').classList.remove('hidden');});$('closeGuideBtn').addEventListener('click',()=>$('guideModal').classList.add('hidden'));$('menuBtn').addEventListener('click',()=>{if(updatePending){window.location.reload();return;}$('endScreen').classList.add('hidden');$('startScreen').classList.remove('hidden');});window.addEventListener('keydown',e=>{if(e.key==='Escape')$('guideModal').classList.add('hidden');});
