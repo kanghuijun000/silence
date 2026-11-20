@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#26343a"/><stop offset=".48" stop-color="#10191e"/><stop offset="1" stop-color="#030609"/></linearGradient>
+  <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#718087" stop-opacity=".52"/><stop offset="1" stop-color="#172329" stop-opacity=".08"/></linearGradient>
+  <linearGradient id="body" x1="0" y1="0" x2=".9" y2="1"><stop stop-color="#b9c2bc"/><stop offset=".34" stop-color="#69777a"/><stop offset=".72" stop-color="#303e43"/><stop offset="1" stop-color="#10171b"/></linearGradient>
+  <radialGradient id="eye"><stop stop-color="#f5f8e9"/><stop offset=".35" stop-color="#c4d5ce"/><stop offset="1" stop-color="#6d8884"/></radialGradient>
+  <radialGradient id="beam"><stop stop-color="#d8e4dc" stop-opacity=".34"/><stop offset="1" stop-color="#d8e4dc" stop-opacity="0"/></radialGradient>
+  <filter id="glow"><feGaussianBlur stdDeviation="8"/></filter>
+  <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency=".72" numOctaves="3" seed="14"/><feColorMatrix values=".35 0 0 0 .08 .35 0 0 0 .1 .35 0 0 0 .12 0 0 0 .16 0"/></filter>
+  <clipPath id="frame"><rect width="512" height="512"/></clipPath>
+</defs>
+<g clip-path="url(#frame)">
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <!-- Narrow underground corridor -->
+  <path d="M0 0h144l112 160L0 430z" fill="url(#wall)"/>
+  <path d="M512 0H368L256 160l256 270z" fill="#29383e" opacity=".62"/>
+  <path d="M0 512V430l256-270 256 270v82z" fill="#0b1318"/>
+  <path d="M144 0h224L256 160z" fill="#879399" opacity=".10"/>
+  <path d="M0 95h137l119 65 119-65h137M0 246h65l191-86 191 86h65" fill="none" stroke="#aab7b7" stroke-opacity=".19" stroke-width="5"/>
+  <path d="M64 0v345M448 0v345M126 0v300M386 0v300" fill="none" stroke="#03080b" stroke-width="15" opacity=".72"/>
+  <path d="M222 28h68l-7 12h-54z" fill="#dce8df" opacity=".9" filter="url(#glow)"/>
+  <path d="M256 40 145 405h222z" fill="url(#beam)"/>
+  <path d="M256 43v113" stroke="#d6e2dc" stroke-opacity=".28" stroke-width="24" filter="url(#glow)"/>
+  <!-- Long, narrow silhouette -->
+  <ellipse cx="256" cy="455" rx="100" ry="18" fill="#000" opacity=".8"/>
+  <path d="M218 226 181 253 160 309 145 385 127 415 143 427 168 401 191 335 220 291M294 226 331 253 352 309 367 385 385 415 369 427 344 401 321 335 292 291" fill="none" stroke="#0a1115" stroke-width="32" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M218 226 181 253 160 309 145 385 127 415 143 427 168 401 191 335 220 291M294 226 331 253 352 309 367 385 385 415 369 427 344 401 321 335 292 291" fill="none" stroke="url(#body)" stroke-width="21" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="m228 331-17 61-8 48 18 7 22-49 13-48m28-19 17 61 8 48-18 7-22-49-13-48" fill="none" stroke="url(#body)" stroke-width="20" stroke-linecap="round"/>
+  <path d="m216 214 17-19h46l17 19-10 75-18 46h-24l-18-46z" fill="url(#body)" stroke="#111b20" stroke-width="7"/>
+  <path d="m231 250 25 8 25-8m-54 28 29 8 29-8m-47 28 18 5 18-5" fill="none" stroke="#d0d9d1" stroke-opacity=".2" stroke-width="4"/>
+  <!-- Distinctive folded, elongated head -->
+  <path d="m225 83-17 31-8 52 10 49 22 32 24 15 24-15 22-32 10-49-8-52-17-31-31-18z" fill="#0a1115" stroke="#111c20" stroke-width="8"/>
+  <path d="m229 89-13 29-7 47 9 43 19 27 19 12 19-12 19-27 9-43-7-47-13-29-27-15z" fill="url(#body)"/>
+  <path d="m210 145 31-17 15 15-13 30-34-8zm92 0-31-17-15 15 13 30 34-8z" fill="#091116"/>
+  <ellipse cx="239" cy="154" rx="8" ry="5" fill="url(#eye)"/>
+  <ellipse cx="273" cy="154" rx="8" ry="5" fill="url(#eye)"/>
+  <ellipse cx="239" cy="154" rx="13" ry="8" fill="#d9e8dc" opacity=".35" filter="url(#glow)"/>
+  <ellipse cx="273" cy="154" rx="13" ry="8" fill="#d9e8dc" opacity=".35" filter="url(#glow)"/>
+  <path d="m256 159-11 38 11 11 11-11z" fill="#1a252a"/>
+  <path d="M231 225q25 12 50 0" fill="none" stroke="#070d10" stroke-width="9" stroke-linecap="round"/>
+  <path d="m218 126-9 24 8 17m77-41 9 24-8 17m-68 20-8 20 11 15m55-35 8 20-11 15" fill="none" stroke="#e0e8df" stroke-opacity=".22" stroke-width="3"/>
+  <!-- Subtle distressed concrete finish -->
+  <rect width="512" height="512" filter="url(#grain)" opacity=".22"/>
+  <path d="M0 0h512v512H0z" fill="none" stroke="#c1ceca" stroke-opacity=".12" stroke-width="2"/>
+  <path d="M30 482h452" stroke="#91a3a3" stroke-opacity=".12" stroke-width="2"/>
+</g>
+</svg>
