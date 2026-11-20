@@ -18,7 +18,7 @@ let scene, camera, renderer, clock;
 let maze = [], floorNoise = [], stations = [], stationMeshes = [];
 let player, monster, exitMesh, exitCell, spawnCell;
 let running = false, gameOver = false, sprintExhausted = false;
-let paused = false, audioMuted = false, displayBrightness = 1.55, brightnessPercent = 100;
+let paused = false, audioMuted = false, displayBrightness = 3.1, brightnessPercent = 100;
 let stamina = 1, battery = CONFIG.detectorCapacity, detectorUntil = 0, detectorCooldownUntil = 0;
 let yaw = 0, pitch = 0, joystick = {x:0,y:0}, runHeld = false;
 let lastStep = 0, lastAmbient = 0, nextMonsterSound = 0;
@@ -680,7 +680,7 @@ function bindControls(){
   });
   $('brightnessSlider').addEventListener('input',e=>{
     brightnessPercent=Number(e.target.value);
-    displayBrightness=1.55*(brightnessPercent/100);
+    displayBrightness=3.1*(brightnessPercent/100);
     $('brightnessValue').textContent=brightnessPercent+'%';
     if(renderer)renderer.toneMappingExposure=displayBrightness;
   });
