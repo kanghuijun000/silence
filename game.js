@@ -87,16 +87,16 @@ function findPath(start,goal){
 }
 
 function initThree(){
-  scene=new THREE.Scene(); scene.background=new THREE.Color(0x080d11); scene.fog=new THREE.FogExp2(0x10171b,0.018);
+  scene=new THREE.Scene(); scene.background=new THREE.Color(0x080d11); scene.fog=new THREE.FogExp2(0x10171b,0.014);
   camera=new THREE.PerspectiveCamera(76,innerWidth/innerHeight,.08,110);
   renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance',stencil:false,depth:true});
   renderer.setPixelRatio(Math.min(devicePixelRatio,1.75)); const portrait=innerHeight>innerWidth; renderer.setSize(portrait?innerHeight:innerWidth,portrait?innerWidth:innerHeight,false);
   renderer.outputColorSpace=THREE.SRGBColorSpace;
-  renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.12;
+  renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.2;
   renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   view.replaceChildren(renderer.domElement);
   clock=new THREE.Clock();
-  scene.add(new THREE.HemisphereLight(0x8497a5,0x171c20,.74));const light=new THREE.DirectionalLight(0x9aa8b4,.42);light.position.set(-10,20,8);light.castShadow=true;light.shadow.mapSize.set(1024,1024);light.shadow.camera.near=.5;light.shadow.camera.far=55;light.shadow.bias=-.00018;scene.add(light);scene.add(new THREE.AmbientLight(0x66727b,.27));const flashlight=new THREE.SpotLight(0xd5e3e8,2.45,22,Math.PI/7,.55,1.4);flashlight.position.set(0,0,0);flashlight.target.position.set(0,0,-1);flashlight.castShadow=true;flashlight.shadow.mapSize.set(1024,1024);flashlight.shadow.camera.near=.1;flashlight.shadow.camera.far=24;camera.add(flashlight);camera.add(flashlight.target);scene.add(camera);
+  scene.add(new THREE.HemisphereLight(0x9aabb8,0x20272b,.9));const light=new THREE.DirectionalLight(0xaab8c2,.48);light.position.set(-10,20,8);light.castShadow=true;light.shadow.mapSize.set(1024,1024);light.shadow.camera.near=.5;light.shadow.camera.far=55;light.shadow.bias=-.00018;scene.add(light);scene.add(new THREE.AmbientLight(0x7d8991,.38));const flashlight=new THREE.SpotLight(0xd5e3e8,2.45,22,Math.PI/7,.55,1.4);flashlight.position.set(0,0,0);flashlight.target.position.set(0,0,-1);flashlight.castShadow=true;flashlight.shadow.mapSize.set(1024,1024);flashlight.shadow.camera.near=.1;flashlight.shadow.camera.far=24;camera.add(flashlight);camera.add(flashlight.target);scene.add(camera);
 }
 function addBox(x,y,z,sx,sy,sz,mat){
   const mesh=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),mat);mesh.position.set(x,y,z);scene.add(mesh);return mesh;
@@ -121,7 +121,7 @@ function buildWorld(){
   }
   walls.castShadow=true;walls.receiveShadow=true;scene.add(walls);walls.instanceMatrix.needsUpdate=true;
   // 낡은 비상등과 노출 배관
-  for(let z=3;z<CONFIG.mazeSize-3;z+=7)for(let x=3;x<CONFIG.mazeSize-3;x+=7)if(isOpen(x,z)){const p=world({x,z});const f=new THREE.Mesh(new THREE.BoxGeometry(.52,.12,.18),new THREE.MeshStandardMaterial({color:0x354047,emissive:0x17232a,emissiveIntensity:.35}));f.position.set(p.x,2.82,p.z);scene.add(f);const l=new THREE.PointLight(0x91a9b5,.42,8,2);l.position.set(p.x,2.62,p.z);scene.add(l);}
+  for(let z=3;z<CONFIG.mazeSize-3;z+=5)for(let x=3;x<CONFIG.mazeSize-3;x+=5)if(isOpen(x,z)){const p=world({x,z});const housing=new THREE.Mesh(new THREE.BoxGeometry(.78,.13,.28),new THREE.MeshStandardMaterial({color:0x46545a,emissive:0x829da5,emissiveIntensity:.55,roughness:.72}));housing.position.set(p.x,2.82,p.z);scene.add(housing);const tube=new THREE.Mesh(new THREE.BoxGeometry(.62,.035,.17),new THREE.MeshBasicMaterial({color:0xdcecf0}));tube.position.set(p.x,2.735,p.z);scene.add(tube);const l=new THREE.PointLight(0xb8d0d8,.72,10,2);l.position.set(p.x,2.58,p.z);scene.add(l);}
   const pm=new THREE.MeshStandardMaterial({color:0x343d40,metalness:.62,roughness:.72});for(let z=4;z<CONFIG.mazeSize-4;z+=9)for(let x=4;x<CONFIG.mazeSize-5;x++)if(isOpen(x,z)&&isOpen(x+1,z)&&isOpen(x+2,z)&&Math.random()<.12){const p=world({x,z}),pipe=new THREE.Mesh(new THREE.CylinderGeometry(.055,.055,cell*2.5,7),pm);pipe.rotation.z=Math.PI/2;pipe.position.set(p.x,2.72,p.z);scene.add(pipe);x+=2;}
   floorNoise=Array.from({length:CONFIG.mazeSize},()=>Array(CONFIG.mazeSize).fill(null));
   for(let z=1;z<CONFIG.mazeSize-1;z++)for(let x=1;x<CONFIG.mazeSize-1;x++)if(isOpen(x,z)&&Math.random()<.04){
@@ -611,9 +611,9 @@ function finish(success){
 function resetGame(){
   if(scene){
     while(scene.children.length)scene.remove(scene.children[0]);
-    scene.add(new THREE.HemisphereLight(0x8497a5,0x171c20,.74));
-    const keyLight=new THREE.DirectionalLight(0x9aa8b4,.34);keyLight.position.set(-10,20,8);scene.add(keyLight);
-    scene.add(new THREE.AmbientLight(0x66727b,.27));
+    scene.add(new THREE.HemisphereLight(0x9aabb8,0x20272b,.9));
+    const keyLight=new THREE.DirectionalLight(0xaab8c2,.48);keyLight.position.set(-10,20,8);scene.add(keyLight);
+    scene.add(new THREE.AmbientLight(0x7d8991,.38));
     scene.add(camera);
   }
   if(chargingGain&&audioCtx)chargingGain.gain.setValueAtTime(0,audioCtx.currentTime);
