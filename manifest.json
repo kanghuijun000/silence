@@ -1,11 +1,11 @@
 {
-  "id": "./",
+  "id": "https://kanghuijun000.github.io/silence/",
   "name": "SILENCE - Horror Escape",
   "short_name": "SILENCE",
   "description": "소리를 관리하며 지하 미로에서 탈출하는 1인칭 공포 게임",
   "start_url": "./",
   "scope": "./",
-  "display": "fullscreen",
+  "display": "standalone",
   "orientation": "landscape",
   "background_color": "#080b10",
   "theme_color": "#080b10",
