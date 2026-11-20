@@ -351,8 +351,9 @@ function updateMonsterAudio(now,distance,moving,speed){
   const arousal=monsterArousal;
   const intensity=.72+arousal/210;
   // 실제 이동 속도에 맞춰 발소리를 발생시킨다. 추격 시 더 빠르고 무거워진다.
-  if(moving&&speed>2.7&&now-lastMonsterStepAt>(speed>3.5?.34:.48)){
-    playMonsterAudio('step',intensity);lastMonsterStepAt=now;
+  const chargingPlayer=monsterState==='chase';
+  if(moving&&(chargingPlayer||speed>2.7)&&now-lastMonsterStepAt>(chargingPlayer?.37:speed>3.5?.34:.48)){
+    playMonsterAudio('step',intensity+(chargingPlayer?.12:0));lastMonsterStepAt=now;
   }
   if(now>=nextMonsterBreathAt){
     if(distance<cell*16)playMonsterAudio('breath',intensity);
@@ -368,7 +369,7 @@ function updateMonsterAudio(now,distance,moving,speed){
   }
   // 괴물이 벽 가까이에서 멈춰 있거나 탐색할 때만 간헐적으로 벽을 친다.
   if(now>=nextMonsterWallAt){
-    if(!moving&&monsterHasNearbyWall()&&distance<cell*15)playMonsterAudio('wall',intensity);
+    if(!chargingPlayer&&monsterHasNearbyWall()&&distance<cell*15)playMonsterAudio('wall',intensity);
     nextMonsterWallAt=now+13+Math.random()*13;
   }
 }
