@@ -87,16 +87,16 @@ function findPath(start,goal){
 }
 
 function initThree(){
-  scene=new THREE.Scene(); scene.background=new THREE.Color(0x080d11); scene.fog=new THREE.FogExp2(0x10171b,0.014);
+  scene=new THREE.Scene(); scene.background=new THREE.Color(0x0b1115); scene.fog=new THREE.FogExp2(0x141c20,0.010);
   camera=new THREE.PerspectiveCamera(76,innerWidth/innerHeight,.08,110);
   renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance',stencil:false,depth:true});
   renderer.setPixelRatio(Math.min(devicePixelRatio,1.75)); const portrait=innerHeight>innerWidth; renderer.setSize(portrait?innerHeight:innerWidth,portrait?innerWidth:innerHeight,false);
   renderer.outputColorSpace=THREE.SRGBColorSpace;
-  renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.2;
+  renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.35;
   renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   view.replaceChildren(renderer.domElement);
   clock=new THREE.Clock();
-  scene.add(new THREE.HemisphereLight(0x9aabb8,0x20272b,.9));const light=new THREE.DirectionalLight(0xaab8c2,.48);light.position.set(-10,20,8);light.castShadow=true;light.shadow.mapSize.set(1024,1024);light.shadow.camera.near=.5;light.shadow.camera.far=55;light.shadow.bias=-.00018;scene.add(light);scene.add(new THREE.AmbientLight(0x7d8991,.38));const flashlight=new THREE.SpotLight(0xe3edf2,4.0,30,Math.PI/6,.48,1.25);flashlight.position.set(0,0,0);flashlight.target.position.set(0,0,-1);flashlight.castShadow=true;flashlight.shadow.mapSize.set(1024,1024);flashlight.shadow.camera.near=.1;flashlight.shadow.camera.far=24;camera.add(flashlight);camera.add(flashlight.target);scene.add(camera);
+  scene.add(new THREE.HemisphereLight(0xa9bac5,0x30383b,1.12));const light=new THREE.DirectionalLight(0xb7c5ce,.58);light.position.set(-10,20,8);light.castShadow=true;light.shadow.mapSize.set(1024,1024);light.shadow.camera.near=.5;light.shadow.camera.far=55;light.shadow.bias=-.00018;scene.add(light);scene.add(new THREE.AmbientLight(0x89969e,.52));const flashlight=new THREE.SpotLight(0xe3edf2,4.0,30,Math.PI/6,.48,1.25);flashlight.position.set(0,0,0);flashlight.target.position.set(0,0,-1);flashlight.castShadow=true;flashlight.shadow.mapSize.set(1024,1024);flashlight.shadow.camera.near=.1;flashlight.shadow.camera.far=24;camera.add(flashlight);camera.add(flashlight.target);scene.add(camera);
 }
 function addBox(x,y,z,sx,sy,sz,mat){
   const mesh=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),mat);mesh.position.set(x,y,z);scene.add(mesh);return mesh;
@@ -121,7 +121,7 @@ function buildWorld(){
   }
   walls.castShadow=true;walls.receiveShadow=true;scene.add(walls);walls.instanceMatrix.needsUpdate=true;
   // 낡은 비상등과 노출 배관
-  for(let z=3;z<CONFIG.mazeSize-3;z+=5)for(let x=3;x<CONFIG.mazeSize-3;x+=5)if(isOpen(x,z)){const p=world({x,z});const housing=new THREE.Mesh(new THREE.BoxGeometry(.78,.13,.28),new THREE.MeshStandardMaterial({color:0x46545a,emissive:0x829da5,emissiveIntensity:.55,roughness:.72}));housing.position.set(p.x,2.82,p.z);scene.add(housing);const tube=new THREE.Mesh(new THREE.BoxGeometry(.62,.035,.17),new THREE.MeshBasicMaterial({color:0xdcecf0}));tube.position.set(p.x,2.735,p.z);scene.add(tube);const l=new THREE.PointLight(0xb8d0d8,.72,10,2);l.position.set(p.x,2.58,p.z);scene.add(l);}
+  for(let z=3;z<CONFIG.mazeSize-3;z+=4)for(let x=3;x<CONFIG.mazeSize-3;x+=4)if(isOpen(x,z)){const p=world({x,z});const housing=new THREE.Mesh(new THREE.BoxGeometry(.78,.13,.28),new THREE.MeshStandardMaterial({color:0x46545a,emissive:0x829da5,emissiveIntensity:.8,roughness:.72}));housing.position.set(p.x,2.82,p.z);scene.add(housing);const tube=new THREE.Mesh(new THREE.BoxGeometry(.62,.035,.17),new THREE.MeshBasicMaterial({color:0xdcecf0}));tube.position.set(p.x,2.735,p.z);scene.add(tube);const l=new THREE.PointLight(0xc5dce5,1.05,13,2);l.position.set(p.x,2.58,p.z);scene.add(l);}
   const pm=new THREE.MeshStandardMaterial({color:0x343d40,metalness:.62,roughness:.72});for(let z=4;z<CONFIG.mazeSize-4;z+=9)for(let x=4;x<CONFIG.mazeSize-5;x++)if(isOpen(x,z)&&isOpen(x+1,z)&&isOpen(x+2,z)&&Math.random()<.12){const p=world({x,z}),pipe=new THREE.Mesh(new THREE.CylinderGeometry(.055,.055,cell*2.5,7),pm);pipe.rotation.z=Math.PI/2;pipe.position.set(p.x,2.72,p.z);scene.add(pipe);x+=2;}
   floorNoise=Array.from({length:CONFIG.mazeSize},()=>Array(CONFIG.mazeSize).fill(null));
   for(let z=1;z<CONFIG.mazeSize-1;z++)for(let x=1;x<CONFIG.mazeSize-1;x++)if(isOpen(x,z)&&Math.random()<.04){
