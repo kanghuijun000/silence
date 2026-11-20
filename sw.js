@@ -1,4 +1,4 @@
-const CACHE_NAME = 'silence-cache-v36';
+const CACHE_NAME = 'silence-cache-v37';
 const APP_FILES = ['./', './index.html', './style.css', './game.js', './monster-model.js', './manifest.json', './icon.svg', './silence-app-icon.svg', './icon-192.png', './install.html'];
 
 self.addEventListener('install', event => {
@@ -22,7 +22,6 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin || request.method !== 'GET') return;
 
-  // 앱 파일은 네트워크에서 최신 버전을 먼저 확인하고, 오프라인일 때만 캐시를 사용한다.
   event.respondWith((async () => {
     const cached = await caches.match(request);
     try {
