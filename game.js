@@ -33,6 +33,7 @@ let audioCtx = null, masterGain = null, chargingOsc = null, chargingGain = null;
 let musicGain = null, musicNodes = [], musicTimer = null, musicStep = 0;
 let monsterGroup, monsterVisible = false, monsterThroughWalls = false;
 let monsterRig = null, monsterAnimTime = 0;
+let lastMonsterStepAt = 0, nextMonsterBreathAt = 0, nextMonsterVocalAt = 0, nextMonsterWallAt = 0;
 const cell = CONFIG.cellSize;
 const half = (CONFIG.mazeSize - 1) / 2;
 const worldSize = CONFIG.mazeSize * cell;
@@ -266,6 +267,110 @@ function tone(freq,duration,type='sine',volume=.12,slide=0){
 function noiseBurst(duration=.16,volume=.08,filter=700){
   if(!audioCtx)return;const size=Math.floor(audioCtx.sampleRate*duration),buf=audioCtx.createBuffer(1,size,audioCtx.sampleRate),data=buf.getChannelData(0);for(let i=0;i<size;i++)data[i]=(Math.random()*2-1)*(1-i/size);
   const src=audioCtx.createBufferSource(),f=audioCtx.createBiquadFilter(),g=audioCtx.createGain();src.buffer=buf;f.type='lowpass';f.frequency.value=filter;g.gain.value=volume;src.connect(f);f.connect(g);g.connect(masterGain);src.start();
+}
+function monsterAudioOutput(baseVolume){
+  if(!audioCtx||!masterGain||audioMuted||paused||!running)return null;
+  const distance=monster.position.distanceTo(player.position);
+  const from=cellAt(player.position),to=cellAt(monster.position);
+  const walls=wallCountBetween(from,to);
+  const effective=distance/cell+walls*.9;
+  if(effective>17)return null;
+  const distanceGain=1/(1+effective*.17);
+  const wallGain=Math.pow(.76,Math.min(walls,7));
+  const gain=audioCtx.createGain();
+  gain.gain.value=baseVolume*distanceGain*wallGain;
+  const panner=audioCtx.createStereoPanner();
+  const dx=monster.position.x-player.position.x,dz=monster.position.z-player.position.z;
+  const pan=(dx*Math.cos(yaw)-dz*Math.sin(yaw))/Math.max(.001,distance);
+  panner.pan.value=Math.max(-1,Math.min(1,pan));
+  gain.connect(panner);panner.connect(masterGain);
+  return gain;
+}
+function monsterNoise(out,duration,volume,cutoff,attack=.012){
+  if(!out||!audioCtx)return;
+  const length=Math.max(1,Math.floor(audioCtx.sampleRate*duration));
+  const buffer=audioCtx.createBuffer(1,length,audioCtx.sampleRate),data=buffer.getChannelData(0);
+  for(let i=0;i<length;i++){
+    const t=i/length;
+    const fade=Math.min(1,t/Math.max(.001,attack))*(1-t);
+    data[i]=(Math.random()*2-1)*fade;
+  }
+  const source=audioCtx.createBufferSource(),filter=audioCtx.createBiquadFilter(),env=audioCtx.createGain();
+  source.buffer=buffer;filter.type='lowpass';filter.frequency.value=cutoff;filter.Q.value=.8;
+  env.gain.setValueAtTime(volume,audioCtx.currentTime);
+  env.gain.setTargetAtTime(.0001,audioCtx.currentTime+duration*.62,.12);
+  source.connect(filter);filter.connect(env);env.connect(out);
+  source.start();source.stop(audioCtx.currentTime+duration+.03);
+}
+function monsterTone(out,frequency,duration,volume,type='sine',slide=0,filterFrequency=900,delay=0){
+  if(!out||!audioCtx)return;
+  const now=audioCtx.currentTime+delay,osc=audioCtx.createOscillator(),filter=audioCtx.createBiquadFilter(),env=audioCtx.createGain();
+  osc.type=type;osc.frequency.setValueAtTime(frequency,now);
+  if(slide)osc.frequency.exponentialRampToValueAtTime(Math.max(24,frequency+slide),now+duration);
+  filter.type='lowpass';filter.frequency.value=filterFrequency;filter.Q.value=1.1;
+  env.gain.setValueAtTime(.0001,now);env.gain.linearRampToValueAtTime(volume,now+.035);
+  env.gain.exponentialRampToValueAtTime(.0001,now+duration);
+  osc.connect(filter);filter.connect(env);env.connect(out);
+  osc.start(now);osc.stop(now+duration+.04);
+}
+function playMonsterAudio(kind,intensity=1){
+  const base={breath:.17,vocal:.23,scream:.27,wall:.3,step:.2}[kind]||.18;
+  const out=monsterAudioOutput(base*Math.max(.55,Math.min(1.35,intensity)));
+  if(!out)return;
+  if(kind==='breath'){
+    monsterNoise(out,.82,.7,390,.12);
+    monsterTone(out,48,.9,.48,'triangle',-12,180,.02);
+    monsterTone(out,72,.55,.18,'sine',-18,260,.12);
+  }else if(kind==='vocal'){
+    monsterNoise(out,1.35,.72,1150,.025);
+    monsterTone(out,92,1.25,.58,'sawtooth',-48,620);
+    monsterTone(out,137,.95,.28,'triangle',-72,780,.08);
+    monsterTone(out,54,1.55,.42,'sine',-19,210,.16);
+  }else if(kind==='scream'){
+    monsterNoise(out,1.65,.92,1850,.018);
+    monsterTone(out,165,1.45,.64,'sawtooth',-112,1250);
+    monsterTone(out,246,1.1,.25,'triangle',-155,1450,.08);
+    monsterTone(out,62,1.8,.45,'sine',-24,250,.12);
+  }else if(kind==='wall'){
+    monsterTone(out,74,.42,.78,'sine',-35,190);
+    monsterNoise(out,.2,.9,520,.006);
+    monsterTone(out,168,.62,.32,'triangle',-48,460,.035);
+    monsterTone(out,42,.8,.3,'sine',-8,120,.08);
+  }else if(kind==='step'){
+    monsterTone(out,58,.16,.72,'sine',-20,150);
+    monsterNoise(out,.14,.55,360,.004);
+    monsterTone(out,96,.1,.2,'triangle',-28,260,.025);
+  }
+}
+function monsterHasNearbyWall(){
+  const c=cellAt(monster.position);
+  return [[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dz])=>!isOpen(c.x+dx,c.z+dz));
+}
+function updateMonsterAudio(now,distance,moving,speed){
+  if(!audioCtx||!running||paused||gameOver)return;
+  const arousal=monsterArousal;
+  const intensity=.72+arousal/210;
+  // 실제 이동 속도에 맞춰 발소리를 발생시킨다. 추격 시 더 빠르고 무거워진다.
+  if(moving&&speed>2.7&&now-lastMonsterStepAt>(speed>3.5?.34:.48)){
+    playMonsterAudio('step',intensity);lastMonsterStepAt=now;
+  }
+  if(now>=nextMonsterBreathAt){
+    if(distance<cell*16)playMonsterAudio('breath',intensity);
+    nextMonsterBreathAt=now+(arousal>=70?3.2+Math.random()*2.1:arousal>=35?4.8+Math.random()*3:6.5+Math.random()*4.5);
+  }
+  if(now>=nextMonsterVocalAt){
+    if(distance<cell*16){
+      const kind=arousal>=72&&Math.random()<.38?'scream':'vocal';
+      playMonsterAudio(kind,intensity);
+    }
+    const interval=arousal>=75?6.5+Math.random()*4:arousal>=50?9+Math.random()*5:arousal>=25?13+Math.random()*7:19+Math.random()*10;
+    nextMonsterVocalAt=now+interval;
+  }
+  // 괴물이 벽 가까이에서 멈춰 있거나 탐색할 때만 간헐적으로 벽을 친다.
+  if(now>=nextMonsterWallAt){
+    if(!moving&&monsterHasNearbyWall()&&distance<cell*15)playMonsterAudio('wall',intensity);
+    nextMonsterWallAt=now+13+Math.random()*13;
+  }
 }
 function breathingSound(){
   // 걷는 동안 스태미나가 실제 회복되는 경우에만 낮은 헐떡임을 반복
@@ -599,7 +704,7 @@ function monsterUpdate(dt,now){
   monsterGroup.position.set(monster.position.x,bodyBob,monster.position.z);
   monsterGroup.rotation.y=Math.atan2(player.position.x-monster.position.x,player.position.z-monster.position.z);
   if(distance<.9)finish(false);
-  if(now>nextMonsterSound){nextMonsterSound=now+30+Math.random()*30;if(distance<cell*14){playNoise('monster',monster.position,.65);}}
+  updateMonsterAudio(now,distance,moving,speed);
 }
 function updateAmbient(now){
   if(now-lastAmbient>12){lastAmbient=now;if(Math.random()<.35)tone(42+Math.random()*18,1.4,'sine',.018,-8);}
@@ -695,7 +800,7 @@ function resetGame(){
   if(chargingGain&&audioCtx)chargingGain.gain.setValueAtTime(0,audioCtx.currentTime);
   paused=false;stamina=1;sprintExhausted=false;battery=CONFIG.detectorCapacity;detectorUntil=0;detectorCooldownUntil=0;joystick={x:0,y:0};runHeld=false;
   const now=performance.now()/1000;
-  monsterState='wander';monsterTarget=null;lastSeen=null;lastHeard=null;lastHeardAt=0;path=[];pathRefresh=0;stationProgress=0;activeStation=null;lastStep=0;lastBreath=0;lastChargeSound=0;lastAmbient=0;nextMonsterSound=now+30+Math.random()*30;
+  monsterState='wander';monsterTarget=null;lastSeen=null;lastHeard=null;lastHeardAt=0;path=[];pathRefresh=0;stationProgress=0;activeStation=null;lastStep=0;lastBreath=0;lastChargeSound=0;lastAmbient=0;lastMonsterStepAt=now;nextMonsterBreathAt=now+2+Math.random()*3;nextMonsterVocalAt=now+7+Math.random()*6;nextMonsterWallAt=now+12+Math.random()*10;nextMonsterSound=0;
   nextLocationPing=now+20+Math.random()*20;soundAlertUntil=0;locationAlertUntil=0;sightAlertUntil=0;lastSurfaceCellKey='';lastCreakAt=-Infinity;
   monsterArousal=0;lastNoiseEventAt=-Infinity;arousalDecayStart=0;playerNoiseLevel=0;
   generateMaze();buildWorld();setupPlayerAndMonster();updateHud();gameOver=false;
