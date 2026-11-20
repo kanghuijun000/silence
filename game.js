@@ -229,10 +229,10 @@ function setupHorrorMusic(){
   const wind=audioCtx.createBufferSource(),windFilter=audioCtx.createBiquadFilter(),windGain=audioCtx.createGain();
   wind.buffer=buffer;wind.loop=true;windFilter.type='lowpass';windFilter.frequency.value=460;windFilter.Q.value=.7;
   windGain.gain.value=.42;wind.connect(windFilter);windFilter.connect(windGain);windGain.connect(musicGain);wind.start();musicNodes.push(wind);
-  const lfo=audioCtx.createOscillator(),lfoGain=audioCtx.createGain(),droneBus=audioCtx.createGain();
-  // 아주 느린 음량 변화로 지하 공간의 압박감을 만든다.
-  droneBus.gain.value=1;lfo.type='sine';lfo.frequency.value=.035;lfoGain.gain.value=.12;
-  lfo.connect(lfoGain);lfoGain.connect(droneBus.gain);lfo.start();musicNodes.push(lfo);
+  const lfo=audioCtx.createOscillator(),lfoGain=audioCtx.createGain();
+  // 바람 질감의 음량을 아주 느리게 흔들어 지하 공간의 압박감을 만든다.
+  lfo.type='sine';lfo.frequency.value=.035;lfoGain.gain.value=.12;
+  lfo.connect(lfoGain);lfoGain.connect(windGain.gain);lfo.start();musicNodes.push(lfo);
 }
 function playHorrorNote(frequency){
   if(!audioCtx||!musicGain)return;
