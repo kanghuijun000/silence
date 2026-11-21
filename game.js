@@ -296,7 +296,7 @@ function buildWorld(){
   const stringerMat=new THREE.MeshStandardMaterial({color:0x343d40,metalness:.72,roughness:.48});
   const upAxis=new THREE.Vector3(0,1,0);
   function makeFlight(baseFloor,shaft){
-    const flight=new THREE.Group(),p=world({...shaft,floor:baseFloor});
+    const flight=new THREE.Group(),p=world({...shaft,floor:baseFloor});flight.userData.isStairFlight=true;flight.userData.connectionFloor=baseFloor;
     const startZ=p.z+stairLength/2,endZ=p.z-stairLength/2;
     for(let n=0;n<24;n++){
       const topY=floorY(baseFloor)-(n+1)*stairRise;
@@ -367,7 +367,15 @@ function buildWorld(){
 function updateFloorVisibility(){
   const visibleFloors=new Set([currentFloorIndex]);
   if(stairTraversal){visibleFloors.add(stairTraversal.fromFloor);visibleFloors.add(stairTraversal.toFloor);}
-  for(let i=0;i<floorGroups.length;i++)floorGroups[i].visible=visibleFloors.has(i);
+  for(let i=0;i<floorGroups.length;i++){
+    const group=floorGroups[i];group.visible=visibleFloors.has(i);
+    for(const child of group.children){
+      if(child.userData?.isStairFlight){
+        const sharedConnection=Math.min(stairTraversal?.fromFloor??-1,stairTraversal?.toFloor??-1);
+        child.visible=!(stairTraversal&&child.userData.connectionFloor===sharedConnection&&i!==stairTraversal.fromFloor);
+      }
+    }
+  }
   if(exitMesh)exitMesh.visible=(exitCell?.floor??0)===currentFloorIndex;
   for(const station of stations)if(station.mesh)station.mesh.visible=(station.cell.floor??currentFloorIndex)===currentFloorIndex;
 }
