@@ -12,38 +12,53 @@ const ASSETS = {
   ivStand: 'abandoned-iv-stand/v1/lod0.glb',
   instrumentTrolley: 'abandoned-instrument-trolley/v1/lod0.glb',
   privacyScreen: 'torn-hospital-privacy-screen/v1/lod0.glb',
-  conveyorHead: 'conveyor-head-pulley/v1/lod1.glb',
-  conveyorStraight: 'conveyor-roller-straight/v1/lod1.glb',
-  conveyorTransfer: 'conveyor-belt-transfer/v1/lod1.glb',
-  junctionCabinet: 'junction-cabinet/v1/lod0.glb'
+  hospitalWard: 'hospital-ward/v2/lod0.glb',
+  operatingTheatre: 'operating-theatre/v2/lod0.glb',
+  controlRoom: 'control-room/v1/lod0.glb',
+  robotArm: 'robot-arm/v1/lod0.glb',
+  serverRoom: 'server-room/v1/lod0.glb',
+  conveyorHead: 'conveyor-head-pulley-drive/v1/lod1.glb',
+  conveyorStraight: 'roller-conveyor-straight/v1/lod1.glb',
+  conveyorTransfer: 'belt-conveyor-transfer/v1/lod1.glb',
+  sewerStraight: 'brick-sewer-tunnel-straight/v1/lod1.glb',
+  sewerCorner: 'brick-sewer-tunnel-corner/v1/lod1.glb',
+  sewerTJunction: 'brick-sewer-tunnel-t-junction/v1/lod1.glb'
 };
 
 const PLACEMENTS = [
-  // 2F: 병실·처치 구역 — 의료 장비는 실제 비율과 독립된 부품을 가진 모델을 사용한다.
-  {asset:'gurney',floor:0,x:6,z:6,rotation:0},
-  {asset:'ivStand',floor:0,x:7.25,z:6.15,rotation:.25},
-  {asset:'instrumentTrolley',floor:0,x:6.0,z:7.55,rotation:Math.PI*.5},
+  {asset:'hospitalWard',floor:0,x:5.5,z:5.5,rotation:0},
+  {asset:'operatingTheatre',floor:0,x:14.5,z:5.5,rotation:0},
   {asset:'privacyScreen',floor:0,x:34,z:6.1,rotation:Math.PI*.5},
   {asset:'wheelchair',floor:0,x:34,z:34,rotation:-.25},
-
-  // 1F: 일부 남겨진 의료 장비와 이동 보조기구.
-  {asset:'gurney',floor:1,x:6,z:34,rotation:Math.PI*.5},
+  {asset:'hospitalWard',floor:1,x:5.5,z:34.5,rotation:Math.PI},
   {asset:'wheelchair',floor:1,x:34,z:6,rotation:Math.PI},
   {asset:'instrumentTrolley',floor:1,x:34,z:34,rotation:-Math.PI*.5},
-
-  // B1: 컨베이어 구동부와 롤러 라인으로 생산 설비의 실루엣을 만든다.
-  {asset:'conveyorHead',floor:2,x:8,z:8,rotation:0},
-  {asset:'conveyorStraight',floor:2,x:8,z:11.25,rotation:0,scale:.75},
-  {asset:'conveyorTransfer',floor:2,x:8.1,z:14.2,rotation:0},
+  {asset:'controlRoom',floor:2,x:8,z:8,rotation:0},
+  {asset:'robotArm',floor:2,x:32,z:8,rotation:Math.PI*.5},
+  {asset:'conveyorHead',floor:2,x:8,z:16,rotation:0},
+  {asset:'conveyorStraight',floor:2,x:8,z:17.333,rotation:0,scale:.75},
+  {asset:'conveyorTransfer',floor:2,x:8,z:18.666,rotation:0,scale:.8},
   {asset:'conveyorStraight',floor:2,x:32,z:32,rotation:Math.PI*.5,scale:.75},
   {asset:'conveyorHead',floor:2,x:32,z:28.2,rotation:Math.PI*.5,scale:.8},
-
-  // B3: 설비 통로의 벽면 배전·접속함.
-  {asset:'junctionCabinet',floor:4,x:19,z:5,rotation:Math.PI*.5,wallMount:true}
+  {asset:'sewerStraight',floor:3,x:20,z:8,rotation:0},
+  {asset:'sewerStraight',floor:3,x:20,z:9.333,rotation:0},
+  {asset:'sewerTJunction',floor:3,x:20,z:10.666,rotation:0},
+  {asset:'sewerCorner',floor:3,x:20,z:12,rotation:Math.PI*.5},
+  {asset:'serverRoom',floor:4,x:34,z:34,rotation:Math.PI}
 ];
+
+export function shouldOmitCeiling(floor,x,z){
+  const inRect=(cx,cz,rx,rz)=>Math.abs(x-cx)<=rx&&Math.abs(z-cz)<=rz;
+  if(floor===0&&(inRect(5.5,5.5,1.7,1.7)||inRect(14.5,5.5,1.35,1.35)))return true;
+  if(floor===1&&inRect(5.5,34.5,1.7,1.7))return true;
+  if(floor===2&&inRect(8,8,1.8,1.8))return true;
+  if(floor===3&&x>=19&&x<=21&&z>=7&&z<=14)return true;
+  return false;
+}
 
 const SURFACE_MATERIALS = {
   hospitalFloor: {slug:'ceramic-tiles',repeat:[2.5,2.5]},
+  floodedFloor: {slug:'wet-mud',repeat:[2,2]},
   hospitalWall: {slug:'white-plaster',repeat:[1.5,1.65]},
   factoryFloor: {slug:'checker-plate',repeat:[3,3]},
   factoryWall: {slug:'rusty-metal',repeat:[3,3]},
@@ -96,7 +111,7 @@ async function applyPBRMaterials(THREE,renderer,ktx2Loader,floorGroups){
     const floorMesh=group.getObjectByName('floor-surface');
     const wallMesh=group.getObjectByName('wall-surface');
     const ceilingMesh=group.getObjectByName('ceiling-surface');
-    const floorMaterial=floor<=1?loaded.hospitalFloor:floor===2?loaded.factoryFloor:floor===3?loaded.concrete:loaded.factoryFloor;
+    const floorMaterial=floor<=1?loaded.hospitalFloor:floor===2?loaded.factoryFloor:floor===3?(loaded.floodedFloor||loaded.concrete):loaded.factoryFloor;
     const wallMaterial=floor<=1?loaded.hospitalWall:floor===2||floor===4?loaded.factoryWall:loaded.concrete;
     const ceilingMaterial=floor<=1?loaded.hospitalWall:floor===2?loaded.factoryCeiling:floor===3?loaded.concrete:loaded.factoryWall;
     if(floorMesh&&floorMaterial)floorMesh.material=floorMaterial;
@@ -115,6 +130,8 @@ function preparePrototype(THREE,model){
   model.updateMatrixWorld(true);
   const bounds=new THREE.Box3().setFromObject(model);
   if(Number.isFinite(bounds.min.y))model.position.y-=bounds.min.y;
+  if(Number.isFinite(bounds.min.x)&&Number.isFinite(bounds.max.x))model.position.x-=(bounds.min.x+bounds.max.x)*.5;
+  if(Number.isFinite(bounds.min.z)&&Number.isFinite(bounds.max.z))model.position.z-=(bounds.min.z+bounds.max.z)*.5;
   model.traverse(object=>{
     if(!object.isMesh)return;
     object.castShadow=true;
