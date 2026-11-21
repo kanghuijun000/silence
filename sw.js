@@ -1,4 +1,4 @@
-const CACHE_NAME = 'silence-cache-v68';
+const CACHE_NAME = 'silence-cache-v69';
 const APP_FILES = ['./', './index.html', './style.css', './game.js', './monster-model.js', './environment-assets.js', './manifest.json', './icon.svg', './silence-app-icon.svg', './icon-192.png', './icon-512.png', './install.html'];
 
 self.addEventListener('install', event => {
@@ -25,7 +25,7 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
 
   // CC0 GLB 환경 모델은 최초 온라인 로드 후 별도 캐시에 보관해 재방문 시 재다운로드를 줄인다.
-  if (url.origin === 'https://tevy.dev' && url.pathname.startsWith('/models/') && url.pathname.endsWith('.glb') && request.method === 'GET') {
+  if (url.origin === 'https://tevy.dev' && url.pathname.startsWith('/models/') && (url.pathname.endsWith('.glb') || url.pathname.endsWith('.ktx2')) && request.method === 'GET') {
     event.respondWith((async () => {
       const assetCache = await caches.open('silence-assets-v1');
       const cachedAsset = await assetCache.match(request);
