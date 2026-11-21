@@ -65,3 +65,13 @@
 #minimapPanel.floor-switching{animation:floorMapSwitch .42s ease}
 @keyframes floorMapSwitch{0%{opacity:.35;transform:translateY(4px) scale(.97)}100%{opacity:1;transform:translateY(0) scale(1)}}
 @media(max-height:430px){#minimapPanel{top:61px;width:154px;padding:6px;right:10px}#minimap{width:140px;height:140px}.map-topline{margin-bottom:4px;font-size:7px}.map-topline b{font-size:10px}.map-legend{font-size:6px}}
+
+
+/* 메인 화면 터치 입력 우선순위 보정 */
+#startScreen{z-index:30;pointer-events:auto;isolation:isolate}
+#startScreen .start-actions{position:relative;z-index:31;pointer-events:auto}
+#startScreen button{position:relative;z-index:32;pointer-events:auto;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+#guideModal{z-index:40;pointer-events:auto}
+#guideModal.hidden{pointer-events:none}
+#guideModal button{pointer-events:auto;touch-action:manipulation}
+#endScreen{z-index:30;pointer-events:auto}
