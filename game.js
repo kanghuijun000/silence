@@ -202,7 +202,7 @@ function initThree(){
   renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   view.replaceChildren(renderer.domElement);
   clock=new THREE.Clock();
-  scene.add(new THREE.HemisphereLight(0x9aaab4,0x252b30,.42));const light=new THREE.DirectionalLight(0x9eabb3,.14);light.position.set(-10,20,8);light.castShadow=true;light.shadow.mapSize.set(1024,1024);light.shadow.camera.near=.5;light.shadow.camera.far=55;light.shadow.bias=-.00018;scene.add(light);scene.add(new THREE.AmbientLight(0x87939a,.28));const flashlight=new THREE.SpotLight(0xf0f7fa,18,48,Math.PI/4,.48,1.0);flashlight.position.set(0,0,0);flashlight.target.position.set(0,0,-1);flashlight.castShadow=true;flashlight.shadow.mapSize.set(1024,1024);flashlight.shadow.camera.near=.1;flashlight.shadow.camera.far=24;camera.add(flashlight);camera.add(flashlight.target);scene.add(camera);
+  scene.add(new THREE.HemisphereLight(0x9aaab4,0x252b30,.72));const light=new THREE.DirectionalLight(0x9eabb3,.22);light.position.set(-10,20,8);light.castShadow=true;light.shadow.mapSize.set(1024,1024);light.shadow.camera.near=.5;light.shadow.camera.far=55;light.shadow.bias=-.00018;scene.add(light);scene.add(new THREE.AmbientLight(0x87939a,.48));const flashlight=new THREE.SpotLight(0xf0f7fa,2200,42,Math.PI/5,.52,1.0);flashlight.position.set(0,0,0);flashlight.target.position.set(0,0,-1);flashlight.castShadow=true;flashlight.shadow.mapSize.set(1024,1024);flashlight.shadow.camera.near=.1;flashlight.shadow.camera.far=28;camera.add(flashlight);camera.add(flashlight.target);const flashlightFill=new THREE.SpotLight(0xdceaf2,520,30,Math.PI/3,.72,1.2);flashlightFill.position.set(0,0,0);flashlightFill.target.position.set(0,0,-1);camera.add(flashlightFill);camera.add(flashlightFill.target);scene.add(camera);
 }
 function addBox(x,y,z,sx,sy,sz,mat){
   const mesh=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),mat);mesh.position.set(x,y,z);scene.add(mesh);return mesh;
@@ -233,11 +233,24 @@ function buildWorld(){
     const walls=new THREE.InstancedMesh(wallGeo,wallMat,count);let wi=0;
     for(let z=0;z<CONFIG.mazeSize;z++)for(let x=0;x<CONFIG.mazeSize;x++)if(map[z][x]){dummy.position.set((x-half)*cell,base+CONFIG.wallHeight/2,(z-half)*cell);dummy.updateMatrix();walls.setMatrixAt(wi++,dummy.matrix);}
     walls.castShadow=true;walls.receiveShadow=true;walls.instanceMatrix.needsUpdate=true;scene.add(walls);
-    const lightMat=new THREE.MeshStandardMaterial({color:0x56636a,emissive:factory?0x9d6e42:0xa8c4ce,emissiveIntensity:factory ? .55 : basement ? .25 : 1,roughness:.72});
-    for(let z=3;z<CONFIG.mazeSize-3;z+=7)for(let x=3;x<CONFIG.mazeSize-3;x+=7)if(map[z][x]===0){
-      const p=world({x,z,floor:f}),housing=new THREE.Mesh(new THREE.BoxGeometry(.78,.13,.28),lightMat);housing.position.set(p.x,base+2.82,p.z);scene.add(housing);
-      const tube=new THREE.Mesh(new THREE.BoxGeometry(.62,.035,.17),new THREE.MeshBasicMaterial({color:factory?0xb2a18b:0xdce9eb}));tube.position.set(p.x,base+2.735,p.z);scene.add(tube);
-      const light=new THREE.PointLight(factory?0xc19a70:basement?0x74838a:0xd8edf4,factory ? .72 : basement ? .68 : 1.35,15,1.8);light.position.set(p.x,base+2.58,p.z);scene.add(light);
+    const lightMat=new THREE.MeshStandardMaterial({color:0x56636a,emissive:factory?0x9d6e42:0xa8c4ce,emissiveIntensity:factory ? 1.1 : basement ? .8 : 1.7,roughness:.72});
+    // 격자 좌표가 막힌 칸에 걸려 B3 중앙 복도에 조명이 하나도 생기지 않던 문제를 수정한다.
+    // 일정 간격의 후보 위치를 가장 가까운 실제 통로 칸으로 옮겨 배치한다.
+    const fixtureCells=[];
+    for(let gz=3;gz<CONFIG.mazeSize-3;gz+=6)for(let gx=3;gx<CONFIG.mazeSize-3;gx+=6){
+      let best=null,bestD=Infinity;
+      for(let dz=-5;dz<=5;dz++)for(let dx=-5;dx<=5;dx++){
+        const x=gx+dx,z=gz+dz,d=dx*dx+dz*dz;
+        if(d>25||!inside(x,z)||map[z][x]!==0||d>=bestD)continue;
+        best={x,z};bestD=d;
+      }
+      if(!best||bestD>25||fixtureCells.some(p=>Math.hypot(p.x-best.x,p.z-best.z)<5.5))continue;
+      fixtureCells.push(best);
+    }
+    for(const {x,z} of fixtureCells){
+      const p=world({x,z,floor:f}),housing=new THREE.Mesh(new THREE.BoxGeometry(.9,.14,.34),lightMat);housing.position.set(p.x,base+2.82,p.z);scene.add(housing);
+      const tube=new THREE.Mesh(new THREE.BoxGeometry(.74,.045,.2),new THREE.MeshBasicMaterial({color:factory?0xffc58c:0xeaf7ff}));tube.position.set(p.x,base+2.735,p.z);scene.add(tube);
+      const light=new THREE.PointLight(factory?0xffbd83:basement?0xc5d9e8:0xd8edf4,factory?105:basement?125:155,24,1.35);light.position.set(p.x,base+2.58,p.z);scene.add(light);
     }
     const pipeMat=new THREE.MeshStandardMaterial({color:factory?0x4a4c47:0x343d40,metalness:.68,roughness:.58});
     for(let z=4;z<CONFIG.mazeSize-4;z+=9)for(let x=4;x<CONFIG.mazeSize-5;x++)if(map[z][x]===0&&map[z][x+1]===0&&map[z][x+2]===0&&Math.random()<.18){
@@ -888,9 +901,9 @@ function finish(success){
 function resetGame(){
   if(scene){
     while(scene.children.length)scene.remove(scene.children[0]);
-    scene.add(new THREE.HemisphereLight(0x9aaab4,0x252b30,.42));
-    const keyLight=new THREE.DirectionalLight(0x9eabb3,.14);keyLight.position.set(-10,20,8);scene.add(keyLight);
-    scene.add(new THREE.AmbientLight(0x87939a,.28));
+    scene.add(new THREE.HemisphereLight(0x9aaab4,0x252b30,.72));
+    const keyLight=new THREE.DirectionalLight(0x9eabb3,.22);keyLight.position.set(-10,20,8);scene.add(keyLight);
+    scene.add(new THREE.AmbientLight(0x87939a,.48));
     scene.add(camera);
   }
   if(chargingGain&&audioCtx)chargingGain.gain.setValueAtTime(0,audioCtx.currentTime);
