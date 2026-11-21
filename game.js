@@ -860,7 +860,9 @@ function beginStairTraversalIfEntering(dir,targetX=player.position.x,targetZ=pla
   for(const [name,shaft] of [['up',STAIR_UP],['down',STAIR_DOWN]]){
     if((name==='up'&&currentFloorIndex===0)||(name==='down'&&currentFloorIndex===FLOOR_LABELS.length-1))continue;
     const data=stairStartFor(name,shaft),centerX=world({...shaft,floor:currentFloorIndex}).x;
-    const crossedEntry=(player.position.z-data.startZ)*data.direction>=-.65&&(targetZ-data.startZ)*data.direction<=.95;
+    const currentEntry=(player.position.z-data.startZ)*data.direction;
+    const nextEntry=(targetZ-data.startZ)*data.direction;
+    const crossedEntry=currentEntry<=0&&nextEntry>=0;
     if(dir.z*data.direction>.14&&Math.abs(targetX-centerX)<1.12&&crossedEntry){
       stairTraversal={...data,stepCount:24};stairLock=name;updateFloorVisibility();
       showMessage(name==='down'?'계단을 내려갑니다':'계단을 올라갑니다',850);return true;
