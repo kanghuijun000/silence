@@ -1142,6 +1142,7 @@ function boot(){
           });
         };
         registration.addEventListener('updatefound',()=>watchInstallingWorker(registration.installing));
+        if(registration.installing)watchInstallingWorker(registration.installing);
         if(registration.waiting&&navigator.serviceWorker.controller){
           updatePending=true;
           registration.waiting.postMessage({type:'SKIP_WAITING'});
