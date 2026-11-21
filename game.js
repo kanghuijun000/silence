@@ -17,7 +17,7 @@ const view = $('view');
 let scene, camera, renderer, clock;
 let maze = [], floorNoise = [], stations = [], stationMeshes = [];
 let facilityMazes = [], facilityNoise = [], exploredFloors = [];
-let currentFloorIndex = 1, floorTransition = null, factoryHaze = null;
+let currentFloorIndex = 1, floorTransition = null, factoryHaze = null, stairLock = null;
 const FLOOR_LABELS = ['2F','1F','B1','B2','B3'];
 const FLOOR_SPACING = 4.5;
 const STAIR_UP = {x:20,z:20};
@@ -120,8 +120,9 @@ function findPath(start,goal){
   const out=[];let cur=g;while(cur&&nodeKey(cur)!==nodeKey(s)){out.push(cur);cur=prev.get(nodeKey(cur));}return out.reverse();
 }
 function updateFloorBadge(){const badge=$('mapFloor');if(badge)badge.textContent=FLOOR_LABELS[currentFloorIndex]||'1F';}
-function beginFloorTransition(targetFloor){
+function beginFloorTransition(targetFloor,shaft){
   if(floorTransition||targetFloor<0||targetFloor>=FLOOR_LABELS.length)return;
+  stairLock=shaft;
   floorTransition={from:currentFloorIndex,to:targetFloor,elapsed:0,duration:1.25,startY:floorY(currentFloorIndex)};
   joystick={x:0,y:0};runHeld=false;showMessage(targetFloor<currentFloorIndex?'위층으로 이동 중':'아래층으로 이동 중',1100);
 }
@@ -133,9 +134,12 @@ function updateFloorTransitionFrame(dt){
   return true;
 }
 function checkStairTransition(){
-  if(floorTransition)return;const c=cellAt(player.position);
-  if(Math.hypot(c.x-STAIR_UP.x,c.z-STAIR_UP.z)<.48&&currentFloorIndex>0)beginFloorTransition(currentFloorIndex-1);
-  else if(Math.hypot(c.x-STAIR_DOWN.x,c.z-STAIR_DOWN.z)<.48&&currentFloorIndex<FLOOR_LABELS.length-1)beginFloorTransition(currentFloorIndex+1);
+  if(floorTransition)return;const c=cellAt(player.position),atUp=Math.hypot(c.x-STAIR_UP.x,c.z-STAIR_UP.z)<.48,atDown=Math.hypot(c.x-STAIR_DOWN.x,c.z-STAIR_DOWN.z)<.48;
+  if(stairLock==='up'&&atUp)return;
+  if(stairLock==='down'&&atDown)return;
+  stairLock=null;
+  if(atUp&&currentFloorIndex>0)beginFloorTransition(currentFloorIndex-1,'up');
+  else if(atDown&&currentFloorIndex<FLOOR_LABELS.length-1)beginFloorTransition(currentFloorIndex+1,'down');
 }
 
 function initThree(){
@@ -670,18 +674,6 @@ function collides(x,z){
   return checks.some(([px,pz])=>{const c=cellAt({x:px,z:pz,y:floorY(currentFloorIndex)});return !isOpen(c.x,c.z,currentFloorIndex);});
 }
 function isFloodedFloor(floorIndex){return floorIndex===3;}
-function updateFloorTransitionFrame(dt){
-  if(!floorTransition)return false;
-  floorTransition.elapsed+=dt;const t=Math.min(1,floorTransition.elapsed/floorTransition.duration),e=t*t*(3-2*t);
-  player.position.y=floorTransition.startY+(floorY(floorTransition.to)-floorTransition.startY)*e;
-  if(t>=1){currentFloorIndex=floorTransition.to;player.position.y=floorY(currentFloorIndex);maze=facilityMazes[currentFloorIndex];floorNoise=facilityNoise[currentFloorIndex];lastSurfaceCellKey='';updateFloorBadge();const panel=$('minimapPanel');if(panel){panel.classList.add('floor-switching');setTimeout(()=>panel.classList.remove('floor-switching'),420);}showMessage(FLOOR_LABELS[currentFloorIndex]+' 도착',1300);floorTransition=null;}
-  return true;
-}
-function checkStairTransition(){
-  if(floorTransition)return;const c=cellAt(player.position);
-  if(Math.hypot(c.x-STAIR_UP.x,c.z-STAIR_UP.z)<.48&&currentFloorIndex>0)beginFloorTransition(currentFloorIndex-1);
-  else if(Math.hypot(c.x-STAIR_DOWN.x,c.z-STAIR_DOWN.z)<.48&&currentFloorIndex<FLOOR_LABELS.length-1)beginFloorTransition(currentFloorIndex+1);
-}
 function movePlayer(dt){
   const mag=Math.hypot(joystick.x,joystick.y);if(mag<.08)return false;
   const forward=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw));
@@ -822,7 +814,7 @@ function drawMinimap(now){
   if(exitCell.floor===f&&seen[exitCell.z][exitCell.x]){ctx.fillStyle='#e7d18a';ctx.fillRect(exitCell.x*step+step*.2,exitCell.z*step+step*.2,step*.6,step*.6);}
   for(const s of stations)if((s.cell.floor??1)===f&&seen[s.cell.z][s.cell.x]){ctx.fillStyle='#66d4d2';ctx.beginPath();ctx.arc((s.cell.x+.5)*step,(s.cell.z+.5)*step,Math.max(1.5,step*.28),0,Math.PI*2);ctx.fill();}
   const mc=cellAt(monster.position);
-  if(now<detectorUntil&&mc.floor===f){ctx.fillStyle='#ff3434';ctx.shadowColor='#ff2424';ctx.shadowBlur=8;ctx.beginPath();ctx.arc((mc.x+.5)*step,(mc.z+.5)*step,Math.max(2.2,step*.42),0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;}
+  if(now<detectorUntil&&f!==4&&mc.floor===f){ctx.fillStyle='#ff3434';ctx.shadowColor='#ff2424';ctx.shadowBlur=8;ctx.beginPath();ctx.arc((mc.x+.5)*step,(mc.z+.5)*step,Math.max(2.2,step*.42),0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;}
   const px=(pc.x+.5)*step,py=(pc.z+.5)*step;ctx.save();ctx.translate(px,py);ctx.rotate(-yaw);
   ctx.fillStyle='#f4f6f7';ctx.strokeStyle='#101820';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(0,-step*.9);ctx.lineTo(step*.62,step*.62);ctx.lineTo(0,step*.3);ctx.lineTo(-step*.62,step*.62);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();
   ctx.strokeStyle='#9cabb4';ctx.lineWidth=1.4;ctx.strokeRect(.7,.7,size-1.4,size-1.4);
@@ -855,7 +847,7 @@ function resetGame(){
     scene.add(camera);
   }
   if(chargingGain&&audioCtx)chargingGain.gain.setValueAtTime(0,audioCtx.currentTime);
-  paused=false;stamina=1;sprintExhausted=false;battery=CONFIG.detectorCapacity;detectorUntil=0;detectorCooldownUntil=0;joystick={x:0,y:0};runHeld=false;currentFloorIndex=1;floorTransition=null;
+  paused=false;stamina=1;sprintExhausted=false;battery=CONFIG.detectorCapacity;detectorUntil=0;detectorCooldownUntil=0;joystick={x:0,y:0};runHeld=false;currentFloorIndex=1;floorTransition=null;stairLock=null;
   const now=performance.now()/1000;
   monsterState='wander';monsterTarget=null;lastSeen=null;lastHeard=null;lastHeardAt=0;path=[];pathRefresh=0;stationProgress=0;activeStation=null;lastStep=0;lastBreath=0;lastChargeSound=0;lastAmbient=0;lastMonsterStepAt=now;nextMonsterBreathAt=now+2+Math.random()*3;nextMonsterVocalAt=now+7+Math.random()*6;nextMonsterWallAt=now+12+Math.random()*10;nextMonsterSound=0;
   nextLocationPing=now+20+Math.random()*20;soundAlertUntil=0;locationAlertUntil=0;sightAlertUntil=0;lastSurfaceCellKey='';lastCreakAt=-Infinity;
