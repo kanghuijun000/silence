@@ -90,6 +90,23 @@
       <div class="end-actions"><button id="restartBtn" class="primary">다시 시작</button><button id="menuBtn" class="secondary">메인 화면</button></div>
     </div>
   </main>
-  <script type="module" src="./game.js"></script>
+  <script>
+(() => {
+  const startButton = document.getElementById('startBtn');
+  const guideButton = document.getElementById('guideBtn');
+  const closeGuideButton = document.getElementById('closeGuideBtn');
+  const guideModal = document.getElementById('guideModal');
+  if (startButton) startButton.addEventListener('click', () => {
+    if (typeof window.startSilenceGame === 'function') window.startSilenceGame();
+    else alert('게임 엔진을 불러오지 못했습니다. 인터넷 연결을 확인한 뒤 앱을 다시 열어 주세요.');
+  });
+  if (guideButton && guideModal) guideButton.addEventListener('click', () => guideModal.classList.remove('hidden'));
+  if (closeGuideButton && guideModal) closeGuideButton.addEventListener('click', () => guideModal.classList.add('hidden'));
+  window.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && guideModal) guideModal.classList.add('hidden');
+  });
+})();
+</script>
+<script type="module" src="./game.js"></script>
 </body>
 </html>
