@@ -55,3 +55,13 @@
 @media(orientation:portrait){
   #game{position:fixed;width:var(--screen-h);height:var(--screen-w);left:calc((var(--screen-w) - var(--screen-h))/2);top:calc((var(--screen-h) - var(--screen-w))/2);transform:rotate(90deg);transform-origin:center center}
 }
+
+/* SILENCE 다층 복합시설 지도 */
+#minimapPanel{width:196px;aspect-ratio:auto;height:auto;padding:8px;border-radius:11px;overflow:hidden;background:rgba(5,11,16,.91);border:1px solid #aab9c477;box-shadow:0 8px 28px #000a;backdrop-filter:blur(8px)}
+#minimap{width:180px;height:180px;border-radius:4px;background:#080e13;image-rendering:pixelated}
+.map-topline{display:flex;align-items:center;justify-content:space-between;margin:0 2px 7px;color:#aab8c0;font-size:8px;letter-spacing:1.7px}
+.map-topline b{font-size:12px;letter-spacing:1px;color:#e4e9ec;padding:2px 7px;border:1px solid #8b9ca866;border-radius:4px;background:#17242d}
+.map-legend{display:block;font-size:7px;color:#9eabb4;text-align:center;margin-top:5px;letter-spacing:.2px}
+#minimapPanel.floor-switching{animation:floorMapSwitch .42s ease}
+@keyframes floorMapSwitch{0%{opacity:.35;transform:translateY(4px) scale(.97)}100%{opacity:1;transform:translateY(0) scale(1)}}
+@media(max-height:430px){#minimapPanel{top:61px;width:154px;padding:6px;right:10px}#minimap{width:140px;height:140px}.map-topline{margin-bottom:4px;font-size:7px}.map-topline b{font-size:10px}.map-legend{font-size:6px}}
