@@ -108,16 +108,27 @@ async function loadPBRMaterial(THREE,renderer,ktx2Loader,definition){
   });
 }
 
+const surfaceMaterialPromises=new WeakMap();
+async function getSurfaceMaterials(THREE,renderer,ktx2Loader){
+  let pending=surfaceMaterialPromises.get(renderer);
+  if(!pending){
+    pending=Promise.all(Object.entries(SURFACE_MATERIALS).map(async([key,definition])=>{
+      try{
+        const material=await loadPBRMaterial(THREE,renderer,ktx2Loader,definition);
+        console.info('[SILENCE] PBR 표면 준비 완료:',definition.slug);
+        return [key,material];
+      }catch(error){
+        console.warn('[SILENCE] PBR 표면을 불러오지 못했습니다:',definition.slug,error);
+        return [key,null];
+      }
+    })).then(entries=>Object.fromEntries(entries));
+    surfaceMaterialPromises.set(renderer,pending);
+  }
+  return pending;
+}
+
 async function applyPBRMaterials(THREE,renderer,ktx2Loader,floorGroups){
-  const loaded={};
-  await Promise.all(Object.entries(SURFACE_MATERIALS).map(async([key,definition])=>{
-    try{
-      loaded[key]=await loadPBRMaterial(THREE,renderer,ktx2Loader,definition);
-      console.info('[SILENCE] PBR 표면 준비 완료:',definition.slug);
-    }catch(error){
-      console.warn('[SILENCE] PBR 표면을 불러오지 못했습니다:',definition.slug,error);
-    }
-  }));
+  const loaded=await getSurfaceMaterials(THREE,renderer,ktx2Loader);
 
   for(let floor=0;floor<floorGroups.length;floor++){
     const group=floorGroups[floor];
@@ -137,6 +148,19 @@ function loadGLB(loader,url){
   return new Promise((resolve,reject)=>{
     loader.load(url,gltf=>resolve(gltf.scene),undefined,reject);
   });
+}
+
+// Cache original model prototypes across game resets. Each rebuilt floor receives
+// a fresh clone, while network downloads and GPU texture preparation are reused.
+const modelPrototypePromises=new Map();
+function getModelPrototype(id,loader,THREE){
+  if(!modelPrototypePromises.has(id)){
+    const pending=loadGLB(loader,MODEL_BASE+ASSETS[id])
+      .then(model=>preparePrototype(THREE,model))
+      .catch(error=>{modelPrototypePromises.delete(id);throw error;});
+    modelPrototypePromises.set(id,pending);
+  }
+  return modelPrototypePromises.get(id);
 }
 
 function preparePrototype(THREE,model){
@@ -175,8 +199,8 @@ export async function loadEnvironmentAssets(THREE,renderer,floorGroups,world,flo
   // Fetch each source model once. Instances share GPU geometry and texture memory.
   await Promise.all(assetIds.map(async id=>{
     try{
-      const model=await loadGLB(loader,MODEL_BASE+ASSETS[id]);
-      prototypes.set(id,preparePrototype(THREE,model));
+      const model=await getModelPrototype(id,loader,THREE);
+      prototypes.set(id,model);
       console.info('[SILENCE] 환경 모델 준비 완료:',id);
     }catch(error){
       console.warn('[SILENCE] 환경 모델을 불러오지 못했습니다:',id,error);
