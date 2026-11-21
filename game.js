@@ -189,7 +189,7 @@ function checkStairTransition(){
 }
 
 function initThree(){
-  scene=new THREE.Scene(); scene.background=new THREE.Color(0x05080b); scene.fog=new THREE.FogExp2(0x080d11,0.008);
+  scene=new THREE.Scene(); scene.background=new THREE.Color(0x05080b); scene.fog=new THREE.FogExp2(0x080d11,0.0028);
   syncGameViewport();
   const viewport=getViewportSize();
   const renderWidth=viewport.portrait?viewport.height:viewport.width;
@@ -202,7 +202,7 @@ function initThree(){
   renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   view.replaceChildren(renderer.domElement);
   clock=new THREE.Clock();
-  scene.add(new THREE.HemisphereLight(0x9aaab4,0x252b30,.32));const light=new THREE.DirectionalLight(0x9eabb3,.11);light.position.set(-10,20,8);light.castShadow=true;light.shadow.mapSize.set(1024,1024);light.shadow.camera.near=.5;light.shadow.camera.far=55;light.shadow.bias=-.00018;scene.add(light);scene.add(new THREE.AmbientLight(0x87939a,.18));const flashlight=new THREE.SpotLight(0xf0f7fa,9.5,38,Math.PI/5,.42,1.05);flashlight.position.set(0,0,0);flashlight.target.position.set(0,0,-1);flashlight.castShadow=true;flashlight.shadow.mapSize.set(1024,1024);flashlight.shadow.camera.near=.1;flashlight.shadow.camera.far=24;camera.add(flashlight);camera.add(flashlight.target);scene.add(camera);
+  scene.add(new THREE.HemisphereLight(0x9aaab4,0x252b30,.42));const light=new THREE.DirectionalLight(0x9eabb3,.14);light.position.set(-10,20,8);light.castShadow=true;light.shadow.mapSize.set(1024,1024);light.shadow.camera.near=.5;light.shadow.camera.far=55;light.shadow.bias=-.00018;scene.add(light);scene.add(new THREE.AmbientLight(0x87939a,.28));const flashlight=new THREE.SpotLight(0xf0f7fa,18,48,Math.PI/4,.48,1.0);flashlight.position.set(0,0,0);flashlight.target.position.set(0,0,-1);flashlight.castShadow=true;flashlight.shadow.mapSize.set(1024,1024);flashlight.shadow.camera.near=.1;flashlight.shadow.camera.far=24;camera.add(flashlight);camera.add(flashlight.target);scene.add(camera);
 }
 function addBox(x,y,z,sx,sy,sz,mat){
   const mesh=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),mat);mesh.position.set(x,y,z);scene.add(mesh);return mesh;
@@ -237,7 +237,7 @@ function buildWorld(){
     for(let z=3;z<CONFIG.mazeSize-3;z+=7)for(let x=3;x<CONFIG.mazeSize-3;x+=7)if(map[z][x]===0){
       const p=world({x,z,floor:f}),housing=new THREE.Mesh(new THREE.BoxGeometry(.78,.13,.28),lightMat);housing.position.set(p.x,base+2.82,p.z);scene.add(housing);
       const tube=new THREE.Mesh(new THREE.BoxGeometry(.62,.035,.17),new THREE.MeshBasicMaterial({color:factory?0xb2a18b:0xdce9eb}));tube.position.set(p.x,base+2.735,p.z);scene.add(tube);
-      const light=new THREE.PointLight(factory?0xc19a70:basement?0x74838a:0xd8edf4,factory ? .65 : basement ? .48 : 1.1,13,1.8);light.position.set(p.x,base+2.58,p.z);scene.add(light);
+      const light=new THREE.PointLight(factory?0xc19a70:basement?0x74838a:0xd8edf4,factory ? .72 : basement ? .68 : 1.35,15,1.8);light.position.set(p.x,base+2.58,p.z);scene.add(light);
     }
     const pipeMat=new THREE.MeshStandardMaterial({color:factory?0x4a4c47:0x343d40,metalness:.68,roughness:.58});
     for(let z=4;z<CONFIG.mazeSize-4;z+=9)for(let x=4;x<CONFIG.mazeSize-5;x++)if(map[z][x]===0&&map[z][x+1]===0&&map[z][x+2]===0&&Math.random()<.18){
@@ -870,7 +870,7 @@ function animate(){
   const dt=Math.min(clock.getDelta(),.05),now=performance.now()/1000;
   if(running&&!gameOver){updatePlayer(dt,now);monsterUpdate(dt,now);updateAmbient(now);setCamera();}
   if(factoryHaze)factoryHaze.rotation.y+=dt*.008;
-  if(scene?.fog)scene.fog.density=currentFloorIndex === 2 ? .012 : .008;
+  if(scene?.fog)scene.fog.density=currentFloorIndex === 2 ? .006 : .0028;
   updateSoundMeters(dt);
   drawMinimap(now);
   updateDetectorScan(now);
@@ -888,9 +888,9 @@ function finish(success){
 function resetGame(){
   if(scene){
     while(scene.children.length)scene.remove(scene.children[0]);
-    scene.add(new THREE.HemisphereLight(0x9aaab4,0x252b30,.32));
-    const keyLight=new THREE.DirectionalLight(0x9eabb3,.11);keyLight.position.set(-10,20,8);scene.add(keyLight);
-    scene.add(new THREE.AmbientLight(0x87939a,.18));
+    scene.add(new THREE.HemisphereLight(0x9aaab4,0x252b30,.42));
+    const keyLight=new THREE.DirectionalLight(0x9eabb3,.14);keyLight.position.set(-10,20,8);scene.add(keyLight);
+    scene.add(new THREE.AmbientLight(0x87939a,.28));
     scene.add(camera);
   }
   if(chargingGain&&audioCtx)chargingGain.gain.setValueAtTime(0,audioCtx.currentTime);
