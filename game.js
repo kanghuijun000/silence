@@ -77,7 +77,7 @@ function inside(x,z){return x>=0&&z>=0&&x<CONFIG.mazeSize&&z<CONFIG.mazeSize;}
 function isOpen(x,z,floorIndex=currentFloorIndex){const map=facilityMazes[floorIndex]||maze;return inside(x,z)&&map?.[z]?.[x]===0;}
 function floorY(floorIndex){return -floorIndex*FLOOR_SPACING;}
 function world(c){const f=c.floor??currentFloorIndex;return new THREE.Vector3((c.x-half)*cell,floorY(f),(c.z-half)*cell);}
-function cellAt(pos){const floor=Math.max(0,Math.min(FLOOR_LABELS.length-1,Math.round(-pos.y/FLOOR_SPACING)));return{x:Math.max(0,Math.min(CONFIG.mazeSize-1,Math.round(pos.x/cell+half))),z:Math.max(0,Math.min(CONFIG.mazeSize-1,Math.round(pos.z/cell+half))),floor};}
+function cellAt(pos){const floor=stairTraversal?stairTraversal.fromFloor:Math.max(0,Math.min(FLOOR_LABELS.length-1,Math.round(-pos.y/FLOOR_SPACING)));return{x:Math.max(0,Math.min(CONFIG.mazeSize-1,Math.round(pos.x/cell+half))),z:Math.max(0,Math.min(CONFIG.mazeSize-1,Math.round(pos.z/cell+half))),floor};}
 function isReservedCell(x,z,floorIndex){
   const sets=floorIndex<=1?[[6,6],[34,6],[6,34],[34,34]]:floorIndex===2?[[8,8],[32,9],[9,32],[32,32],[25,17]]:floorIndex===4?[[6,6],[34,6],[6,34],[34,34]]:[];
   return sets.some(([rx,rz])=>rx===x&&rz===z);
@@ -302,7 +302,7 @@ function buildWorld(){
       const topY=floorY(baseFloor)-(n+1)*stairRise;
       const z=startZ-(n+.5)*stairTread;
       const tread=new THREE.Mesh(new THREE.BoxGeometry(1.92,stairRise,stairTread),stairStepMat);
-      tread.position.set(p.x,floorY(baseFloor)-(n+.5)*stairRise,z);
+      tread.position.set(p.x,topY-stairRise/2,z);
       tread.castShadow=true;tread.receiveShadow=true;flight.add(tread);
       const riser=new THREE.Mesh(new THREE.BoxGeometry(1.88,stairRise,.065),stairRiserMat);
       riser.position.set(p.x,floorY(baseFloor)-(n+.5)*stairRise,startZ-(n+1)*stairTread+.025);
@@ -365,7 +365,9 @@ function buildWorld(){
   }
 }
 function updateFloorVisibility(){
-  for(let i=0;i<floorGroups.length;i++)floorGroups[i].visible=i===currentFloorIndex;
+  const visibleFloors=new Set([currentFloorIndex]);
+  if(stairTraversal){visibleFloors.add(stairTraversal.fromFloor);visibleFloors.add(stairTraversal.toFloor);}
+  for(let i=0;i<floorGroups.length;i++)floorGroups[i].visible=visibleFloors.has(i);
   if(exitMesh)exitMesh.visible=(exitCell?.floor??0)===currentFloorIndex;
   for(const station of stations)if(station.mesh)station.mesh.visible=(station.cell.floor??currentFloorIndex)===currentFloorIndex;
 }
@@ -408,7 +410,9 @@ function buildMonster(){
 }
 function setMonsterVisible(on,throughWalls=false){if(!monsterGroup)return;if(monsterVisible===on&&monsterThroughWalls===throughWalls)return;monsterVisible=on;monsterThroughWalls=throughWalls;monsterGroup.visible=on;monsterGroup.traverse(o=>{if(o.isMesh){o.renderOrder=on?8:0;const ms=Array.isArray(o.material)?o.material:[o.material];for(const m of ms){m.depthTest=!throughWalls;m.depthWrite=!throughWalls;m.needsUpdate=true;}}});}
 function setCamera(){
-  camera.position.copy(player.position);camera.position.y=player.position.y+1.62;
+  camera.position.copy(player.position);
+  const stairBob=stairTraversal?Math.sin(stairTraversal.progress*24*Math.PI*2)*.018:0;
+  camera.position.y=player.position.y+1.62+stairBob;
   camera.rotation.order='YXZ';camera.rotation.y=yaw;camera.rotation.x=pitch;
 }
 function setupPlayerAndMonster(){
@@ -806,7 +810,7 @@ function updateSoundMeters(dt){
 function updateHud(){
   $('battery').textContent=battery+' / '+CONFIG.detectorCapacity;$('batteryFill').style.width=(battery/CONFIG.detectorCapacity*100)+'%';
   $('staminaText').textContent=Math.round(stamina*100)+'%';$('staminaFill').style.width=(stamina*100)+'%';
-  $('scanBtn').disabled=battery<=0||!!activeStation||currentFloorIndex===4||!!floorTransition||performance.now()/1000<detectorCooldownUntil;
+  $('scanBtn').disabled=battery<=0||!!activeStation||currentFloorIndex===4||!!floorTransition||!!stairTraversal||performance.now()/1000<detectorCooldownUntil;
 }
 function inStairwellFootprint(x,z,floorIndex=currentFloorIndex){
   for(const shaft of [STAIR_UP,STAIR_DOWN]){
@@ -822,10 +826,10 @@ function collides(x,z){
 }
 function isFloodedFloor(floorIndex){return floorIndex===3;}
 function stairStartFor(shaftName,shaft){
-  const p=world({...shaft,floor:currentFloorIndex}),length=24*.28,ascending=shaftName==='down';
-  return {shaftName,shaft,fromFloor:currentFloorIndex,toFloor:currentFloorIndex+(ascending?1:-1),
-    startZ:p.z+(ascending?length/2:-length/2),endZ:p.z-(ascending?length/2:-length/2),
-    direction:ascending?-1:1,length};
+  const p=world({...shaft,floor:currentFloorIndex}),length=24*.28,descending=shaftName==='down';
+  return {shaftName,shaft,fromFloor:currentFloorIndex,toFloor:currentFloorIndex+(descending?1:-1),
+    startZ:p.z+(descending?length/2:-length/2),endZ:p.z-(descending?length/2:-length/2),
+    direction:descending?-1:1,length,progress:0};
 }
 function beginStairTraversalIfEntering(dir,targetX=player.position.x,targetZ=player.position.z){
   if(stairTraversal)return false;
@@ -833,7 +837,7 @@ function beginStairTraversalIfEntering(dir,targetX=player.position.x,targetZ=pla
     if((name==='up'&&currentFloorIndex===0)||(name==='down'&&currentFloorIndex===FLOOR_LABELS.length-1))continue;
     const data=stairStartFor(name,shaft),centerX=world({...shaft,floor:currentFloorIndex}).x;
     if(dir.z*data.direction>.38&&Math.abs(targetX-centerX)<.82&&Math.abs(targetZ-data.startZ)<.92){
-      stairTraversal={...data,stepCount:24};stairLock=name;
+      stairTraversal={...data,stepCount:24};stairLock=name;updateFloorVisibility();
       showMessage(name==='down'?'계단을 내려갑니다':'계단을 올라갑니다',850);return true;
     }
   }
@@ -842,7 +846,8 @@ function beginStairTraversalIfEntering(dir,targetX=player.position.x,targetZ=pla
 function updateStairTraversal(){
   if(!stairTraversal)return;
   const t=stairTraversal,progress=THREE.MathUtils.clamp((player.position.z-t.startZ)/(t.endZ-t.startZ),0,1);
-  // Keep vertical movement continuous instead of snapping once per tread.
+  t.progress=progress;
+  // A continuous ramp keeps the camera and player height aligned with the visible flight.
   player.position.y=floorY(t.fromFloor)+(floorY(t.toFloor)-floorY(t.fromFloor))*progress;
   if(progress>=1){
     player.position.z=t.endZ;player.position.y=floorY(t.toFloor);
@@ -851,7 +856,7 @@ function updateStairTraversal(){
     const panel=$('minimapPanel');if(panel){panel.classList.add('floor-switching');setTimeout(()=>panel.classList.remove('floor-switching'),420);}
     showMessage(FLOOR_LABELS[currentFloorIndex]+' 도착',1000);
   }else if(progress<=0&&((t.direction<0&&player.position.z>t.startZ+.15)||(t.direction>0&&player.position.z<t.startZ-.15))){
-    player.position.y=floorY(t.fromFloor);stairTraversal=null;stairLock=null;
+    player.position.y=floorY(t.fromFloor);stairTraversal=null;stairLock=null;updateFloorVisibility();
   }
 }
 function movePlayer(dt){
@@ -863,13 +868,16 @@ function movePlayer(dt){
   const flooded=isFloodedFloor(currentFloorIndex),normalSpeed=flooded?(wantsRun?3.75:1.72):(wantsRun?5.0:2.35);
   let moved=false;
   if(stairTraversal){
-    const stairSpeed=wantsRun?2.8:1.85;
-    if(Math.abs(dir.z)>.32){
+    const stairSpeed=wantsRun?2.05:1.42;
+    const centerX=world({...stairTraversal.shaft,floor:stairTraversal.fromFloor}).x;
+    if(Math.abs(dir.z)>.12){
       const nextZ=player.position.z+dir.z*stairSpeed*dt;
-      const centerX=world({...stairTraversal.shaft,floor:currentFloorIndex}).x;
-      player.position.x=THREE.MathUtils.clamp(player.position.x+dir.x*stairSpeed*dt,centerX-.48,centerX+.48);
+      const targetX=THREE.MathUtils.clamp(player.position.x+dir.x*stairSpeed*dt,centerX-.32,centerX+.32);
+      player.position.x=THREE.MathUtils.damp(player.position.x,targetX,12,dt);
       player.position.z=THREE.MathUtils.clamp(nextZ,Math.min(stairTraversal.startZ,stairTraversal.endZ),Math.max(stairTraversal.startZ,stairTraversal.endZ));
       updateStairTraversal();moved=true;
+    }else{
+      player.position.x=THREE.MathUtils.damp(player.position.x,centerX,8,dt);
     }
     return moved;
   }
@@ -877,9 +885,8 @@ function movePlayer(dt){
   const targetX=player.position.x+dx,targetZ=player.position.z+dz;
   // 계단 진입은 일반 바닥 충돌보다 먼저 판정한다. 계단실을 가로질러 빠져나가는 길은 막는다.
   if(beginStairTraversalIfEntering(dir,targetX,targetZ)){
-    const t=stairTraversal,stairSpeed=wantsRun?2.8:1.85;
-    const centerX=world({...t.shaft,floor:currentFloorIndex}).x;
-    player.position.x=THREE.MathUtils.clamp(targetX,centerX-.48,centerX+.48);
+    const t=stairTraversal,centerX=world({...t.shaft,floor:t.fromFloor}).x;
+    player.position.x=THREE.MathUtils.clamp(targetX,centerX-.32,centerX+.32);
     player.position.z=THREE.MathUtils.clamp(targetZ,Math.min(t.startZ,t.endZ),Math.max(t.startZ,t.endZ));
     updateStairTraversal();return true;
   }
