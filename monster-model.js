@@ -131,7 +131,8 @@ export function createMonsterModel(THREE) {
     elbowLeft:leftArm.elbow,elbowRight:rightArm.elbow,
     wristLeft:leftArm.wrist,wristRight:rightArm.wrist,
     legLeft:leftLeg.hip,legRight:rightLeg.hip,
-    kneeLeft:leftLeg.knee,kneeRight:rightLeg.knee
+    kneeLeft:leftLeg.knee,kneeRight:rightLeg.knee,
+    footLeft:leftLeg.foot,footRight:rightLeg.foot
   };
 }
 
@@ -254,28 +255,57 @@ function addOrganicOrb(THREE,parent,pos,scale,mat,name,detail=.2){
   m.position.set(...pos);m.name=name;m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;
 }
 
+function makeSkinnedTube(THREE,points,radii,material,name,radial=22,tubular=48,jointT=.55){
+  const geometry=tubeGeometry(THREE,points,radii,radial,tubular);
+  const indices=[],weights=[];
+  for(let ring=0;ring<=tubular;ring++){
+    const t=ring/tubular;
+    let a=0,b=0,c=0;
+    const blend=.085,second=.86;
+    if(t<jointT-blend)a=1;
+    else if(t<jointT+blend){
+      const q=(t-(jointT-blend))/(blend*2);a=1-q;b=q;
+    }else if(t<second)b=1;
+    else{
+      const q=Math.min(1,(t-second)/(1-second));b=1-q;c=q;
+    }
+    for(let j=0;j<radial;j++){
+      indices.push(0,1,2,0);
+      weights.push(a,b,c,0);
+    }
+  }
+  geometry.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(indices,4));
+  geometry.setAttribute('skinWeight',new THREE.Float32BufferAttribute(weights,4));
+  const mesh=new THREE.SkinnedMesh(geometry,material);
+  mesh.name=name;mesh.castShadow=true;mesh.receiveShadow=true;
+  mesh.frustumCulled=false;
+  mesh.normalizeSkinWeights();
+  return mesh;
+}
+
 function makeArm(THREE,parent,side,skin,ridge,name,length){
-  const shoulder=new THREE.Group();
-  shoulder.name=name+'_Shoulder_Joint';
-  shoulder.position.set(side*(side<0?.39:.34),.58,side<0?-.015:.025);
-  parent.add(shoulder);
+  const armRoot=new THREE.Group();
+  armRoot.name=name+'_Skinned_Arm_Root';
+  armRoot.position.set(side*(side<0?.39:.34),.58,side<0?-.015:.025);
+  parent.add(armRoot);
   const extra=length-1.48;
   const points=side<0
     ?[[0,0,0],[side*.12,-.2,.025],[side*.18,-.48,.08],[side*.11,-.76,.12],[side*.16,-1.08,.16],[side*.19,-1.35-extra*.45,.18],[side*.21,-1.58-extra,.16]]
     :[[0,0,0],[side*.13,-.18,.02],[side*.19,-.42,.065],[side*.16,-.68,.11],[side*.23,-.92,.14],[side*.27,-1.12-extra*.4,.16]];
   const radii=side<0?[.205,.17,.13,.115,.083,.061,.043]:[.22,.18,.15,.12,.092,.055];
-  addTube(THREE,shoulder,points.slice(0,4),radii.slice(0,4),skin,22,38,name+'_Upper_Arm_Sculpt');
-  const elbow=new THREE.Group();
-  elbow.name=name+'_Elbow_Joint';
-  elbow.position.set(...points[3]);
-  shoulder.add(elbow);
-  const lowerPoints=points.slice(3).map(p=>[p[0]-points[3][0],p[1]-points[3][1],p[2]-points[3][2]]);
-  addTube(THREE,elbow,lowerPoints,radii.slice(3),skin,22,42,name+'_Forearm_Sculpt');
-  const end=lowerPoints[lowerPoints.length-1];
-  const wrist=new THREE.Group();
-  wrist.name=name+'_Wrist_Joint';
-  wrist.position.set(...end);
+  const shoulder=new THREE.Bone();shoulder.name=name+'_Shoulder_Bone';
+  const elbow=new THREE.Bone();elbow.name=name+'_Elbow_Bone';
+  elbow.position.set(...points[3]);shoulder.add(elbow);
+  const end=points[points.length-1];
+  const wrist=new THREE.Bone();wrist.name=name+'_Wrist_Bone';
+  wrist.position.set(end[0]-points[3][0],end[1]-points[3][1],end[2]-points[3][2]);
   elbow.add(wrist);
+  armRoot.add(shoulder);
+  const mesh=makeSkinnedTube(THREE,points,radii,skin,name+'_Continuous_Skinned_Surface',22,52,3/(points.length-1));
+  armRoot.add(mesh);
+  parent.updateWorldMatrix(true,true);
+  mesh.bind(new THREE.Skeleton([shoulder,elbow,wrist]));
+
   addTube(THREE,wrist,[[0,0,0],[side*.025,-.11,.055],[side*.035,-.2,.075]],
     [.07,.09,.055],skin,18,24,name+'_Palm_Form');
   for(let i=0;i<4;i++){
@@ -289,32 +319,33 @@ function makeArm(THREE,parent,side,skin,ridge,name,length){
   return {shoulder,elbow,wrist};
 }
 function makeLeg(THREE,root,side,skin,ridge,name,length){
-  const hip=new THREE.Group();
-  hip.name=name+'_Hip_Joint';
-  hip.position.set(side*.17,.76,0);
-  root.add(hip);
+  const legRoot=new THREE.Group();
+  legRoot.name=name+'_Skinned_Leg_Root';
+  legRoot.position.set(side*.17,.76,0);
+  root.add(legRoot);
   const points=side<0
     ?[[0,0,0],[side*.04,-.18,-.09],[side*.11,-.39,-.15],[side*.04,-.57,-.04],[side*.12,-.76,.04],[side*.16,-.9,.13]]
     :[[0,0,0],[side*.03,-.2,-.07],[side*.06,-.4,-.13],[side*.14,-.55,-.035],[side*.18,-.76,.08]];
   const radii=side<0?[.18,.15,.11,.09,.07,.045]:[.19,.15,.12,.085,.05];
-  addTube(THREE,hip,points.slice(0,4),radii.slice(0,4),skin,20,34,name+'_Thigh_Sculpt');
-  const knee=new THREE.Group();
-  knee.name=name+'_Knee_Joint';
-  knee.position.set(...points[3]);
-  hip.add(knee);
-  const lower=points.slice(3).map(p=>[p[0]-points[3][0],p[1]-points[3][1],p[2]-points[3][2]]);
-  addTube(THREE,knee,lower,radii.slice(3),skin,20,32,name+'_Lower_Leg_Sculpt');
-  const ankle=lower[lower.length-1];
-  const foot=new THREE.Group();
-  foot.name=name+'_Ankle_Joint';
-  foot.position.set(...ankle);
-  knee.add(foot);
-  addTube(THREE,foot,[[0,0,0],[0,-.025,.16],[side*.035,-.04,.29]],
+  const hip=new THREE.Bone();hip.name=name+'_Hip_Bone';
+  const knee=new THREE.Bone();knee.name=name+'_Knee_Bone';
+  knee.position.set(...points[3]);hip.add(knee);
+  const end=points[points.length-1];
+  const ankle=new THREE.Bone();ankle.name=name+'_Ankle_Bone';
+  ankle.position.set(end[0]-points[3][0],end[1]-points[3][1],end[2]-points[3][2]);
+  knee.add(ankle);
+  legRoot.add(hip);
+  const mesh=makeSkinnedTube(THREE,points,radii,skin,name+'_Continuous_Skinned_Surface',20,48,3/(points.length-1));
+  legRoot.add(mesh);
+  root.updateWorldMatrix(true,true);
+  mesh.bind(new THREE.Skeleton([hip,knee,ankle]));
+
+  addTube(THREE,ankle,[[0,0,0],[0,-.025,.16],[side*.035,-.04,.29]],
     [.075,.085,.035],skin,16,22,name+'_Distorted_Foot');
   for(let i=0;i<4;i++){
     const x=(i-1.5)*.045;
-    addTube(THREE,foot,[[x,-.025,.22],[x+(i-1.5)*.012,-.06,.31],
+    addTube(THREE,ankle,[[x,-.025,.22],[x+(i-1.5)*.012,-.06,.31],
       [x+(i-1.5)*.02,-.075,.39]],[.027,.015,.001],skin,8,16,name+'_Toe_'+i);
   }
-  return {hip,knee,foot};
+  return {hip,knee,foot:ankle};
 }
