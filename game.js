@@ -1000,6 +1000,12 @@ function monsterUpdate(dt,now){
     monsterRig.kneeRight.rotation.x=rightLift*.88*drive;
     monsterRig.footLeft.rotation.x=-leftLift*.16*drive;
     monsterRig.footRight.rotation.x=-rightLift*.18*drive;
+    monsterRig.pelvis.rotation.y=Math.sin(phase)*.045*drive;
+    monsterRig.spine.rotation.x=(moving?-.025:0)+Math.sin(phase*2-.25)*.022*drive;
+    monsterRig.spine.rotation.y=-Math.sin(phase)*.028*drive;
+    monsterRig.chest.rotation.x=(moving?-.035:0)+Math.sin(phase*2+.35)*.028*drive;
+    monsterRig.chest.rotation.y=Math.sin(phase+.4)*.045*drive;
+    monsterRig.neck.rotation.z=Math.sin(monsterAnimTime*1.15)*.025+(alertLevel>=4?-.035:0);
     monsterRig.upperBody.rotation.x=(moving?-.055:0)+Math.sin(phase*2)*.025*drive;
     monsterRig.upperBody.rotation.y=Math.sin(phase)*.075*drive;
     monsterRig.upperBody.rotation.z=Math.sin(phase)*.035*drive;
