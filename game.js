@@ -16,6 +16,12 @@ const $ = id => document.getElementById(id);
 const view = $('view');
 let scene, camera, renderer, clock;
 let maze = [], floorNoise = [], stations = [], stationMeshes = [];
+let facilityMazes = [], facilityNoise = [], exploredFloors = [];
+let currentFloorIndex = 1, floorTransition = null, factoryHaze = null;
+const FLOOR_LABELS = ['2F','1F','B1','B2','B3'];
+const FLOOR_SPACING = 4.5;
+const STAIR_UP = {x:20,z:20};
+const STAIR_DOWN = {x:10,z:10};
 let player, monster, exitMesh, exitCell, spawnCell;
 let running = false, gameOver = false, sprintExhausted = false;
 let paused = false, audioMuted = false, displayBrightness = 1.25, brightnessPercent = 100;
@@ -60,53 +66,76 @@ function syncGameViewport(){
 }
 
 function randInt(n){ return Math.floor(Math.random()*n); }
-function key(c){ return c.x+','+c.z; }
-function inside(x,z){ return x>=0&&z>=0&&x<CONFIG.mazeSize&&z<CONFIG.mazeSize; }
-function isOpen(x,z){ return inside(x,z)&&maze[z]?.[x]===0; }
-function world(c){ return new THREE.Vector3((c.x-half)*cell,0,(c.z-half)*cell); }
-function cellAt(pos){ return {x:Math.max(0,Math.min(CONFIG.mazeSize-1,Math.round(pos.x/cell+half))),z:Math.max(0,Math.min(CONFIG.mazeSize-1,Math.round(pos.z/cell+half)))}; }
-function randomOpen(exclude=[]){
-  const blocked=new Set(exclude.map(key));
-  for(let i=0;i<5000;i++){const c={x:1+randInt(CONFIG.mazeSize-2),z:1+randInt(CONFIG.mazeSize-2)};if(isOpen(c.x,c.z)&&!blocked.has(key(c)))return c;}
-  for(let z=1;z<CONFIG.mazeSize-1;z++)for(let x=1;x<CONFIG.mazeSize-1;x++)if(isOpen(x,z)&&!blocked.has(key({x,z})))return{x,z};
-  return {x:1,z:1};
+function key(c){return c.x+','+c.z;}
+function nodeKey(c){return (c.floor??currentFloorIndex)+':'+c.x+','+c.z;}
+function inside(x,z){return x>=0&&z>=0&&x<CONFIG.mazeSize&&z<CONFIG.mazeSize;}
+function isOpen(x,z,floorIndex=currentFloorIndex){const map=facilityMazes[floorIndex]||maze;return inside(x,z)&&map?.[z]?.[x]===0;}
+function floorY(floorIndex){return floorIndex*FLOOR_SPACING;}
+function world(c){const f=c.floor??currentFloorIndex;return new THREE.Vector3((c.x-half)*cell,floorY(f),(c.z-half)*cell);}
+function cellAt(pos){const floor=Math.max(0,Math.min(FLOOR_LABELS.length-1,Math.round(pos.y/FLOOR_SPACING)));return{x:Math.max(0,Math.min(CONFIG.mazeSize-1,Math.round(pos.x/cell+half))),z:Math.max(0,Math.min(CONFIG.mazeSize-1,Math.round(pos.z/cell+half))),floor};}
+function randomOpen(exclude=[],floorIndex=currentFloorIndex){
+  const blocked=new Set(exclude.map(key)),map=facilityMazes[floorIndex]||maze;
+  for(let i=0;i<5000;i++){const c={x:1+randInt(CONFIG.mazeSize-2),z:1+randInt(CONFIG.mazeSize-2)};if(map?.[c.z]?.[c.x]===0&&!blocked.has(key(c)))return {...c,floor:floorIndex};}
+  for(let z=1;z<CONFIG.mazeSize-1;z++)for(let x=1;x<CONFIG.mazeSize-1;x++)if(map?.[z]?.[x]===0&&!blocked.has(key({x,z})))return{x,z,floor:floorIndex};
+  return{x:1,z:1,floor:floorIndex};
+}
+function createFloorMaze(floorIndex){
+  const n=CONFIG.mazeSize,map=Array.from({length:n},()=>Array(n).fill(1)),stack=[{x:1,z:1}],dirs=[[0,-2],[2,0],[0,2],[-2,0]];
+  map[1][1]=0;
+  while(stack.length){const cur=stack[stack.length-1],options=dirs.map(([dx,dz])=>({x:cur.x+dx,z:cur.z+dz,dx,dz})).filter(p=>p.x>0&&p.z>0&&p.x<n-1&&p.z<n-1&&map[p.z][p.x]===1);if(!options.length){stack.pop();continue;}const next=options[randInt(options.length)];map[cur.z+next.dz/2][cur.x+next.dx/2]=0;map[next.z][next.x]=0;stack.push({x:next.x,z:next.z});}
+  for(let z=1;z<n-1;z++)for(let x=1;x<n-1;x++)if(map[z][x]===1&&Math.random()<.075&&((map[z][x-1]===0&&map[z][x+1]===0)||(map[z-1][x]===0&&map[z+1][x]===0)))map[z][x]=0;
+  const carve=(x1,z1,x2,z2)=>{let x=x1,z=z1;while(x!==x2){map[z][x]=0;x+=Math.sign(x2-x);}while(z!==z2){map[z][x]=0;z+=Math.sign(z2-z);}map[z][x]=0;};
+  const rooms=floorIndex===2?[[5,5,11,10],[28,5,35,12],[5,29,13,35],[28,28,36,35]]:floorIndex===3?[[4,6,12,13],[27,5,36,12],[5,28,14,36],[27,28,36,35]]:[[5,5,12,12],[28,5,35,11],[5,29,13,35],[28,28,36,36]];
+  for(const [x1,z1,x2,z2] of rooms)for(let z=z1;z<=z2;z++)for(let x=x1;x<=x2;x++)map[z][x]=0;
+  carve(20,20,10,10);carve(20,20,20,5);carve(20,20,35,20);carve(10,10,5,10);carve(10,10,10,30);carve(20,20,30,20);
+  for(const p of [STAIR_UP,STAIR_DOWN])for(let z=p.z-1;z<=p.z+1;z++)for(let x=p.x-1;x<=p.x+1;x++)map[z][x]=0;
+  return map;
 }
 function generateMaze(){
-  const n=CONFIG.mazeSize; maze=Array.from({length:n},()=>Array(n).fill(1));
-  const stack=[{x:1,z:1}]; maze[1][1]=0;
-  const dirs=[[0,-2],[2,0],[0,2],[-2,0]];
-  while(stack.length){
-    const cur=stack[stack.length-1];
-    const options=dirs.map(([dx,dz])=>({x:cur.x+dx,z:cur.z+dz,dx,dz})).filter(p=>p.x>0&&p.z>0&&p.x<n-1&&p.z<n-1&&maze[p.z][p.x]===1);
-    if(!options.length){stack.pop();continue;}
-    const next=options[randInt(options.length)];
-    maze[cur.z+next.dz/2][cur.x+next.dx/2]=0; maze[next.z][next.x]=0; stack.push({x:next.x,z:next.z});
-  }
-  // 완전히 막힌 느낌을 줄이되 모든 통로 연결성은 유지하는 작은 루프 추가
-  for(let z=1;z<n-1;z++)for(let x=1;x<n-1;x++){
-    if(maze[z][x]===1 && Math.random()<0.075){
-      const horizontal=isOpen(x-1,z)&&isOpen(x+1,z);
-      const vertical=isOpen(x,z-1)&&isOpen(x,z+1);
-      if(horizontal||vertical)maze[z][x]=0;
-    }
-  }
-  spawnCell=randomOpen();
-  // BFS 거리상 가장 먼 통로를 출구로 선택
-  const distances=bfsDistances(spawnCell); let far=spawnCell, max=-1;
-  for(const [k,d] of distances){if(d>max){max=d;const [x,z]=k.split(',').map(Number);far={x,z};}}
-  exitCell=far;
+  facilityMazes=FLOOR_LABELS.map((_,i)=>createFloorMaze(i));
+  facilityNoise=facilityMazes.map(map=>Array.from({length:CONFIG.mazeSize},(_,z)=>Array.from({length:CONFIG.mazeSize},(_,x)=>map[z][x]===0&&Math.random()<.035?['creak','metal','rubble','water'][randInt(4)]:null)));
+  exploredFloors=FLOOR_LABELS.map(()=>Array.from({length:CONFIG.mazeSize},()=>Array(CONFIG.mazeSize).fill(false)));
+  currentFloorIndex=1;maze=facilityMazes[currentFloorIndex];floorNoise=facilityNoise[currentFloorIndex];floorTransition=null;
+  spawnCell=randomOpen([],currentFloorIndex);
+  const distances=bfsDistances({...STAIR_UP,floor:0},0);let far={...STAIR_UP,floor:0},max=-1;
+  for(const [k,d] of distances)if(d>max){max=d;const [x,z]=k.split(',').map(Number);far={x,z,floor:0};}
+  exitCell=far;updateFloorBadge();
 }
-function bfsDistances(start){
-  const q=[start], dist=new Map([[key(start),0]]);
-  for(let i=0;i<q.length;i++){const c=q[i],d=dist.get(key(c));for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]){const p={x:c.x+dx,z:c.z+dz};if(isOpen(p.x,p.z)&&!dist.has(key(p))){dist.set(key(p),d+1);q.push(p);}}}
+function bfsDistances(start,floorIndex=start.floor??currentFloorIndex){
+  const q=[start],dist=new Map([[key(start),0]]);
+  for(let i=0;i<q.length;i++){const c=q[i],d=dist.get(key(c));for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]){const p={x:c.x+dx,z:c.z+dz};if(isOpen(p.x,p.z,floorIndex)&&!dist.has(key(p))){dist.set(key(p),d+1);q.push(p);}}}
   return dist;
 }
 function findPath(start,goal){
   if(!goal)return [];
-  const q=[start], prev=new Map([[key(start),null]]);
-  for(let i=0;i<q.length;i++){const c=q[i];if(c.x===goal.x&&c.z===goal.z)break;for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]){const p={x:c.x+dx,z:c.z+dz};if(isOpen(p.x,p.z)&&!prev.has(key(p))){prev.set(key(p),c);q.push(p);}}}
-  if(!prev.has(key(goal)))return [];
-  const out=[];let cur=goal;while(cur&&key(cur)!==key(start)){out.push(cur);cur=prev.get(key(cur));}return out.reverse();
+  const s={...start,floor:start.floor??currentFloorIndex},g={...goal,floor:goal.floor??currentFloorIndex},q=[s],prev=new Map([[nodeKey(s),null]]);
+  for(let i=0;i<q.length;i++){
+    const c=q[i],ck=nodeKey(c);if(ck===nodeKey(g))break;
+    const next=[];for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]])next.push({x:c.x+dx,z:c.z+dz,floor:c.floor});
+    if(c.x===STAIR_UP.x&&c.z===STAIR_UP.z&&c.floor>0)next.push({x:c.x,z:c.z,floor:c.floor-1});
+    if(c.x===STAIR_DOWN.x&&c.z===STAIR_DOWN.z&&c.floor<FLOOR_LABELS.length-1)next.push({x:c.x,z:c.z,floor:c.floor+1});
+    for(const p of next){const pk=nodeKey(p);if(isOpen(p.x,p.z,p.floor)&&!prev.has(pk)){prev.set(pk,c);q.push(p);}}
+  }
+  if(!prev.has(nodeKey(g)))return [];
+  const out=[];let cur=g;while(cur&&nodeKey(cur)!==nodeKey(s)){out.push(cur);cur=prev.get(nodeKey(cur));}return out.reverse();
+}
+function updateFloorBadge(){const badge=$('mapFloor');if(badge)badge.textContent=FLOOR_LABELS[currentFloorIndex]||'1F';}
+function beginFloorTransition(targetFloor){
+  if(floorTransition||targetFloor<0||targetFloor>=FLOOR_LABELS.length)return;
+  floorTransition={from:currentFloorIndex,to:targetFloor,elapsed:0,duration:1.25,startY:floorY(currentFloorIndex)};
+  joystick={x:0,y:0};runHeld=false;showMessage(targetFloor<currentFloorIndex?'위층으로 이동 중':'아래층으로 이동 중',1100);
+}
+function updateFloorTransitionFrame(dt){
+  if(!floorTransition)return false;
+  floorTransition.elapsed+=dt;const t=Math.min(1,floorTransition.elapsed/floorTransition.duration),e=t*t*(3-2*t);
+  player.position.y=floorTransition.startY+(floorY(floorTransition.to)-floorTransition.startY)*e;
+  if(t>=1){currentFloorIndex=floorTransition.to;player.position.y=floorY(currentFloorIndex);maze=facilityMazes[currentFloorIndex];floorNoise=facilityNoise[currentFloorIndex];lastSurfaceCellKey='';updateFloorBadge();const panel=$('minimapPanel');if(panel){panel.classList.add('floor-switching');setTimeout(()=>panel.classList.remove('floor-switching'),420);}showMessage(FLOOR_LABELS[currentFloorIndex]+' 도착',1300);floorTransition=null;}
+  return true;
+}
+function checkStairTransition(){
+  if(floorTransition)return;const c=cellAt(player.position);
+  if(Math.hypot(c.x-STAIR_UP.x,c.z-STAIR_UP.z)<.48&&currentFloorIndex>0)beginFloorTransition(currentFloorIndex-1);
+  else if(Math.hypot(c.x-STAIR_DOWN.x,c.z-STAIR_DOWN.z)<.48&&currentFloorIndex<FLOOR_LABELS.length-1)beginFloorTransition(currentFloorIndex+1);
 }
 
 function initThree(){
@@ -130,30 +159,71 @@ function addBox(x,y,z,sx,sy,sz,mat){
 }
 function makeConcreteTexture(base){const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');g.fillStyle=base;g.fillRect(0,0,256,256);for(let i=0;i<2300;i++){const v=Math.random()>.5?255:0,a=.025+Math.random()*.11,s=1+Math.random()*4;g.fillStyle='rgba('+v+','+v+','+v+','+a+')';g.fillRect(Math.random()*256,Math.random()*256,s,s);}for(let i=0;i<6;i++){const x=Math.random()*256,y=Math.random()*256;g.strokeStyle='rgba(5,9,11,.25)';g.lineWidth=1.5;g.beginPath();g.moveTo(x,y);g.lineTo(x+Math.random()*20-10,y+20+Math.random()*30);g.lineTo(x+Math.random()*35-15,y+40+Math.random()*35);g.stroke();}const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=2;return t;}
 function buildWorld(){
- const wallMat=new THREE.MeshStandardMaterial({color:0xb3bdc1,map:makeConcreteTexture('#788186'),roughness:1,bumpMap:makeConcreteTexture('#555b5e'),bumpScale:.12});
- const floorMat=new THREE.MeshStandardMaterial({color:0x9ca6aa,map:makeConcreteTexture('#50595d'),roughness:.96,bumpMap:makeConcreteTexture('#4a5052'),bumpScale:.08,metalness:.03});
- const ceilingMat=new THREE.MeshStandardMaterial({color:0x8b969a,map:makeConcreteTexture('#50595d'),roughness:1});
-  const floor=addBox(0,-.18,0,worldSize,.36,worldSize,floorMat);floor.receiveShadow=true;
-  const ceiling=addBox(0,CONFIG.wallHeight+.12,0,worldSize,.24,worldSize,ceilingMat);ceiling.receiveShadow=true;
-  const wallGeo=new THREE.BoxGeometry(cell,CONFIG.wallHeight,cell);
-  const dummy=new THREE.Object3D();
-  let count=0;for(let z=0;z<CONFIG.mazeSize;z++)for(let x=0;x<CONFIG.mazeSize;x++)if(maze[z][x]){
-    dummy.position.set((x-half)*cell,CONFIG.wallHeight/2,(z-half)*cell);dummy.updateMatrix();
-    // 개별 mesh는 충돌·조명 계산이 비싸므로 인스턴스 사용
-    count++;
+  factoryHaze=null;
+  const concreteWall=new THREE.MeshStandardMaterial({color:0xaab4b7,map:makeConcreteTexture('#687176'),roughness:.96,bumpMap:makeConcreteTexture('#41494d'),bumpScale:.16});
+  const concreteFloor=new THREE.MeshStandardMaterial({color:0x9ca6aa,map:makeConcreteTexture('#424b50'),roughness:.94,bumpMap:makeConcreteTexture('#394145'),bumpScale:.09});
+  const industrialWall=new THREE.MeshStandardMaterial({color:0x777f80,map:makeConcreteTexture('#454c4d'),roughness:.82,metalness:.12});
+  const industrialFloor=new THREE.MeshStandardMaterial({color:0x8c9695,map:makeConcreteTexture('#343d3e'),roughness:.72,metalness:.28,bumpMap:makeConcreteTexture('#303738'),bumpScale:.12});
+  const waterFloor=new THREE.MeshStandardMaterial({color:0x53666b,map:makeConcreteTexture('#303e42'),roughness:.24,metalness:.24});
+  const ceilingMat=new THREE.MeshStandardMaterial({color:0x727d81,map:makeConcreteTexture('#42494c'),roughness:1});
+  const dummy=new THREE.Object3D(),tileGeo=new THREE.BoxGeometry(cell,.36,cell),ceilingGeo=new THREE.BoxGeometry(cell,.24,cell),wallGeo=new THREE.BoxGeometry(cell,CONFIG.wallHeight,cell);
+  for(let f=0;f<FLOOR_LABELS.length;f++){
+    const base=floorY(f),map=facilityMazes[f],factory=f===2,flooded=f===3,basement=f===4;
+    const floorMat=factory?industrialFloor:flooded?waterFloor:concreteFloor,wallMat=factory||basement?industrialWall:concreteWall;
+    const countTiles=CONFIG.mazeSize*CONFIG.mazeSize-18,floors=new THREE.InstancedMesh(tileGeo,floorMat,countTiles),ceilings=new THREE.InstancedMesh(ceilingGeo,ceilingMat,countTiles);
+    let fi=0,ci=0;
+    for(let z=0;z<CONFIG.mazeSize;z++)for(let x=0;x<CONFIG.mazeSize;x++){
+      if([STAIR_UP,STAIR_DOWN].some(p=>Math.abs(p.x-x)<=1&&Math.abs(p.z-z)<=1))continue;
+      const wx=(x-half)*cell,wz=(z-half)*cell;
+      dummy.position.set(wx,base-.18,wz);dummy.updateMatrix();floors.setMatrixAt(fi++,dummy.matrix);
+      dummy.position.set(wx,base+CONFIG.wallHeight+.12,wz);dummy.updateMatrix();ceilings.setMatrixAt(ci++,dummy.matrix);
+    }
+    floors.instanceMatrix.needsUpdate=true;floors.receiveShadow=true;scene.add(floors);ceilings.instanceMatrix.needsUpdate=true;scene.add(ceilings);
+    let count=0;for(let z=0;z<CONFIG.mazeSize;z++)for(let x=0;x<CONFIG.mazeSize;x++)if(map[z][x])count++;
+    const walls=new THREE.InstancedMesh(wallGeo,wallMat,count);let wi=0;
+    for(let z=0;z<CONFIG.mazeSize;z++)for(let x=0;x<CONFIG.mazeSize;x++)if(map[z][x]){dummy.position.set((x-half)*cell,base+CONFIG.wallHeight/2,(z-half)*cell);dummy.updateMatrix();walls.setMatrixAt(wi++,dummy.matrix);}
+    walls.castShadow=true;walls.receiveShadow=true;walls.instanceMatrix.needsUpdate=true;scene.add(walls);
+    const lightMat=new THREE.MeshStandardMaterial({color:0x56636a,emissive:factory?0x9d6e42:0xa8c4ce,emissiveIntensity:factory ? .55 : basement ? .25 : 1,roughness:.72});
+    for(let z=3;z<CONFIG.mazeSize-3;z+=7)for(let x=3;x<CONFIG.mazeSize-3;x+=7)if(map[z][x]===0){
+      const p=world({x,z,floor:f}),housing=new THREE.Mesh(new THREE.BoxGeometry(.78,.13,.28),lightMat);housing.position.set(p.x,base+2.82,p.z);scene.add(housing);
+      const tube=new THREE.Mesh(new THREE.BoxGeometry(.62,.035,.17),new THREE.MeshBasicMaterial({color:factory?0xb2a18b:0xdce9eb}));tube.position.set(p.x,base+2.735,p.z);scene.add(tube);
+      const light=new THREE.PointLight(factory?0xc19a70:basement?0x74838a:0xd8edf4,factory ? .65 : basement ? .48 : 1.1,13,1.8);light.position.set(p.x,base+2.58,p.z);scene.add(light);
+    }
+    const pipeMat=new THREE.MeshStandardMaterial({color:factory?0x4a4c47:0x343d40,metalness:.68,roughness:.58});
+    for(let z=4;z<CONFIG.mazeSize-4;z+=9)for(let x=4;x<CONFIG.mazeSize-5;x++)if(map[z][x]===0&&map[z][x+1]===0&&map[z][x+2]===0&&Math.random()<.18){
+      const p=world({x,z,floor:f}),pipe=new THREE.Mesh(new THREE.CylinderGeometry(.055,.055,cell*2.5,9),pipeMat);pipe.rotation.z=Math.PI/2;pipe.position.set(p.x,base+2.72,p.z);scene.add(pipe);x+=2;
+    }
+    if(f<=1){
+      const frameMat=new THREE.MeshStandardMaterial({color:0x7b8588,metalness:.35,roughness:.7}),mattressMat=new THREE.MeshStandardMaterial({color:0x9a9b91,roughness:1});
+      for(const [x,z] of [[8,8],[31,8],[9,32],[32,32]]){
+        const p=world({x,z,floor:f}),bed=new THREE.Group(),frame=new THREE.Mesh(new THREE.BoxGeometry(2.25,.16,.9),frameMat),pad=new THREE.Mesh(new THREE.BoxGeometry(2.05,.2,.82),mattressMat),head=new THREE.Mesh(new THREE.BoxGeometry(.14,.85,.95),frameMat);
+        frame.position.y=.55;pad.position.set(0,.72,0);head.position.set(-1.02,.85,0);bed.add(frame,pad,head);bed.position.set(p.x,base,p.z);bed.rotation.y=x<20?0:Math.PI/2;scene.add(bed);
+        const cart=new THREE.Mesh(new THREE.BoxGeometry(.55,.75,.42),frameMat);cart.position.set(p.x+1.25,base+.38,p.z+.7);scene.add(cart);
+      }
+    }
+    if(factory){
+      const machineMat=new THREE.MeshStandardMaterial({color:0x343b3b,metalness:.72,roughness:.52});
+      for(const [x,z] of [[8,8],[32,9],[9,32],[32,32],[25,17]]){
+        const p=world({x,z,floor:f}),machine=new THREE.Group(),body=new THREE.Mesh(new THREE.BoxGeometry(2.1,2.15,1.7),machineMat),cap=new THREE.Mesh(new THREE.BoxGeometry(2.3,.18,1.9),new THREE.MeshStandardMaterial({color:0x75684f,metalness:.65,roughness:.55}));
+        body.position.y=1.08;cap.position.y=2.2;machine.add(body,cap);machine.position.set(p.x,base,p.z);scene.add(machine);
+      }
+      const hazeCount=460,positions=new Float32Array(hazeCount*3);
+      for(let n=0;n<hazeCount;n++){positions[n*3]=(Math.random()-.5)*worldSize*.88;positions[n*3+1]=base+1+Math.random()*2.1;positions[n*3+2]=(Math.random()-.5)*worldSize*.88;}
+      const hg=new THREE.BufferGeometry();hg.setAttribute('position',new THREE.BufferAttribute(positions,3));factoryHaze=new THREE.Points(hg,new THREE.PointsMaterial({color:0x9aa09b,size:.34,transparent:true,opacity:.105,depthWrite:false,sizeAttenuation:true}));factoryHaze.frustumCulled=false;scene.add(factoryHaze);
+    }
+    if(flooded){
+      const water=new THREE.Mesh(new THREE.PlaneGeometry(worldSize*.94,worldSize*.94),new THREE.MeshPhysicalMaterial({color:0x29464d,roughness:.19,metalness:.2,transparent:true,opacity:.34,clearcoat:.8,clearcoatRoughness:.16}));
+      water.rotation.x=-Math.PI/2;water.position.y=base+.035;scene.add(water);
+    }
+    if(basement){
+      const cableMat=new THREE.MeshStandardMaterial({color:0x20282a,metalness:.6,roughness:.8});
+      for(let z=6;z<CONFIG.mazeSize-5;z+=6){const p=world({x:20,z,floor:f}),tray=new THREE.Mesh(new THREE.BoxGeometry(.34,.2,cell*5),cableMat);tray.position.set(p.x,base+2.65,p.z);scene.add(tray);}
+      for(const [x,z] of [[7,8],[33,8],[7,33],[33,33]]){const p=world({x,z,floor:f}),panel=new THREE.Mesh(new THREE.BoxGeometry(.95,1.7,.24),new THREE.MeshStandardMaterial({color:0x343e40,metalness:.45,roughness:.72}));panel.position.set(p.x,base+.9,p.z);scene.add(panel);}
+    }
   }
-  const walls=new THREE.InstancedMesh(wallGeo,wallMat,count);let i=0;
-  for(let z=0;z<CONFIG.mazeSize;z++)for(let x=0;x<CONFIG.mazeSize;x++)if(maze[z][x]){
-    dummy.position.set((x-half)*cell,CONFIG.wallHeight/2,(z-half)*cell);dummy.updateMatrix();walls.setMatrixAt(i++,dummy.matrix);
-  }
-  walls.castShadow=true;walls.receiveShadow=true;scene.add(walls);walls.instanceMatrix.needsUpdate=true;
-  // 낡은 비상등과 노출 배관
-  for(let z=3;z<CONFIG.mazeSize-3;z+=7)for(let x=3;x<CONFIG.mazeSize-3;x+=7)if(isOpen(x,z)){const p=world({x,z});const housing=new THREE.Mesh(new THREE.BoxGeometry(.78,.13,.28),new THREE.MeshStandardMaterial({color:0x56636a,emissive:0xa8c4ce,emissiveIntensity:1.15,roughness:.72}));housing.position.set(p.x,2.82,p.z);scene.add(housing);const tube=new THREE.Mesh(new THREE.BoxGeometry(.62,.035,.17),new THREE.MeshBasicMaterial({color:0xf4fcff}));tube.position.set(p.x,2.735,p.z);scene.add(tube);const l=new THREE.PointLight(0xd8edf4,1.35,15,1.8);l.position.set(p.x,2.58,p.z);scene.add(l);}
-  const pm=new THREE.MeshStandardMaterial({color:0x343d40,metalness:.62,roughness:.72});for(let z=4;z<CONFIG.mazeSize-4;z+=9)for(let x=4;x<CONFIG.mazeSize-5;x++)if(isOpen(x,z)&&isOpen(x+1,z)&&isOpen(x+2,z)&&Math.random()<.12){const p=world({x,z}),pipe=new THREE.Mesh(new THREE.CylinderGeometry(.055,.055,cell*2.5,7),pm);pipe.rotation.z=Math.PI/2;pipe.position.set(p.x,2.72,p.z);scene.add(pipe);x+=2;}
-  floorNoise=Array.from({length:CONFIG.mazeSize},()=>Array(CONFIG.mazeSize).fill(null));
-  for(let z=1;z<CONFIG.mazeSize-1;z++)for(let x=1;x<CONFIG.mazeSize-1;x++)if(isOpen(x,z)&&Math.random()<.04){
-    floorNoise[z][x]=['creak','metal','rubble','water'][randInt(4)];
-    // 소음 타일은 외형으로 구분할 수 없도록 시각적 표식을 생성하지 않는다.
+  for(let f=0;f<FLOOR_LABELS.length-1;f++)for(const shaft of [STAIR_UP,STAIR_DOWN]){
+    const p=world({...shaft,floor:f});
+    for(let n=0;n<9;n++){const step=new THREE.Mesh(new THREE.BoxGeometry(1.35,.2,.72),new THREE.MeshStandardMaterial({color:0x41494b,metalness:.48,roughness:.7}));step.position.set(p.x,floorY(f)+(n+1)*(FLOOR_SPACING/9),p.z+1.45-n*.34);scene.add(step);}
   }
 }
 function makeMarker(color,emissive=0){
@@ -170,18 +240,18 @@ function buildExit(){
 }
 function buildStations(){
   stations=[];stationMeshes=[];
-  for(let i=0;i<CONFIG.stationCount;i++)spawnStation();
+  for(let f=0;f<FLOOR_LABELS.length;f++)for(let i=0;i<(f===1?2:1);i++)spawnStation([],f);
 }
-function spawnStation(extra=[]){
+function spawnStation(extra=[],floorIndex=currentFloorIndex){
   const exclusions=[spawnCell,exitCell,...stations.map(s=>s.cell),cellAt(player.position),cellAt(monster.position),...extra];
-  const c=randomOpen(exclusions);stations.push({cell:c,mesh:null});
+  const c=randomOpen(exclusions,floorIndex);stations.push({cell:c,mesh:null});
   const p=world(c),g=new THREE.Group();
   const base=new THREE.Mesh(new THREE.CylinderGeometry(.52,.6,.22,12),makeMarker(0x687783,0x17232c));base.position.y=.11;g.add(base);
   const core=new THREE.Mesh(new THREE.CylinderGeometry(.2,.2,.75,10),makeMarker(0x9bc9d0,0x2b8290));core.position.y=.58;g.add(core);
   const ring=new THREE.Mesh(new THREE.TorusGeometry(.42,.045,6,18),makeMarker(0xb6d9dc,0x387a82));ring.rotation.x=Math.PI/2;ring.position.y=.35;g.add(ring);
-  g.position.set(p.x,0,p.z);scene.add(g);stations[stations.length-1].mesh=g;stationMeshes.push(g);
+  g.position.set(p.x,p.y,p.z);scene.add(g);stations[stations.length-1].mesh=g;stationMeshes.push(g);
 }
-function removeStation(s){if(!s||!stations.includes(s))return;const old={...s.cell};if(s.mesh)scene.remove(s.mesh);stations=stations.filter(v=>v!==s);stationMeshes=stationMeshes.filter(v=>v!==s.mesh);spawnStation([old]);}
+function removeStation(s){if(!s||!stations.includes(s))return;const old={...s.cell};if(s.mesh)scene.remove(s.mesh);stations=stations.filter(v=>v!==s);stationMeshes=stationMeshes.filter(v=>v!==s.mesh);spawnStation([old],old.floor??currentFloorIndex);}
 function buildMonster(){
   if(monsterGroup)scene.remove(monsterGroup);
   monsterRig=createMonsterModel(THREE);
@@ -195,12 +265,12 @@ function buildMonster(){
 }
 function setMonsterVisible(on,throughWalls=false){if(!monsterGroup)return;if(monsterVisible===on&&monsterThroughWalls===throughWalls)return;monsterVisible=on;monsterThroughWalls=throughWalls;monsterGroup.visible=on;monsterGroup.traverse(o=>{if(o.isMesh){o.renderOrder=on?8:0;const ms=Array.isArray(o.material)?o.material:[o.material];for(const m of ms){m.depthTest=!throughWalls;m.depthWrite=!throughWalls;m.needsUpdate=true;}}});}
 function setCamera(){
-  camera.position.copy(player.position);camera.position.y=1.62;
+  camera.position.copy(player.position);camera.position.y=player.position.y+1.62;
   camera.rotation.order='YXZ';camera.rotation.y=yaw;camera.rotation.x=pitch;
 }
 function setupPlayerAndMonster(){
-  const p=world(spawnCell);player={position:new THREE.Vector3(p.x,0,p.z),radius:.34};
-  const reach=bfsDistances(spawnCell),opts=[];for(const [k,d] of reach)if(d>=9&&d<=20){const [x,z]=k.split(',').map(Number);opts.push({x,z});}const mc=opts.length?opts[randInt(opts.length)]:randomOpen([spawnCell,exitCell]);const mp=world(mc);monster={position:new THREE.Vector3(mp.x,0,mp.z),cell:mc};
+  const p=world(spawnCell);player={position:p.clone(),radius:.34};
+  const reach=bfsDistances(spawnCell,currentFloorIndex),opts=[];for(const [k,d] of reach)if(d>=9&&d<=20){const [x,z]=k.split(',').map(Number);opts.push({x,z,floor:currentFloorIndex});}const mc=opts.length?opts[randInt(opts.length)]:randomOpen([spawnCell,exitCell],currentFloorIndex);const mp=world(mc);monster={position:mp.clone(),cell:mc};
   buildMonster();buildExit();buildStations();setCamera();
 }
 function ensureAudio(){
@@ -423,30 +493,33 @@ function emitSound(c,type,volume){
   // 직접 추격 중에는 소리 위치로 AI 목표를 덮어쓰지 않지만,
   // 위의 흥분도 계산은 계속 적용한다.
   if(monsterState==='chase'||!audible)return;
-  lastHeard={cell:{x:c.x,z:c.z},type,volume};lastHeardAt=now;
+  lastHeard={cell:{x:c.x,z:c.z,floor:c.floor??currentFloorIndex},type,volume};lastHeardAt=now;
   soundAlertUntil=Math.max(soundAlertUntil,now+8);
   monsterTarget={...c};monsterState='investigate';pathRefresh=0;
 }
 function wallCountBetween(a,b){
+  if((a.floor??currentFloorIndex)!==(b.floor??currentFloorIndex))return 9;
   let blocked=0;const steps=Math.max(Math.abs(b.x-a.x),Math.abs(b.z-a.z))*2;
-  for(let i=1;i<steps;i++){const t=i/steps,x=Math.round(a.x+(b.x-a.x)*t),z=Math.round(a.z+(b.z-a.z)*t);if(!isOpen(x,z))blocked++;}
+  for(let i=1;i<steps;i++){const t=i/steps,x=Math.round(a.x+(b.x-a.x)*t),z=Math.round(a.z+(b.z-a.z)*t);if(!isOpen(x,z,a.floor??currentFloorIndex))blocked++;}
   return blocked;
 }
 function soundCanBeHeard(a,b,volume,type){
-  const d=Math.hypot(a.x-b.x,a.z-b.z),walls=wallCountBetween(a,b);
-  const effective=d+walls*1.5;
+  const d=Math.hypot(a.x-b.x,a.z-b.z),walls=wallCountBetween(a,b),floorPenalty=Math.abs((a.floor??currentFloorIndex)-(b.floor??currentFloorIndex))*7;
+  const effective=d+walls*1.5+floorPenalty;
 
   // 숨소리와 바닥 삐걱임은 바로 근처에서만 들린다.
   // 감지기와 충전음은 기존처럼 벽을 감안해도 먼 거리까지 전달된다.
   if(type==='breath'||type==='creak')return effective<=2.0;
+  if(type==='water')return effective<=volume*16+2;
   // 달리기 발자국은 가까운 거리에서만 들리고, 걷기 발자국 이벤트는 발생시키지 않는다.
   if(type==='run')return effective<=4.0;
   if(type==='detector'||type==='charge')return effective<=(volume*14+1);
   return effective<=(volume*14+1);
 }
 function hasLineOfSight(a,b){
+  if((a.floor??currentFloorIndex)!==(b.floor??currentFloorIndex))return false;
   const steps=Math.max(Math.abs(b.x-a.x),Math.abs(b.z-a.z))*3;
-  for(let i=1;i<steps;i++){const t=i/steps,x=Math.round(a.x+(b.x-a.x)*t),z=Math.round(a.z+(b.z-a.z)*t);if(!isOpen(x,z))return false;}return true;
+  for(let i=1;i<steps;i++){const t=i/steps,x=Math.round(a.x+(b.x-a.x)*t),z=Math.round(a.z+(b.z-a.z)*t);if(!isOpen(x,z,a.floor??currentFloorIndex))return false;}return true;
 }
 function showMessage(text,duration=1900){const e=$('message');e.textContent=text;e.classList.add('show');clearTimeout(messageTimer);messageTimer=setTimeout(()=>e.classList.remove('show'),duration);}
 let detectorScanEffect = null;
@@ -458,6 +531,7 @@ function triggerDetectorScan(){
     detectorScanEffect=null;
   }
   const origin=player.position.clone();
+  const floorBase=floorY(currentFloorIndex);
   const radius=40;
   const radiusCells=Math.ceil(radius/cell);
   const positions=[];
@@ -469,7 +543,7 @@ function triggerDetectorScan(){
   const gridStep=.6;
   for(let offset=-radius;offset<=radius;offset+=gridStep){
     const extent=Math.sqrt(Math.max(0,radius*radius-offset*offset));
-    for(const y of [.018,CONFIG.wallHeight-.018]){
+    for(const y of [floorBase+.018,floorBase+CONFIG.wallHeight-.018]){
       addLine(origin.x+offset,y,origin.z-extent,origin.x+offset,y,origin.z+extent);
       addLine(origin.x-extent,y,origin.z+offset,origin.x+extent,y,origin.z+offset);
     }
@@ -485,7 +559,7 @@ function triggerDetectorScan(){
       const faces=[[1,0],[-1,0],[0,1],[0,-1]];
       for(const [dx,dz] of faces){
         if(!isOpen(x+dx,z+dz))continue;
-        const y0=.025,y1=CONFIG.wallHeight-.025;
+        const y0=floorBase+.025,y1=floorBase+CONFIG.wallHeight-.025;
         if(dx!==0){
           const px=wx+dx*cell/2+dx*.018;
           for(let u=-cell/2;u<=cell/2+.001;u+=gridStep){
@@ -566,11 +640,12 @@ function updateDetectorScan(now){
 function useDetector(){
   if(!running||gameOver)return;
   const now=performance.now()/1000;
+  if(currentFloorIndex===4){showMessage('전파가 차단된 지하 설비구역이다. 감지기를 사용할 수 없다.');return;}
   if(activeStation||now<detectorCooldownUntil)return;
   if(battery<=0){showMessage('감지기 배터리가 부족하다.');return;}
   battery--;detectorUntil=now+CONFIG.detectorSeconds;detectorCooldownUntil=now+5;
   triggerDetectorScan();
-  setMonsterVisible(true,true);playNoise('detector',player.position,1.15);
+  setMonsterVisible(true,false);playNoise('detector',player.position,1.15);
   updateHud();
 }
 function updateSoundMeters(dt){
@@ -588,12 +663,24 @@ function updateSoundMeters(dt){
 function updateHud(){
   $('battery').textContent=battery+' / '+CONFIG.detectorCapacity;$('batteryFill').style.width=(battery/CONFIG.detectorCapacity*100)+'%';
   $('staminaText').textContent=Math.round(stamina*100)+'%';$('staminaFill').style.width=(stamina*100)+'%';
-  $('scanBtn').disabled=battery<=0||!!activeStation||performance.now()/1000<detectorCooldownUntil;
+  $('scanBtn').disabled=battery<=0||!!activeStation||currentFloorIndex===4||!!floorTransition||performance.now()/1000<detectorCooldownUntil;
 }
 function collides(x,z){
-  const r=player.radius;
-  const checks=[[x-r,z-r],[x+r,z-r],[x-r,z+r],[x+r,z+r]];
-  return checks.some(([px,pz])=>{const c=cellAt({x:px,z:pz});return !isOpen(c.x,c.z);});
+  const r=player.radius,checks=[[x-r,z-r],[x+r,z-r],[x-r,z+r],[x+r,z+r]];
+  return checks.some(([px,pz])=>{const c=cellAt({x:px,z:pz,y:floorY(currentFloorIndex)});return !isOpen(c.x,c.z,currentFloorIndex);});
+}
+function isFloodedFloor(floorIndex){return floorIndex===3;}
+function updateFloorTransitionFrame(dt){
+  if(!floorTransition)return false;
+  floorTransition.elapsed+=dt;const t=Math.min(1,floorTransition.elapsed/floorTransition.duration),e=t*t*(3-2*t);
+  player.position.y=floorTransition.startY+(floorY(floorTransition.to)-floorTransition.startY)*e;
+  if(t>=1){currentFloorIndex=floorTransition.to;player.position.y=floorY(currentFloorIndex);maze=facilityMazes[currentFloorIndex];floorNoise=facilityNoise[currentFloorIndex];lastSurfaceCellKey='';updateFloorBadge();const panel=$('minimapPanel');if(panel){panel.classList.add('floor-switching');setTimeout(()=>panel.classList.remove('floor-switching'),420);}showMessage(FLOOR_LABELS[currentFloorIndex]+' 도착',1300);floorTransition=null;}
+  return true;
+}
+function checkStairTransition(){
+  if(floorTransition)return;const c=cellAt(player.position);
+  if(Math.hypot(c.x-STAIR_UP.x,c.z-STAIR_UP.z)<.48&&currentFloorIndex>0)beginFloorTransition(currentFloorIndex-1);
+  else if(Math.hypot(c.x-STAIR_DOWN.x,c.z-STAIR_DOWN.z)<.48&&currentFloorIndex<FLOOR_LABELS.length-1)beginFloorTransition(currentFloorIndex+1);
 }
 function movePlayer(dt){
   const mag=Math.hypot(joystick.x,joystick.y);if(mag<.08)return false;
@@ -601,7 +688,7 @@ function movePlayer(dt){
   const right=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw));
   const dir=forward.clone().multiplyScalar(-joystick.y).add(right.multiplyScalar(joystick.x)).normalize();
   const wantsRun=runHeld&&!sprintExhausted&&stamina>0.002;
-  const speed=wantsRun?5.0:2.35;
+  const flooded=isFloodedFloor(currentFloorIndex),speed=flooded?(wantsRun?3.75:1.72):(wantsRun?5.0:2.35);
   const dx=dir.x*speed*dt,dz=dir.z*speed*dt;
   let moved=false;
   if(!collides(player.position.x+dx,player.position.z)){player.position.x+=dx;moved=true;}
@@ -610,6 +697,7 @@ function movePlayer(dt){
 }
 function distanceToMonster(){return monster.position.distanceTo(player.position);}
 function updatePlayer(dt,now){
+  if(floorTransition){updateFloorTransitionFrame(dt);updateHud();return;}
   const isMoving=Math.hypot(joystick.x,joystick.y)>.08;
   const wantsRun=isMoving&&runHeld&&!sprintExhausted&&stamina>0.001;
   if(wantsRun){const before=stamina;stamina=Math.max(0,stamina-dt/CONFIG.staminaRunSeconds);if(stamina<=0){sprintExhausted=true;if(before>.001)showMessage('스태미나가 부족합니다.');}}
@@ -618,19 +706,20 @@ function updatePlayer(dt,now){
   const moved=movePlayer(dt);
   // 숨소리는 달리기 중·완충 상태에는 없고, 걷는 중 실제 회복 중일 때만 발생
   if(!wantsRun&&stamina<.999&&now-lastBreath>=1.35){breathingSound();lastBreath=now;}
-  if(moved&&now-lastStep>(wantsRun ? 0.34 : 0.72)){
+  if(moved&&now-lastStep>(isFloodedFloor(currentFloorIndex)?(wantsRun ? .46 : .9):(wantsRun ? .34 : .72))){
     lastStep=now;const c=cellAt(player.position),surface=floorNoise[c.z]?.[c.x],surfaceKey=key(c);
-    if(surface&&surfaceKey!==lastSurfaceCellKey){
+    if(isFloodedFloor(currentFloorIndex)){playNoise('water',player.position,wantsRun?1.35:.82);lastSurfaceCellKey=surfaceKey;}
+    else if(surface&&surfaceKey!==lastSurfaceCellKey){
       lastSurfaceCellKey=surfaceKey;
-      if(surface==='creak'){
-        if(now-lastCreakAt>=8+Math.random()*4){playNoise('creak',player.position,wantsRun?1.25:.72);lastCreakAt=now;}
-      }else playNoise(surface,player.position,wantsRun?1.25:.72);
+      if(surface==='creak'){if(now-lastCreakAt>=8+Math.random()*4){playNoise('creak',player.position,wantsRun?1.25:.72);lastCreakAt=now;}}
+      else playNoise(surface,player.position,wantsRun?1.25:.72);
     }else if(!surface){lastSurfaceCellKey=surfaceKey;if(wantsRun)playNoise('run',player.position,1.15);}
   }
   if(!isMoving)runHeld=false;
+  checkStairTransition();
   const here=cellAt(player.position);
   // 충전 구역: 1초마다 배터리 1칸, 5초 완충. 도중 이탈하면 해당 장치 소멸.
-  const station=stations.find(s=>s.cell.x===here.x&&s.cell.z===here.z);
+  const station=stations.find(s=>s.cell.x===here.x&&s.cell.z===here.z&&(s.cell.floor??1)===currentFloorIndex);
   if(station&&battery<CONFIG.detectorCapacity){
     if(activeStation!==station){activeStation=station;stationProgress=0;}
     stationProgress+=dt;
@@ -640,7 +729,7 @@ function updatePlayer(dt,now){
     if(battery>=CONFIG.detectorCapacity){if(chargingGain&&audioCtx)chargingGain.gain.setTargetAtTime(0,audioCtx.currentTime,.06);activeStation=null;stationProgress=0;removeStation(station);}
   }else if(activeStation){if(chargingGain&&audioCtx)chargingGain.gain.setTargetAtTime(0,audioCtx.currentTime,.06);const used=activeStation;activeStation=null;stationProgress=0;removeStation(used);
   }else if(chargingGain&&audioCtx){chargingGain.gain.setTargetAtTime(0,audioCtx.currentTime,.1);}
-  const detectorActive=now<detectorUntil;setMonsterVisible(true,detectorActive);
+  setMonsterVisible(true,false);
   if(player.position.distanceTo(world(exitCell))<1.55)finish(true);
   updateHud();
 }
@@ -662,21 +751,21 @@ function monsterUpdate(dt,now){
     }
     nextLocationPing=now+20+Math.random()*20;
   }
-  const sees=distance<cell*8&&hasLineOfSight(mc,pc);
+  const sees=mc.floor===pc.floor&&distance<cell*8&&hasLineOfSight(mc,pc);
   if(sees){
     sightAlertUntil=now+12;
     monsterState='chase';lastSeen={...pc};searchUntil=now+12;monsterTarget={...pc};
   }else if(monsterState==='chase'){
     if(lastSeen){monsterState='search';monsterTarget={...lastSeen};searchUntil=now+12;}
   }
-  if(monsterState==='investigate'&&monsterTarget&&mc.x===monsterTarget.x&&mc.z===monsterTarget.z){
+  if(monsterState==='investigate'&&monsterTarget&&nodeKey(mc)===nodeKey(monsterTarget)){
     monsterState='search';searchUntil=Math.max(searchUntil,now+5);
   }
   if(monsterState==='search'&&now>searchUntil){
     if(lastHeard&&now-lastHeardAt<16){monsterState='investigate';monsterTarget={...lastHeard.cell};}
     else{monsterState='wander';monsterTarget=null;}
   }
-  if(monsterState==='wander'&&(!monsterTarget|| (mc.x===monsterTarget.x&&mc.z===monsterTarget.z)))monsterTarget=randomOpen([exitCell,spawnCell]);
+  if(monsterState==='wander'&&(!monsterTarget||nodeKey(mc)===nodeKey(monsterTarget)))monsterTarget=randomOpen([exitCell,spawnCell],mc.floor);
   if(monsterState==='chase'&&lastSeen)monsterTarget={...lastSeen};
   if(now-pathRefresh>.55||path.length===0){path=findPath(mc,monsterTarget);pathRefresh=now;}
   let targetPoint=null;
@@ -684,17 +773,17 @@ function monsterUpdate(dt,now){
   else if(monsterTarget)targetPoint=world(monsterTarget);
   // 같은 통로 칸에 들어온 뒤에는 칸 중앙이 아니라 플레이어의 실제 좌표를 추격한다.
   // 그렇지 않으면 플레이어가 칸 가장자리에 정지했을 때 포획 거리까지 접근하지 못할 수 있다.
-  if(monsterState==='chase'&&mc.x===pc.x&&mc.z===pc.z){
-    targetPoint=new THREE.Vector3(player.position.x,0,player.position.z);
+  if(monsterState==='chase'&&mc.floor===pc.floor&&mc.x===pc.x&&mc.z===pc.z){
+    targetPoint=new THREE.Vector3(player.position.x,monster.position.y,player.position.z);
   }
   const alertLevel=now<sightAlertUntil?4:now<locationAlertUntil?3:now<soundAlertUntil?2:1;
   // 흥분도 0~100%에 비례해 속도를 2.35~4.80으로 부드럽게 보간한다.
   const speed=2.35+(4.8-2.35)*(monsterArousal/100);
   let moving=false;
   if(targetPoint){
-    const dx=targetPoint.x-monster.position.x,dz=targetPoint.z-monster.position.z,len=Math.hypot(dx,dz);
+    const dx=targetPoint.x-monster.position.x,dy=targetPoint.y-monster.position.y,dz=targetPoint.z-monster.position.z,len=Math.hypot(dx,dy,dz);
     if(len<.25){if(path.length)path.shift();}
-    else{const step=Math.min(len,speed*dt);monster.position.x+=dx/len*step;monster.position.z+=dz/len*step;moving=true;}
+    else{const step=Math.min(len,speed*dt);monster.position.x+=dx/len*step;monster.position.y+=dy/len*step;monster.position.z+=dz/len*step;moving=true;}
   }
   monsterAnimTime+=dt;
   const gaitRate=alertLevel>=4?10.5:alertLevel>=3?7.2:3.8;
@@ -711,7 +800,7 @@ function monsterUpdate(dt,now){
     monsterRig.head.rotation.z=Math.sin(monsterAnimTime*.82)*.035+(alertLevel>=2?.025:0);
   }
   const bodyBob=moving?Math.abs(Math.sin(monsterAnimTime*gaitRate))*.035:Math.sin(monsterAnimTime*1.1)*.012;
-  monsterGroup.position.set(monster.position.x,bodyBob,monster.position.z);
+  monsterGroup.position.set(monster.position.x,monster.position.y+bodyBob,monster.position.z);
   monsterGroup.rotation.y=Math.atan2(player.position.x-monster.position.x,player.position.z-monster.position.z);
   if(distance<.9)finish(false);
   updateMonsterAudio(now,distance,moving,speed);
@@ -720,71 +809,29 @@ function updateAmbient(now){
   if(now-lastAmbient>12){lastAmbient=now;if(Math.random()<.35)tone(42+Math.random()*18,1.4,'sine',.018,-8);}
 }
 function drawMinimap(now){
-  const canvas=$('minimap');
-  if(!canvas||!player||!maze.length)return;
-  const ctx=canvas.getContext('2d'),size=canvas.width,c=size/2,r=7,step=size/(r*2+1);
-  const gx=player.position.x/cell+half,gz=player.position.z/cell+half,pc=cellAt(player.position);
-  const offsetX=gx-pc.x,offsetZ=gz-pc.z;
-  ctx.clearRect(0,0,size,size);
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(c,c,size/2-2,0,Math.PI*2);
-  ctx.clip();
-  ctx.fillStyle='#10171c';
-  ctx.fillRect(0,0,size,size);
-  ctx.save();
-  ctx.translate(c,c);
-  ctx.rotate(yaw);
-  for(let dz=-r-1;dz<=r+1;dz++)for(let dx=-r-1;dx<=r+1;dx++){
-    const x=pc.x+dx,z=pc.z+dz,px=(dx-offsetX)*step-step/2,py=(dz-offsetZ)*step-step/2;
-    ctx.fillStyle=!inside(x,z)?'#080d11':maze[z][x]?'#87949b':'#293940';
-    ctx.fillRect(px,py,step+.5,step+.5);
-    if(exitCell.x===x&&exitCell.z===z){
-      ctx.fillStyle='#e2d18a';
-      ctx.fillRect(px+step*.27,py+step*.27,step*.46,step*.46);
-    }
-    if(stations.some(s=>s.cell.x===x&&s.cell.z===z)){
-      ctx.fillStyle='#66d4d2';
-      ctx.beginPath();
-      ctx.arc((dx-offsetX)*step,(dz-offsetZ)*step,step*.22,0,Math.PI*2);
-      ctx.fill();
-    }
+  const canvas=$('minimap');if(!canvas||!player||!maze.length)return;
+  const ctx=canvas.getContext('2d'),size=canvas.width,step=size/CONFIG.mazeSize,pc=cellAt(player.position),f=currentFloorIndex,map=facilityMazes[f],seen=exploredFloors[f];
+  for(let z=Math.max(0,pc.z-5);z<=Math.min(CONFIG.mazeSize-1,pc.z+5);z++)for(let x=Math.max(0,pc.x-5);x<=Math.min(CONFIG.mazeSize-1,pc.x+5);x++)if(Math.hypot(x-pc.x,z-pc.z)<=5.8)seen[z][x]=true;
+  ctx.clearRect(0,0,size,size);ctx.fillStyle='#080e13';ctx.fillRect(0,0,size,size);
+  for(let z=0;z<CONFIG.mazeSize;z++)for(let x=0;x<CONFIG.mazeSize;x++){
+    if(!seen[z][x])continue;const px=x*step,py=z*step;
+    ctx.fillStyle=map[z][x]?'#87949b':'#263941';ctx.fillRect(px,py,step+.15,step+.15);
+    if(!map[z][x]){ctx.fillStyle='rgba(115,151,159,.12)';ctx.fillRect(px+.5,py+.5,step-1,step-1);}
   }
-  if(now<detectorUntil){
-    const dx=(monster.position.x-player.position.x)/cell,dz=(monster.position.z-player.position.z)/cell;
-    if(Math.abs(dx)<=r+.5&&Math.abs(dz)<=r+.5){
-      ctx.fillStyle='#ff3434';
-      ctx.shadowColor='#ff2424';
-      ctx.shadowBlur=10;
-      ctx.beginPath();
-      ctx.arc(dx*step,dz*step,step*.36,0,Math.PI*2);
-      ctx.fill();
-      ctx.shadowBlur=0;
-    }
-  }
-  ctx.restore();
-  ctx.fillStyle='#f4f6f7';
-  ctx.strokeStyle='#101820';
-  ctx.lineWidth=2;
-  ctx.beginPath();
-  ctx.moveTo(c,c-step*.48);
-  ctx.lineTo(c+step*.34,c+step*.38);
-  ctx.lineTo(c,c+step*.2);
-  ctx.lineTo(c-step*.34,c+step*.38);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-  ctx.restore();
-  ctx.strokeStyle='#c0ccd2';
-  ctx.lineWidth=2;
-  ctx.beginPath();
-  ctx.arc(c,c,size/2-1.5,0,Math.PI*2);
-  ctx.stroke();
+  for(const [p,label] of [[STAIR_UP,'↑'],[STAIR_DOWN,'↓']])if(seen[p.z][p.x]){ctx.fillStyle='#d0b879';ctx.font='bold 9px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(label,(p.x+.5)*step,(p.z+.5)*step);}
+  if(exitCell.floor===f&&seen[exitCell.z][exitCell.x]){ctx.fillStyle='#e7d18a';ctx.fillRect(exitCell.x*step+step*.2,exitCell.z*step+step*.2,step*.6,step*.6);}
+  for(const s of stations)if((s.cell.floor??1)===f&&seen[s.cell.z][s.cell.x]){ctx.fillStyle='#66d4d2';ctx.beginPath();ctx.arc((s.cell.x+.5)*step,(s.cell.z+.5)*step,Math.max(1.5,step*.28),0,Math.PI*2);ctx.fill();}
+  const mc=cellAt(monster.position);
+  if(now<detectorUntil&&mc.floor===f){ctx.fillStyle='#ff3434';ctx.shadowColor='#ff2424';ctx.shadowBlur=8;ctx.beginPath();ctx.arc((mc.x+.5)*step,(mc.z+.5)*step,Math.max(2.2,step*.42),0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;}
+  const px=(pc.x+.5)*step,py=(pc.z+.5)*step;ctx.save();ctx.translate(px,py);ctx.rotate(-yaw);
+  ctx.fillStyle='#f4f6f7';ctx.strokeStyle='#101820';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(0,-step*.9);ctx.lineTo(step*.62,step*.62);ctx.lineTo(0,step*.3);ctx.lineTo(-step*.62,step*.62);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();
+  ctx.strokeStyle='#9cabb4';ctx.lineWidth=1.4;ctx.strokeRect(.7,.7,size-1.4,size-1.4);
 }
 function animate(){
   requestAnimationFrame(animate);if(!renderer)return;
   const dt=Math.min(clock.getDelta(),.05),now=performance.now()/1000;
   if(running&&!gameOver){updatePlayer(dt,now);monsterUpdate(dt,now);updateAmbient(now);setCamera();}
+  if(factoryHaze)factoryHaze.rotation.y+=dt*.008;
   updateSoundMeters(dt);
   drawMinimap(now);
   updateDetectorScan(now);
@@ -796,7 +843,7 @@ function finish(success){
   if(gameOver)return;stopHorrorMusic();gameOver=true;running=false;paused=false;runHeld=false;$('pauseModal').classList.add('hidden');
   $('endEyebrow').textContent=success?'ESCAPED':'FOUND';
   $('endTitle').textContent=success?'탈출 성공':'괴물에게 붙잡혔다';
-  $('endText').textContent=success?'미로를 빠져나왔다.':'다음에는 소리를 더 신중하게 관리해야 한다.';
+  $('endText').textContent=success?'복합 시설을 빠져나왔다.':'다음에는 소리를 더 신중하게 관리해야 한다.';
   $('message').classList.remove('show');$('endScreen').classList.remove('hidden');$('game').classList.remove('playing');
 }
 function resetGame(){
@@ -808,7 +855,7 @@ function resetGame(){
     scene.add(camera);
   }
   if(chargingGain&&audioCtx)chargingGain.gain.setValueAtTime(0,audioCtx.currentTime);
-  paused=false;stamina=1;sprintExhausted=false;battery=CONFIG.detectorCapacity;detectorUntil=0;detectorCooldownUntil=0;joystick={x:0,y:0};runHeld=false;
+  paused=false;stamina=1;sprintExhausted=false;battery=CONFIG.detectorCapacity;detectorUntil=0;detectorCooldownUntil=0;joystick={x:0,y:0};runHeld=false;currentFloorIndex=1;floorTransition=null;
   const now=performance.now()/1000;
   monsterState='wander';monsterTarget=null;lastSeen=null;lastHeard=null;lastHeardAt=0;path=[];pathRefresh=0;stationProgress=0;activeStation=null;lastStep=0;lastBreath=0;lastChargeSound=0;lastAmbient=0;lastMonsterStepAt=now;nextMonsterBreathAt=now+2+Math.random()*3;nextMonsterVocalAt=now+7+Math.random()*6;nextMonsterWallAt=now+12+Math.random()*10;nextMonsterSound=0;
   nextLocationPing=now+20+Math.random()*20;soundAlertUntil=0;locationAlertUntil=0;sightAlertUntil=0;lastSurfaceCellKey='';lastCreakAt=-Infinity;
