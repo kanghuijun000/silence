@@ -17,6 +17,7 @@ const ASSETS = {
   controlRoom: 'control-room/v1/lod0.glb',
   robotArm: 'robot-arm/v1/lod0.glb',
   serverRoom: 'server-room/v1/lod0.glb',
+  warehouse: 'warehouse/v2/lod0.glb',
   conveyorHead: 'conveyor-head-pulley-drive/v1/lod1.glb',
   conveyorStraight: 'roller-conveyor-straight/v1/lod1.glb',
   conveyorTransfer: 'belt-conveyor-transfer/v1/lod1.glb',
@@ -34,6 +35,7 @@ const PLACEMENTS = [
   {asset:'wheelchair',floor:1,x:34,z:6,rotation:Math.PI},
   {asset:'instrumentTrolley',floor:1,x:34,z:34,rotation:-Math.PI*.5},
   {asset:'controlRoom',floor:2,x:8,z:8,rotation:0},
+  {asset:'warehouse',floor:2,x:8,z:20,rotation:0,scale:.69},
   {asset:'robotArm',floor:2,x:32,z:8,rotation:Math.PI*.5},
   {asset:'conveyorHead',floor:2,x:8,z:16,rotation:0},
   {asset:'conveyorStraight',floor:2,x:8,z:17.333,rotation:0,scale:.75},
@@ -47,11 +49,20 @@ const PLACEMENTS = [
   {asset:'serverRoom',floor:4,x:34,z:34,rotation:Math.PI}
 ];
 
+export function shouldOmitFloor(floor,x,z){
+  const inRect=(cx,cz,rx,rz)=>Math.abs(x-cx)<=rx&&Math.abs(z-cz)<=rz;
+  if(floor===0&&(inRect(5.5,5.5,1.7,1.7)||inRect(14.5,5.5,1.35,1.35)))return true;
+  if(floor===1&&inRect(5.5,34.5,1.7,1.7))return true;
+  if(floor===2&&inRect(8,20,4.9,3.45))return true;
+  if(floor===3&&x>=19&&x<=21&&z>=7&&z<=14)return true;
+  return false;
+}
+
 export function shouldOmitCeiling(floor,x,z){
   const inRect=(cx,cz,rx,rz)=>Math.abs(x-cx)<=rx&&Math.abs(z-cz)<=rz;
   if(floor===0&&(inRect(5.5,5.5,1.7,1.7)||inRect(14.5,5.5,1.35,1.35)))return true;
   if(floor===1&&inRect(5.5,34.5,1.7,1.7))return true;
-  if(floor===2&&inRect(8,8,1.8,1.8))return true;
+  if(floor===2&&(inRect(8,8,1.8,1.8)||inRect(8,20,4.9,3.45)))return true;
   if(floor===3&&x>=19&&x<=21&&z>=7&&z<=14)return true;
   return false;
 }
