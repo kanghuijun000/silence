@@ -1,4 +1,4 @@
-const CACHE_NAME = 'silence-cache-v75';
+const CACHE_NAME = 'silence-cache-v76';
 const APP_FILES = ['./', './index.html', './style.css', './game.js', './monster-model.js', './environment-assets.js', './manifest.json', './icon.svg', './silence-app-icon.svg', './icon-192.png', './icon-512.png', './install.html'];
 
 self.addEventListener('install', event => {
