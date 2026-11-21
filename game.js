@@ -21,7 +21,7 @@ let flashlightBrightnessPercent=10;
 let flashlightNearFill=null;
 let maze = [], floorNoise = [], stations = [], stationMeshes = [];
 let facilityMazes = [], facilityNoise = [], exploredFloors = [];
-let currentFloorIndex = 1, floorTransition = null, factoryHaze = null, stairLock = null;
+let currentFloorIndex = 1, floorTransition = null, factoryHaze = null, stairLock = null, stairTraversal = null;
 const FLOOR_LABELS = ['2F','1F','B1','B2','B3'];
 const FLOOR_SPACING = 4.5;
 const STAIR_UP = {x:20,z:20};
@@ -291,9 +291,43 @@ function buildWorld(){
     }
     scene.add(floorGroup);
   }
+  // 실제 통행 가능한 24단 계단. 양쪽 층에서 동일한 계단참과 계단을 볼 수 있게 복제한다.
+  const stairTread=.28,stairRise=FLOOR_SPACING/24,stairLength=stairTread*24;
+  const stairStepMat=new THREE.MeshStandardMaterial({color:0x555e61,metalness:.42,roughness:.76});
+  const stairEdgeMat=new THREE.MeshStandardMaterial({color:0x30383b,metalness:.68,roughness:.48});
+  const railMat=new THREE.MeshStandardMaterial({color:0x687276,metalness:.82,roughness:.3});
+  const upAxis=new THREE.Vector3(0,1,0);
+  function makeFlight(baseFloor,shaft){
+    const flight=new THREE.Group(),p=world({...shaft,floor:baseFloor});
+    const startZ=p.z+stairLength/2,endZ=p.z-stairLength/2;
+    for(let n=0;n<24;n++){
+      const topY=floorY(baseFloor)+(n+1)*stairRise;
+      const tread=new THREE.Mesh(new THREE.BoxGeometry(1.8,stairRise,stairTread),stairStepMat);
+      tread.position.set(p.x,floorY(baseFloor)+(n+.5)*stairRise,startZ-(n+.5)*stairTread);
+      tread.castShadow=true;tread.receiveShadow=true;flight.add(tread);
+      const nosing=new THREE.Mesh(new THREE.BoxGeometry(1.84,.035,.055),stairEdgeMat);
+      nosing.position.set(p.x,topY-.018,startZ-(n+1)*stairTread+.018);flight.add(nosing);
+    }
+    for(const [z,y] of [[startZ+.48,floorY(baseFloor)-.11],[endZ-.48,floorY(baseFloor+1)-.11]]){
+      const landing=new THREE.Mesh(new THREE.BoxGeometry(2.15,.22,1.05),stairStepMat);
+      landing.position.set(p.x,y,z);landing.receiveShadow=true;flight.add(landing);
+    }
+    const railVector=new THREE.Vector3(0,FLOOR_SPACING,-stairLength);
+    for(const side of [-1,1]){
+      const rail=new THREE.Mesh(new THREE.CylinderGeometry(.045,.045,railVector.length(),10),railMat);
+      rail.position.set(p.x+side*1.08,floorY(baseFloor)+FLOOR_SPACING/2+.12,p.z);
+      rail.quaternion.setFromUnitVectors(upAxis,railVector.clone().normalize());flight.add(rail);
+      for(let n=0;n<=24;n+=3){
+        const y=floorY(baseFloor)+n*stairRise+.48,z=startZ-n*stairTread;
+        const post=new THREE.Mesh(new THREE.CylinderGeometry(.035,.045,.92,8),railMat);
+        post.position.set(p.x+side*1.08,y,z);flight.add(post);
+      }
+    }
+    return flight;
+  }
   for(let f=0;f<FLOOR_LABELS.length-1;f++)for(const shaft of [STAIR_UP,STAIR_DOWN]){
-    const p=world({...shaft,floor:f});
-    for(let n=0;n<9;n++){const step=new THREE.Mesh(new THREE.BoxGeometry(1.35,.2,.72),new THREE.MeshStandardMaterial({color:0x41494b,metalness:.48,roughness:.7}));step.position.set(p.x,floorY(f)+(n+1)*(FLOOR_SPACING/9),p.z+1.45-n*.34);scene.add(step);}
+    const flight=makeFlight(f,shaft);
+    floorGroups[f].add(flight);floorGroups[f+1].add(flight.clone(true));
   }
 }
 function updateFloorVisibility(){
@@ -745,17 +779,61 @@ function collides(x,z){
   return checks.some(([px,pz])=>{const c=cellAt({x:px,z:pz,y:floorY(currentFloorIndex)});return !isOpen(c.x,c.z,currentFloorIndex);});
 }
 function isFloodedFloor(floorIndex){return floorIndex===3;}
+function stairStartFor(shaftName,shaft){
+  const p=world({...shaft,floor:currentFloorIndex}),length=24*.28,ascending=shaftName==='down';
+  return {shaftName,shaft,fromFloor:currentFloorIndex,toFloor:currentFloorIndex+(ascending?1:-1),
+    startZ:p.z+(ascending?length/2:-length/2),endZ:p.z-(ascending?length/2:-length/2),
+    direction:ascending?-1:1,length};
+}
+function beginStairTraversalIfEntering(dir){
+  if(stairTraversal)return;
+  for(const [name,shaft] of [['up',STAIR_UP],['down',STAIR_DOWN]]){
+    if((name==='up'&&currentFloorIndex===0)||(name==='down'&&currentFloorIndex===FLOOR_LABELS.length-1))continue;
+    const data=stairStartFor(name,shaft),centerX=world({...shaft,floor:currentFloorIndex}).x;
+    if(dir.z*data.direction>.38&&Math.abs(player.position.x-centerX)<.8&&Math.abs(player.position.z-data.startZ)<.62){
+      stairTraversal={...data,stepCount:24};stairLock=name;
+      showMessage(name==='down'?'계단을 내려갑니다':'계단을 올라갑니다',850);break;
+    }
+  }
+}
+function updateStairTraversal(){
+  if(!stairTraversal)return;
+  const t=stairTraversal,progress=THREE.MathUtils.clamp((player.position.z-t.startZ)/(t.endZ-t.startZ),0,1);
+  const step=Math.min(t.stepCount,Math.floor(progress*t.stepCount+1e-5));
+  player.position.y=floorY(t.fromFloor)+(floorY(t.toFloor)-floorY(t.fromFloor))*(step/t.stepCount);
+  if(progress>=1){
+    player.position.z=t.endZ;player.position.y=floorY(t.toFloor);
+    currentFloorIndex=t.toFloor;maze=facilityMazes[currentFloorIndex];floorNoise=facilityNoise[currentFloorIndex];
+    lastSurfaceCellKey='';stairTraversal=null;updateFloorBadge();updateFloorVisibility();
+    const panel=$('minimapPanel');if(panel){panel.classList.add('floor-switching');setTimeout(()=>panel.classList.remove('floor-switching'),420);}
+    showMessage(FLOOR_LABELS[currentFloorIndex]+' 도착',1000);
+  }else if(progress<=0&&((t.direction<0&&player.position.z>t.startZ+.15)||(t.direction>0&&player.position.z<t.startZ-.15))){
+    player.position.y=floorY(t.fromFloor);stairTraversal=null;stairLock=null;
+  }
+}
 function movePlayer(dt){
   const mag=Math.hypot(joystick.x,joystick.y);if(mag<.08)return false;
   const forward=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw));
   const right=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw));
   const dir=forward.clone().multiplyScalar(-joystick.y).add(right.multiplyScalar(joystick.x)).normalize();
   const wantsRun=runHeld&&!sprintExhausted&&stamina>0.002;
-  const flooded=isFloodedFloor(currentFloorIndex),speed=flooded?(wantsRun?3.75:1.72):(wantsRun?5.0:2.35);
-  const dx=dir.x*speed*dt,dz=dir.z*speed*dt;
+  const flooded=isFloodedFloor(currentFloorIndex),normalSpeed=flooded?(wantsRun?3.75:1.72):(wantsRun?5.0:2.35);
   let moved=false;
+  if(stairTraversal){
+    const stairSpeed=wantsRun?2.8:1.85;
+    if(Math.abs(dir.z)>.32){
+      const nextZ=player.position.z+dir.z*stairSpeed*dt;
+      const centerX=world({...stairTraversal.shaft,floor:currentFloorIndex}).x;
+      player.position.x=THREE.MathUtils.clamp(player.position.x+dir.x*stairSpeed*dt,centerX-.48,centerX+.48);
+      player.position.z=THREE.MathUtils.clamp(nextZ,Math.min(stairTraversal.startZ,stairTraversal.endZ),Math.max(stairTraversal.startZ,stairTraversal.endZ));
+      updateStairTraversal();moved=true;
+    }
+    return moved;
+  }
+  const dx=dir.x*normalSpeed*dt,dz=dir.z*normalSpeed*dt;
   if(!collides(player.position.x+dx,player.position.z)){player.position.x+=dx;moved=true;}
   if(!collides(player.position.x,player.position.z+dz)){player.position.z+=dz;moved=true;}
+  if(moved)beginStairTraversalIfEntering(dir);
   return moved;
 }
 function distanceToMonster(){return monster.position.distanceTo(player.position);}
@@ -779,7 +857,7 @@ function updatePlayer(dt,now){
     }else if(!surface){lastSurfaceCellKey=surfaceKey;if(wantsRun)playNoise('run',player.position,1.15);}
   }
   if(!isMoving)runHeld=false;
-  checkStairTransition();
+  if(stairTraversal)updateStairTraversal();
   const here=cellAt(player.position);
   // 충전 구역: 1초마다 배터리 1칸, 5초 완충. 도중 이탈하면 해당 장치 소멸.
   const station=stations.find(s=>s.cell.x===here.x&&s.cell.z===here.z&&(s.cell.floor??1)===currentFloorIndex);
@@ -919,7 +997,7 @@ function resetGame(){
     scene.add(camera);
   }
   if(chargingGain&&audioCtx)chargingGain.gain.setValueAtTime(0,audioCtx.currentTime);
-  paused=false;stamina=1;sprintExhausted=false;battery=CONFIG.detectorCapacity;detectorUntil=0;detectorCooldownUntil=0;joystick={x:0,y:0};runHeld=false;currentFloorIndex=1;floorTransition=null;stairLock=null;
+  paused=false;stamina=1;sprintExhausted=false;battery=CONFIG.detectorCapacity;detectorUntil=0;detectorCooldownUntil=0;joystick={x:0,y:0};runHeld=false;currentFloorIndex=1;floorTransition=null;stairLock=null;stairTraversal=null;
   const now=performance.now()/1000;
   monsterState='wander';monsterTarget=null;lastSeen=null;lastHeard=null;lastHeardAt=0;path=[];pathRefresh=0;stationProgress=0;activeStation=null;lastStep=0;lastBreath=0;lastChargeSound=0;lastAmbient=0;lastMonsterStepAt=now;nextMonsterBreathAt=now+2+Math.random()*3;nextMonsterVocalAt=now+7+Math.random()*6;nextMonsterWallAt=now+12+Math.random()*10;nextMonsterSound=0;
   nextLocationPing=now+20+Math.random()*20;soundAlertUntil=0;locationAlertUntil=0;sightAlertUntil=0;lastSurfaceCellKey='';lastCreakAt=-Infinity;
