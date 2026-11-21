@@ -12,6 +12,13 @@ export function createMonsterModel(THREE) {
   const pupilMat = new THREE.MeshStandardMaterial({color:0x020606,roughness:.18});
   const cartilage = new THREE.MeshStandardMaterial({color:0x303b3d,roughness:.82,metalness:0});
   const rootScale = 1;
+  const upperBody = new THREE.Group();
+  upperBody.name='Upper_Body_Articulation';
+  upperBody.position.y=1.15;
+  root.add(upperBody);
+  const torsoDetailGroup = new THREE.Group();
+  torsoDetailGroup.position.y=-1.15;
+  upperBody.add(torsoDetailGroup);
 
   // A single asymmetrical torso/neck volume. The shoulders are deliberately uneven;
   // the sternum twists away from the pelvis instead of reading as a human mannequin.
@@ -23,29 +30,29 @@ export function createMonsterModel(THREE) {
     [2.05,.145,.12,.025,-.055],[2.18,.12,.105,.03,-.09],[2.27,.075,.075,.03,-.105]
   ],144,112,1.35),skin);
   torso.name='Twisted_Continuous_Torso';
-  torso.castShadow=true;torso.receiveShadow=true;root.add(torso);
+  torso.castShadow=true;torso.receiveShadow=true;torsoDetailGroup.add(torso);
 
   // Raised, irregular shoulder and rib structures are grown from the torso surface.
-  addTube(THREE,root,[[-.34,1.55,.02],[-.43,1.68,.035],[-.48,1.79,.01],[-.39,1.88,-.015]], [.07,.09,.055,.012],skin,18,36,'Raised_Left_Shoulder');
-  addTube(THREE,root,[[.29,1.48,.02],[.39,1.59,.035],[.44,1.72,.015],[.38,1.83,-.02]], [.055,.075,.045,.01],skin,16,30,'Raised_Right_Shoulder');
+  addTube(THREE,torsoDetailGroup,[[-.34,1.55,.02],[-.43,1.68,.035],[-.48,1.79,.01],[-.39,1.88,-.015]], [.07,.09,.055,.012],skin,18,36,'Raised_Left_Shoulder');
+  addTube(THREE,torsoDetailGroup,[[.29,1.48,.02],[.39,1.59,.035],[.44,1.72,.015],[.38,1.83,-.02]], [.055,.075,.045,.01],skin,16,30,'Raised_Right_Shoulder');
   for(let i=0;i<5;i++){
     const y=1.28-i*.205;
-    addTube(THREE,root,[[-.24,y+.07,.12],[-.08,y,.19],[.12,y-.035,.17],[.28,y-.11,.08]],
+    addTube(THREE,torsoDetailGroup,[[-.24,y+.07,.12],[-.08,y,.19],[.12,y-.035,.17],[.28,y-.11,.08]],
       [.014,.022,.012,.002],i%2?skin:paleRidge,10,28,'Uneven_Rib_Ridge_'+i);
   }
   // A broken vertebral ridge on the back gives the silhouette a jagged, non-human profile.
   for(let i=0;i<8;i++){
     const y=.48+i*.185, side=i%2?1:-1, len=.13+(i%3)*.035;
-    addTube(THREE,root,[[side*.015,y,-.145],[side*.055,y+.035,-.22],[side*len,y+.075,-.27],[side*(len+.055),y+.12,-.235]],
+    addTube(THREE,torsoDetailGroup,[[side*.015,y,-.145],[side*.055,y+.035,-.22],[side*len,y+.075,-.27],[side*(len+.055),y+.12,-.235]],
       [.035,.045,.022,.002],i%3===0?paleRidge:skin,10,22,'Dorsal_Verterbra_'+i);
   }
 
   // The neck rises off-axis and kinks before the skull. The head has its own pivot.
   const head = new THREE.Group();
   head.name='Cranium_Pivot';
-  head.position.set(-.105,2.08,.025);
+  head.position.set(-.105,.93,.025);
   head.rotation.z=-.13;
-  root.add(head);
+  upperBody.add(head);
   const skull = new THREE.Mesh(makeSculpt(THREE,[
     [0,.10,.09,.0,.015],[.07,.15,.13,.0,.025],[.16,.205,.16,-.005,.035],
     [.28,.235,.18,-.015,.025],[.4,.22,.17,-.025,-.005],[.52,.19,.145,-.035,-.045],
@@ -86,19 +93,46 @@ export function createMonsterModel(THREE) {
       [.006,.012,.001],i%3===0?paleRidge:skin,8,16,'Facial_Crease');
   }
 
-  const armLeft=makeArm(THREE,root,-1,skin,paleRidge,'Arm_Left',1.48);
-  const armRight=makeArm(THREE,root,1,skin,paleRidge,'Arm_Right',1.78);
-  const legLeft=makeLeg(THREE,root,-1,skin,paleRidge,'Leg_Left',.92);
-  const legRight=makeLeg(THREE,root,1,skin,paleRidge,'Leg_Right',1.12);
+  const jaw = new THREE.Group();
+  jaw.name='Independent_Jaw_Hinge';
+  jaw.position.set(.015,.145,.135);
+  head.add(jaw);
+  addOrganicOrb(THREE,jaw,[0,-.055,.015],[.145,.062,.082],skin,'Asymmetric_Lower_Jaw',.36);
+  addTube(THREE,jaw,[[-.13,-.025,.035],[-.07,-.095,.095],[.015,-.11,.11],[.105,-.065,.07],[.14,-.025,.02]],
+    [.018,.028,.024,.014,.002],paleRidge,12,34,'Lower_Jaw_Raised_Rim');
+  const toothMat=new THREE.MeshPhysicalMaterial({color:0x8c9688,roughness:.48,metalness:0,clearcoat:.18});
+  for(let i=0;i<7;i++){
+    const x=-.105+i*.034,lean=(i%2?-.012:.012),length=.045+(i%3)*.018;
+    addTube(THREE,jaw,[[x,-.018,.078],[x+lean,-.035,.105],[x+lean*.7,-.035-length,.112]],
+      [.012,.009,.001],toothMat,8,12,'Irregular_Jaw_Tooth_'+i);
+  }
+  addOrganicOrb(THREE,head,[.105,.37,.175],[.027,.021,.014],eyeMat,'Deep_Secondary_Reflective_Point',.14);
+  for(let i=0;i<12;i++){
+    const side=i%2?1:-1,y=.18+(i%6)*.078,x=side*(.16+(i%3)*.018);
+    addTube(THREE,head,[[x,y+.09,.095],[x+side*.045,y+.035,.145],[x+side*.025,y-.025,.13]],
+      [.008,.016,.002],i%3===0?cartilage:skin,8,18,'Cranial_Contracted_Fold_'+i);
+  }
+
+  const leftArm=makeArm(THREE,upperBody,-1,skin,paleRidge,'Arm_Left',1.48);
+  const rightArm=makeArm(THREE,upperBody,1,skin,paleRidge,'Arm_Right',1.78);
+  const leftLeg=makeLeg(THREE,root,-1,skin,paleRidge,'Leg_Left',.92);
+  const rightLeg=makeLeg(THREE,root,1,skin,paleRidge,'Leg_Right',1.12);
 
   // Sparse surface filaments and contracted skin folds add readable close-up detail.
   for(let i=0;i<18;i++){
     const side=i%2?1:-1, y=.45+(i*.097)%1.55, x=side*(.13+((i*7)%9)*.018);
-    addTube(THREE,root,[[x,y,.11],[x+side*.025,y+.035,.16],[x+side*.012,y+.075,.12]],
+    addTube(THREE,torsoDetailGroup,[[x,y,.11],[x+side*.025,y+.035,.16],[x+side*.012,y+.075,.12]],
       [.003,.008,.001],i%4===0?cartilage:skin,6,10,'Surface_Filament');
   }
   root.scale.setScalar(rootScale);
-  return {group:root,head,armLeft,armRight,legLeft,legRight};
+  return {
+    group:root,upperBody,head,jaw,
+    armLeft:leftArm.shoulder,armRight:rightArm.shoulder,
+    elbowLeft:leftArm.elbow,elbowRight:rightArm.elbow,
+    wristLeft:leftArm.wrist,wristRight:rightArm.wrist,
+    legLeft:leftLeg.hip,legRight:rightLeg.hip,
+    kneeLeft:leftLeg.knee,kneeRight:rightLeg.knee
+  };
 }
 
 function makeSkinMaterial(THREE){
@@ -220,41 +254,67 @@ function addOrganicOrb(THREE,parent,pos,scale,mat,name,detail=.2){
   m.position.set(...pos);m.name=name;m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;
 }
 
-function makeArm(THREE,root,side,skin,ridge,name,length){
-  const pivot=new THREE.Group();pivot.name=name+'_Pivot';
-  pivot.position.set(side*(side<0?.39:.34),1.73,side<0?-.015:.025);root.add(pivot);
+function makeArm(THREE,parent,side,skin,ridge,name,length){
+  const shoulder=new THREE.Group();
+  shoulder.name=name+'_Shoulder_Joint';
+  shoulder.position.set(side*(side<0?.39:.34),.58,side<0?-.015:.025);
+  parent.add(shoulder);
   const extra=length-1.48;
   const points=side<0
     ?[[0,0,0],[side*.12,-.2,.025],[side*.18,-.48,.08],[side*.11,-.76,.12],[side*.16,-1.08,.16],[side*.19,-1.35-extra*.45,.18],[side*.21,-1.58-extra,.16]]
     :[[0,0,0],[side*.13,-.18,.02],[side*.19,-.42,.065],[side*.16,-.68,.11],[side*.23,-.92,.14],[side*.27,-1.12-extra*.4,.16]];
   const radii=side<0?[.205,.17,.13,.115,.083,.061,.043]:[.22,.18,.15,.12,.092,.055];
-  addTube(THREE,pivot,points,radii,skin,22,52,name+'_Sculpted_Limb');
-  const end=points[points.length-1];
-  addTube(THREE,pivot,[end,[end[0]+side*.025,end[1]-.11,end[2]+.055],[end[0]+side*.035,end[1]-.2,end[2]+.075]],
+  addTube(THREE,shoulder,points.slice(0,4),radii.slice(0,4),skin,22,38,name+'_Upper_Arm_Sculpt');
+  const elbow=new THREE.Group();
+  elbow.name=name+'_Elbow_Joint';
+  elbow.position.set(...points[3]);
+  shoulder.add(elbow);
+  const lowerPoints=points.slice(3).map(p=>[p[0]-points[3][0],p[1]-points[3][1],p[2]-points[3][2]]);
+  addTube(THREE,elbow,lowerPoints,radii.slice(3),skin,22,42,name+'_Forearm_Sculpt');
+  const end=lowerPoints[lowerPoints.length-1];
+  const wrist=new THREE.Group();
+  wrist.name=name+'_Wrist_Joint';
+  wrist.position.set(...end);
+  elbow.add(wrist);
+  addTube(THREE,wrist,[[0,0,0],[side*.025,-.11,.055],[side*.035,-.2,.075]],
     [.07,.09,.055],skin,18,24,name+'_Palm_Form');
   for(let i=0;i<4;i++){
-    const spread=(i-1.5)*.052,flen=.25+(i%2)*.11+(side<0?.09:0),x=end[0]+spread;
-    addTube(THREE,pivot,[[x,end[1]-.13,end[2]+.08],[x+spread*.3,end[1]-.25,end[2]+.13],
-      [x+spread*.55,end[1]-.25-flen*.7,end[2]+.17],[x+spread*.8,end[1]-.23-flen,end[2]+.13]],
+    const spread=(i-1.5)*.052,flen=.25+(i%2)*.11+(side<0?.09:0),x=spread;
+    addTube(THREE,wrist,[[x,-.13,.08],[x+spread*.3,-.25,.13],
+      [x+spread*.55,-.25-flen*.7,.17],[x+spread*.8,-.23-flen,.13]],
       [.032,.027,.014,.002],skin,9,22,name+'_Long_Digit_'+i);
   }
-  addTube(THREE,pivot,[[end[0]-side*.045,end[1]-.13,end[2]+.06],[end[0]-side*.12,end[1]-.23,end[2]+.12],
-    [end[0]-side*.17,end[1]-.37,end[2]+.15]],[.045,.028,.002],skin,10,20,name+'_Hooked_Thumb');
-  return pivot;
+  addTube(THREE,wrist,[[-side*.045,-.13,.06],[-side*.12,-.23,.12],
+    [-side*.17,-.37,.15]],[.045,.028,.002],skin,10,20,name+'_Hooked_Thumb');
+  return {shoulder,elbow,wrist};
 }
 function makeLeg(THREE,root,side,skin,ridge,name,length){
-  const pivot=new THREE.Group();pivot.name=name+'_Pivot';pivot.position.set(side*.17,.76,0);root.add(pivot);
-  const pts=side<0
+  const hip=new THREE.Group();
+  hip.name=name+'_Hip_Joint';
+  hip.position.set(side*.17,.76,0);
+  root.add(hip);
+  const points=side<0
     ?[[0,0,0],[side*.04,-.18,-.09],[side*.11,-.39,-.15],[side*.04,-.57,-.04],[side*.12,-.76,.04],[side*.16,-.9,.13]]
     :[[0,0,0],[side*.03,-.2,-.07],[side*.06,-.4,-.13],[side*.14,-.55,-.035],[side*.18,-.76,.08]];
-  addTube(THREE,pivot,pts,side<0?[.18,.15,.11,.09,.07,.045]:[.19,.15,.12,.085,.05],skin,20,42,name+'_Bent_Sculpted_Leg');
-  const foot=pts[pts.length-1];
-  addTube(THREE,pivot,[foot,[foot[0],foot[1]-.025,foot[2]+.16],[foot[0]+side*.035,foot[1]-.04,foot[2]+.29]],
+  const radii=side<0?[.18,.15,.11,.09,.07,.045]:[.19,.15,.12,.085,.05];
+  addTube(THREE,hip,points.slice(0,4),radii.slice(0,4),skin,20,34,name+'_Thigh_Sculpt');
+  const knee=new THREE.Group();
+  knee.name=name+'_Knee_Joint';
+  knee.position.set(...points[3]);
+  hip.add(knee);
+  const lower=points.slice(3).map(p=>[p[0]-points[3][0],p[1]-points[3][1],p[2]-points[3][2]]);
+  addTube(THREE,knee,lower,radii.slice(3),skin,20,32,name+'_Lower_Leg_Sculpt');
+  const ankle=lower[lower.length-1];
+  const foot=new THREE.Group();
+  foot.name=name+'_Ankle_Joint';
+  foot.position.set(...ankle);
+  knee.add(foot);
+  addTube(THREE,foot,[[0,0,0],[0,-.025,.16],[side*.035,-.04,.29]],
     [.075,.085,.035],skin,16,22,name+'_Distorted_Foot');
   for(let i=0;i<4;i++){
-    const x=foot[0]+(i-1.5)*.045;
-    addTube(THREE,pivot,[[x,foot[1]-.025,foot[2]+.22],[x+(i-1.5)*.012,foot[1]-.06,foot[2]+.31],
-      [x+(i-1.5)*.02,foot[1]-.075,foot[2]+.39]],[.027,.015,.001],skin,8,16,name+'_Toe_'+i);
+    const x=(i-1.5)*.045;
+    addTube(THREE,foot,[[x,-.025,.22],[x+(i-1.5)*.012,-.06,.31],
+      [x+(i-1.5)*.02,-.075,.39]],[.027,.015,.001],skin,8,16,name+'_Toe_'+i);
   }
-  return pivot;
+  return {hip,knee,foot};
 }
