@@ -229,7 +229,7 @@ function buildWorld(){
     const countTiles=CONFIG.mazeSize*CONFIG.mazeSize-18,floors=new THREE.InstancedMesh(tileGeo,floorMat,countTiles),ceilings=new THREE.InstancedMesh(ceilingGeo,ceilingMat,countTiles);
     let fi=0,ci=0;
     for(let z=0;z<CONFIG.mazeSize;z++)for(let x=0;x<CONFIG.mazeSize;x++){
-      if([STAIR_UP,STAIR_DOWN].some(p=>Math.abs(p.x-x)<=1&&Math.abs(p.z-z)<=1))continue;
+      if([STAIR_UP,STAIR_DOWN].some(p=>x===p.x&&Math.abs(p.z-z)<=1))continue;
       const wx=(x-half)*cell,wz=(z-half)*cell;
       dummy.position.set(wx,base-.18,wz);dummy.updateMatrix();floors.setMatrixAt(fi++,dummy.matrix);
       dummy.position.set(wx,base+CONFIG.wallHeight+.12,wz);dummy.updateMatrix();ceilings.setMatrixAt(ci++,dummy.matrix);
@@ -293,35 +293,53 @@ function buildWorld(){
   }
   // 실제 통행 가능한 24단 계단. 양쪽 층에서 동일한 계단참과 계단을 볼 수 있게 복제한다.
   const stairTread=.28,stairRise=FLOOR_SPACING/24,stairLength=stairTread*24;
-  const stairStepMat=new THREE.MeshStandardMaterial({color:0x555e61,metalness:.42,roughness:.76});
-  const stairEdgeMat=new THREE.MeshStandardMaterial({color:0x30383b,metalness:.68,roughness:.48});
-  const railMat=new THREE.MeshStandardMaterial({color:0x687276,metalness:.82,roughness:.3});
+  const stairConcrete=makeConcreteTexture('#555b5b'),stairBump=makeConcreteTexture('#343a3b');
+  const stairStepMat=new THREE.MeshStandardMaterial({color:0x92918a,map:stairConcrete,bumpMap:stairBump,bumpScale:.11,metalness:.12,roughness:.94});
+  const stairRiserMat=new THREE.MeshStandardMaterial({color:0x555d5e,map:makeConcreteTexture('#414748'),bumpMap:stairBump,bumpScale:.08,metalness:.18,roughness:.9});
+  const stairEdgeMat=new THREE.MeshStandardMaterial({color:0xb39a55,metalness:.58,roughness:.55});
+  const railMat=new THREE.MeshStandardMaterial({color:0x727b7c,metalness:.88,roughness:.24});
+  const stringerMat=new THREE.MeshStandardMaterial({color:0x343d40,metalness:.72,roughness:.48});
   const upAxis=new THREE.Vector3(0,1,0);
   function makeFlight(baseFloor,shaft){
     const flight=new THREE.Group(),p=world({...shaft,floor:baseFloor});
     const startZ=p.z+stairLength/2,endZ=p.z-stairLength/2;
     for(let n=0;n<24;n++){
       const topY=floorY(baseFloor)+(n+1)*stairRise;
-      const tread=new THREE.Mesh(new THREE.BoxGeometry(1.8,stairRise,stairTread),stairStepMat);
-      tread.position.set(p.x,floorY(baseFloor)+(n+.5)*stairRise,startZ-(n+.5)*stairTread);
+      const z=startZ-(n+.5)*stairTread;
+      const tread=new THREE.Mesh(new THREE.BoxGeometry(1.92,stairRise,stairTread),stairStepMat);
+      tread.position.set(p.x,floorY(baseFloor)+(n+.5)*stairRise,z);
       tread.castShadow=true;tread.receiveShadow=true;flight.add(tread);
-      const nosing=new THREE.Mesh(new THREE.BoxGeometry(1.84,.035,.055),stairEdgeMat);
-      nosing.position.set(p.x,topY-.018,startZ-(n+1)*stairTread+.018);flight.add(nosing);
+      const riser=new THREE.Mesh(new THREE.BoxGeometry(1.88,stairRise,.065),stairRiserMat);
+      riser.position.set(p.x,floorY(baseFloor)+(n+.5)*stairRise,startZ-(n+1)*stairTread+.025);
+      riser.castShadow=true;riser.receiveShadow=true;flight.add(riser);
+      const nosing=new THREE.Mesh(new THREE.BoxGeometry(1.94,.035,.065),stairEdgeMat);
+      nosing.position.set(p.x,topY-.018,startZ-(n+1)*stairTread+.012);flight.add(nosing);
     }
     for(const [z,y] of [[startZ+.48,floorY(baseFloor)-.11],[endZ-.48,floorY(baseFloor+1)-.11]]){
-      const landing=new THREE.Mesh(new THREE.BoxGeometry(2.15,.22,1.05),stairStepMat);
-      landing.position.set(p.x,y,z);landing.receiveShadow=true;flight.add(landing);
+      const landing=new THREE.Mesh(new THREE.BoxGeometry(2.65,.24,1.45),stairStepMat);
+      landing.position.set(p.x,y,z);landing.castShadow=true;landing.receiveShadow=true;flight.add(landing);
+      const landingLip=new THREE.Mesh(new THREE.BoxGeometry(2.68,.045,1.48),stairRiserMat);
+      landingLip.position.set(p.x,y-.13,z);flight.add(landingLip);
     }
     const railVector=new THREE.Vector3(0,FLOOR_SPACING,-stairLength);
     for(const side of [-1,1]){
-      const rail=new THREE.Mesh(new THREE.CylinderGeometry(.045,.045,railVector.length(),10),railMat);
-      rail.position.set(p.x+side*1.08,floorY(baseFloor)+FLOOR_SPACING/2+.9,p.z);
+      const beam=new THREE.Mesh(new THREE.BoxGeometry(.16,FLOOR_SPACING+.12,stairLength+.18),stringerMat);
+      beam.position.set(p.x+side*1.02,floorY(baseFloor)+FLOOR_SPACING/2,p.z);beam.rotation.x=Math.atan2(FLOOR_SPACING,stairLength);flight.add(beam);
+      const rail=new THREE.Mesh(new THREE.CylinderGeometry(.055,.055,railVector.length(),14),railMat);
+      rail.position.set(p.x+side*1.16,floorY(baseFloor)+FLOOR_SPACING/2+.96,p.z);
       rail.quaternion.setFromUnitVectors(upAxis,railVector.clone().normalize());flight.add(rail);
-      for(let n=0;n<=24;n+=3){
+      for(let n=0;n<=24;n+=2){
         const y=floorY(baseFloor)+n*stairRise+.48,z=startZ-n*stairTread;
-        const post=new THREE.Mesh(new THREE.CylinderGeometry(.035,.045,.92,8),railMat);
-        post.position.set(p.x+side*1.08,y,z);flight.add(post);
+        const post=new THREE.Mesh(new THREE.CylinderGeometry(.035,.05,.96,10),railMat);
+        post.position.set(p.x+side*1.16,y,z);flight.add(post);
+        const clamp=new THREE.Mesh(new THREE.CylinderGeometry(.075,.075,.07,10),stringerMat);
+        clamp.position.set(p.x+side*1.16,y+.42,z);flight.add(clamp);
       }
+    }
+    // 계단실 가장자리의 바닥 테두리와 벽체를 만들어 빈 격자처럼 보이지 않게 한다.
+    for(const side of [-1,1]){
+      const curb=new THREE.Mesh(new THREE.BoxGeometry(.18,.42,stairLength+.8),stairRiserMat);
+      curb.position.set(p.x+side*1.42,floorY(baseFloor)+.18,p.z);flight.add(curb);
     }
     return flight;
   }
@@ -774,7 +792,15 @@ function updateHud(){
   $('staminaText').textContent=Math.round(stamina*100)+'%';$('staminaFill').style.width=(stamina*100)+'%';
   $('scanBtn').disabled=battery<=0||!!activeStation||currentFloorIndex===4||!!floorTransition||performance.now()/1000<detectorCooldownUntil;
 }
+function inStairwellFootprint(x,z,floorIndex=currentFloorIndex){
+  for(const shaft of [STAIR_UP,STAIR_DOWN]){
+    const p=world({...shaft,floor:floorIndex});
+    if(Math.abs(x-p.x)<1.28&&Math.abs(z-p.z)<4.12)return true;
+  }
+  return false;
+}
 function collides(x,z){
+  if(!stairTraversal&&inStairwellFootprint(x,z))return true;
   const r=player.radius,checks=[[x-r,z-r],[x+r,z-r],[x-r,z+r],[x+r,z+r]];
   return checks.some(([px,pz])=>{const c=cellAt({x:px,z:pz,y:floorY(currentFloorIndex)});return !isOpen(c.x,c.z,currentFloorIndex);});
 }
@@ -785,16 +811,17 @@ function stairStartFor(shaftName,shaft){
     startZ:p.z+(ascending?length/2:-length/2),endZ:p.z-(ascending?length/2:-length/2),
     direction:ascending?-1:1,length};
 }
-function beginStairTraversalIfEntering(dir){
-  if(stairTraversal)return;
+function beginStairTraversalIfEntering(dir,targetX=player.position.x,targetZ=player.position.z){
+  if(stairTraversal)return false;
   for(const [name,shaft] of [['up',STAIR_UP],['down',STAIR_DOWN]]){
     if((name==='up'&&currentFloorIndex===0)||(name==='down'&&currentFloorIndex===FLOOR_LABELS.length-1))continue;
     const data=stairStartFor(name,shaft),centerX=world({...shaft,floor:currentFloorIndex}).x;
-    if(dir.z*data.direction>.38&&Math.abs(player.position.x-centerX)<.8&&Math.abs(player.position.z-data.startZ)<.62){
+    if(dir.z*data.direction>.38&&Math.abs(targetX-centerX)<.82&&Math.abs(targetZ-data.startZ)<.92){
       stairTraversal={...data,stepCount:24};stairLock=name;
-      showMessage(name==='down'?'계단을 내려갑니다':'계단을 올라갑니다',850);break;
+      showMessage(name==='down'?'계단을 내려갑니다':'계단을 올라갑니다',850);return true;
     }
   }
+  return false;
 }
 function updateStairTraversal(){
   if(!stairTraversal)return;
@@ -831,9 +858,17 @@ function movePlayer(dt){
     return moved;
   }
   const dx=dir.x*normalSpeed*dt,dz=dir.z*normalSpeed*dt;
-  if(!collides(player.position.x+dx,player.position.z)){player.position.x+=dx;moved=true;}
-  if(!collides(player.position.x,player.position.z+dz)){player.position.z+=dz;moved=true;}
-  if(moved)beginStairTraversalIfEntering(dir);
+  const targetX=player.position.x+dx,targetZ=player.position.z+dz;
+  // 계단 진입은 일반 바닥 충돌보다 먼저 판정한다. 계단실을 가로질러 빠져나가는 길은 막는다.
+  if(beginStairTraversalIfEntering(dir,targetX,targetZ)){
+    const t=stairTraversal,stairSpeed=wantsRun?2.8:1.85;
+    const centerX=world({...t.shaft,floor:currentFloorIndex}).x;
+    player.position.x=THREE.MathUtils.clamp(targetX,centerX-.48,centerX+.48);
+    player.position.z=THREE.MathUtils.clamp(targetZ,Math.min(t.startZ,t.endZ),Math.max(t.startZ,t.endZ));
+    updateStairTraversal();return true;
+  }
+  if(!collides(targetX,player.position.z)){player.position.x=targetX;moved=true;}
+  if(!collides(player.position.x,targetZ)){player.position.z=targetZ;moved=true;}
   return moved;
 }
 function distanceToMonster(){return monster.position.distanceTo(player.position);}
