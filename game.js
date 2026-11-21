@@ -80,14 +80,54 @@ function randomOpen(exclude=[],floorIndex=currentFloorIndex){
   return{x:1,z:1,floor:floorIndex};
 }
 function createFloorMaze(floorIndex){
-  const n=CONFIG.mazeSize,map=Array.from({length:n},()=>Array(n).fill(1)),stack=[{x:1,z:1}],dirs=[[0,-2],[2,0],[0,2],[-2,0]];
-  map[1][1]=0;
-  while(stack.length){const cur=stack[stack.length-1],options=dirs.map(([dx,dz])=>({x:cur.x+dx,z:cur.z+dz,dx,dz})).filter(p=>p.x>0&&p.z>0&&p.x<n-1&&p.z<n-1&&map[p.z][p.x]===1);if(!options.length){stack.pop();continue;}const next=options[randInt(options.length)];map[cur.z+next.dz/2][cur.x+next.dx/2]=0;map[next.z][next.x]=0;stack.push({x:next.x,z:next.z});}
-  for(let z=1;z<n-1;z++)for(let x=1;x<n-1;x++)if(map[z][x]===1&&Math.random()<.075&&((map[z][x-1]===0&&map[z][x+1]===0)||(map[z-1][x]===0&&map[z+1][x]===0)))map[z][x]=0;
-  const carve=(x1,z1,x2,z2)=>{let x=x1,z=z1;while(x!==x2){map[z][x]=0;x+=Math.sign(x2-x);}while(z!==z2){map[z][x]=0;z+=Math.sign(z2-z);}map[z][x]=0;};
-  const rooms=floorIndex===2?[[5,5,11,10],[28,5,35,12],[5,29,13,35],[28,28,36,35]]:floorIndex===3?[[4,6,12,13],[27,5,36,12],[5,28,14,36],[27,28,36,35]]:[[5,5,12,12],[28,5,35,11],[5,29,13,35],[28,28,36,36]];
-  for(const [x1,z1,x2,z2] of rooms)for(let z=z1;z<=z2;z++)for(let x=x1;x<=x2;x++)map[z][x]=0;
-  carve(20,20,10,10);carve(20,20,20,5);carve(20,20,35,20);carve(10,10,5,10);carve(10,10,10,30);carve(20,20,30,20);
+  const n=CONFIG.mazeSize,map=Array.from({length:n},()=>Array(n).fill(1));
+  const rect=(x1,z1,x2,z2)=>{for(let z=z1;z<=z2;z++)for(let x=x1;x<=x2;x++)map[z][x]=0;};
+  const corridor=(x1,z1,x2,z2)=>{let x=x1,z=z1;while(x!==x2){map[z][x]=0;x+=Math.sign(x2-x);}while(z!==z2){map[z][x]=0;z+=Math.sign(z2-z);}map[z][x]=0;};
+  const room=(x1,z1,x2,z2,doorX,doorZ)=>{
+    for(let z=z1+1;z<z2;z++)for(let x=x1+1;x<x2;x++)map[z][x]=0;
+    map[doorZ][doorX]=0;
+  };
+  if(floorIndex<=1){
+    // 병원·관리동: 중앙 복도와 네 개의 병실 동선, 각 방은 문을 통해 복도에 연결된다.
+    rect(19,2,21,38);rect(2,19,38,21);
+    rect(9,2,11,38);rect(29,2,31,38);rect(2,9,38,11);rect(2,29,38,31);
+    const rooms=[
+      [3,3,8,8,8,5],[12,3,17,8,12,5],[3,12,8,17,8,14],[12,12,17,17,12,14],
+      [23,3,28,8,28,5],[32,3,37,8,32,5],[23,12,28,17,28,14],[32,12,37,17,32,14],
+      [3,23,8,28,8,25],[12,23,17,28,12,25],[3,32,8,37,8,34],[12,32,17,37,12,34],
+      [23,23,28,28,28,25],[32,23,37,28,32,25],[23,32,28,37,28,34],[32,32,37,37,32,34]
+    ];
+    for(const r of rooms)room(...r);
+  }else if(floorIndex===2){
+    // 폐공장: 넓은 생산동을 네 개의 거대한 작업장으로 나누고 중앙 설비 통로로 연결한다.
+    rect(3,3,37,37);
+    for(let x=4;x<=36;x++){if(x<19||x>21){map[13][x]=1;map[27][x]=1;}}
+    for(let z=4;z<=36;z++){if(z<19||z>21){map[z][13]=1;map[z][27]=1;}}
+    rect(19,2,21,38);rect(2,19,38,21);
+    // 주변 정비실과 원료 보관실
+    room(3,3,8,8,8,5);room(32,3,37,8,32,5);
+    room(3,32,8,37,8,34);room(32,32,37,37,32,34);
+    corridor(10,10,20,20);corridor(20,20,30,30);
+  }else if(floorIndex===3){
+    // 침수구역: 넓은 물 저장실과 가늘게 이어지는 배수 통로.
+    rect(19,2,21,38);rect(2,19,38,21);
+    rect(4,4,15,15);rect(25,4,36,15);rect(4,25,15,36);rect(25,25,36,36);
+    corridor(10,10,20,20);corridor(30,10,20,20);corridor(10,30,20,20);corridor(30,30,20,20);
+    // 일부 수로는 한 칸 폭으로 남겨 물속 이동을 강제한다.
+    for(let x=4;x<=15;x++)map[16][x]=1;
+    map[10][15]=0;map[20][20]=0;map[30][25]=0;
+    corridor(15,10,19,10);corridor(25,30,21,30);
+  }else{
+    // 지하 설비층: 좁은 유지보수 복도, 전기실과 케이블실이 교차한다.
+    rect(19,2,21,38);rect(2,19,38,21);
+    rect(9,2,10,19);rect(30,21,31,38);rect(2,9,19,10);rect(21,30,38,31);
+    room(3,3,8,8,8,5);room(12,3,17,8,12,5);
+    room(32,3,37,8,32,5);room(23,3,28,8,28,5);
+    room(3,32,8,37,8,34);room(12,32,17,37,12,34);
+    room(32,32,37,37,32,34);room(23,32,28,37,28,34);
+    corridor(10,10,20,20);corridor(30,30,20,20);
+  }
+  // 층간 연결부는 모든 층에서 같은 위치에 정렬한다.
   for(const p of [STAIR_UP,STAIR_DOWN])for(let z=p.z-1;z<=p.z+1;z++)for(let x=p.x-1;x<=p.x+1;x++)map[z][x]=0;
   return map;
 }
