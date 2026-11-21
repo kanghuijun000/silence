@@ -1165,7 +1165,7 @@ function applyPendingUpdate(){
 }
 function boot(){
   initThree();bindControls();generateMaze();buildWorld();
-  loadEnvironmentAssets(THREE,floorGroups,world,floorY).catch(error=>console.warn('SILENCE 환경 에셋 로딩 실패:',error));
+  loadEnvironmentAssets(THREE,renderer,floorGroups,world,floorY).catch(error=>console.warn('SILENCE 환경 에셋 로딩 실패:',error));
   setupPlayerAndMonster();updateHud();animate();
   if('serviceWorker' in navigator){
     let registration=null;
