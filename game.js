@@ -913,9 +913,9 @@ function finish(success){
 function resetGame(){
   if(scene){
     while(scene.children.length)scene.remove(scene.children[0]);
-    scene.add(new THREE.HemisphereLight(0x9aaab4,0x252b30,.30));
+    scene.add(new THREE.HemisphereLight(0x9aaab4,0x252b30,.42));
     const keyLight=new THREE.DirectionalLight(0x9eabb3,.10);keyLight.position.set(-10,20,8);scene.add(keyLight);
-    scene.add(new THREE.AmbientLight(0x87939a,.16));
+    scene.add(new THREE.AmbientLight(0x87939a,.26));
     scene.add(camera);
   }
   if(chargingGain&&audioCtx)chargingGain.gain.setValueAtTime(0,audioCtx.currentTime);
