@@ -1,5 +1,6 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 import { createMonsterModel } from './monster-model.js';
+import { loadEnvironmentAssets } from './environment-assets.js';
 
 const CONFIG = {
   mazeSize: 41,          // 탐색 부담을 줄인 약 40x40 규모의 홀수 격자
@@ -262,20 +263,9 @@ function buildWorld(){
     for(let z=4;z<CONFIG.mazeSize-4;z+=9)for(let x=4;x<CONFIG.mazeSize-5;x++)if(map[z][x]===0&&map[z][x+1]===0&&map[z][x+2]===0&&Math.random()<.18){
       const p=world({x,z,floor:f}),pipe=new THREE.Mesh(new THREE.CylinderGeometry(.055,.055,cell*2.5,9),pipeMat);pipe.rotation.z=Math.PI/2;pipe.position.set(p.x,base+2.72,p.z);floorGroup.add(pipe);x+=2;
     }
-    if(f<=1){
-      const frameMat=new THREE.MeshStandardMaterial({color:0x7b8588,metalness:.35,roughness:.7}),mattressMat=new THREE.MeshStandardMaterial({color:0x9a9b91,roughness:1});
-      for(const [x,z] of [[6,6],[34,6],[6,34],[34,34]]){
-        const p=world({x,z,floor:f}),bed=new THREE.Group(),frame=new THREE.Mesh(new THREE.BoxGeometry(2.25,.16,.9),frameMat),pad=new THREE.Mesh(new THREE.BoxGeometry(2.05,.2,.82),mattressMat),head=new THREE.Mesh(new THREE.BoxGeometry(.14,.85,.95),frameMat);
-        frame.position.y=.55;pad.position.set(0,.72,0);head.position.set(-1.02,.85,0);bed.add(frame,pad,head);bed.position.set(p.x,base,p.z);bed.rotation.y=x<20?0:Math.PI/2;floorGroup.add(bed);
-        const cart=new THREE.Mesh(new THREE.BoxGeometry(.55,.75,.42),frameMat);cart.position.set(p.x+1.25,base+.38,p.z+.7);floorGroup.add(cart);
-      }
-    }
+    // 병원 의료 장비는 environment-assets.js의 실제 GLB 모델로 비동기 배치한다.
     if(factory){
-      const machineMat=new THREE.MeshStandardMaterial({color:0x343b3b,metalness:.72,roughness:.52});
-      for(const [x,z] of [[8,8],[32,9],[9,32],[32,32],[25,17]]){
-        const p=world({x,z,floor:f}),machine=new THREE.Group(),body=new THREE.Mesh(new THREE.BoxGeometry(2.1,2.15,1.7),machineMat),cap=new THREE.Mesh(new THREE.BoxGeometry(2.3,.18,1.9),new THREE.MeshStandardMaterial({color:0x75684f,metalness:.65,roughness:.55}));
-        body.position.y=1.08;cap.position.y=2.2;machine.add(body,cap);machine.position.set(p.x,base,p.z);floorGroup.add(machine);
-      }
+      // 공장 설비는 단순 박스 대신 세부 부품이 모델링된 GLB 산업 장비로 교체한다.
       const hazeCount=460,positions=new Float32Array(hazeCount*3);
       for(let n=0;n<hazeCount;n++){positions[n*3]=(Math.random()-.5)*worldSize*.88;positions[n*3+1]=base+1+Math.random()*2.1;positions[n*3+2]=(Math.random()-.5)*worldSize*.88;}
       const hg=new THREE.BufferGeometry();hg.setAttribute('position',new THREE.BufferAttribute(positions,3));factoryHaze=new THREE.Points(hg,new THREE.PointsMaterial({color:0x9aa09b,size:.34,transparent:true,opacity:.105,depthWrite:false,sizeAttenuation:true}));factoryHaze.frustumCulled=false;floorGroup.add(factoryHaze);
@@ -1174,7 +1164,9 @@ function applyPendingUpdate(){
   if(updatePending){window.location.reload();}
 }
 function boot(){
-  initThree();bindControls();generateMaze();buildWorld();setupPlayerAndMonster();updateHud();animate();
+  initThree();bindControls();generateMaze();buildWorld();
+  loadEnvironmentAssets(THREE,floorGroups,world,floorY).catch(error=>console.warn('SILENCE 환경 에셋 로딩 실패:',error));
+  setupPlayerAndMonster();updateHud();animate();
   if('serviceWorker' in navigator){
     let registration=null;
     const checkForAppUpdate=()=>{
