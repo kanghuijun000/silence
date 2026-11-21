@@ -18,9 +18,11 @@ const ASSETS = {
   robotArm: 'robot-arm/v1/lod0.glb',
   serverRoom: 'server-room/v1/lod0.glb',
   warehouse: 'warehouse/v2/lod0.glb',
-  conveyorHead: 'conveyor-head-pulley-drive/v1/lod1.glb',
-  conveyorStraight: 'roller-conveyor-straight/v1/lod1.glb',
-  conveyorTransfer: 'belt-conveyor-transfer/v1/lod1.glb',
+  cncMachine: 'cnc-machine-set/v1/lod0.glb',
+  transferTower: 'conveyor-transfer-tower/v1/lod0.glb',
+  conveyorHead: 'conveyor-head-pulley/v1/lod1.glb',
+  conveyorStraight: 'conveyor-roller-straight/v1/lod1.glb',
+  conveyorTransfer: 'conveyor-belt-transfer/v1/lod1.glb',
   sewerStraight: 'brick-sewer-tunnel-straight/v1/lod1.glb',
   sewerCorner: 'brick-sewer-tunnel-corner/v1/lod1.glb',
   sewerTJunction: 'brick-sewer-tunnel-t-junction/v1/lod1.glb'
@@ -37,11 +39,11 @@ const PLACEMENTS = [
   {asset:'controlRoom',floor:2,x:8,z:8,rotation:0},
   {asset:'warehouse',floor:2,x:8,z:20,rotation:0,scale:.69},
   {asset:'robotArm',floor:2,x:32,z:8,rotation:Math.PI*.5},
-  {asset:'conveyorHead',floor:2,x:8,z:16,rotation:0},
-  {asset:'conveyorStraight',floor:2,x:8,z:17.333,rotation:0,scale:.75},
-  {asset:'conveyorTransfer',floor:2,x:8,z:18.666,rotation:0,scale:.8},
-  {asset:'conveyorStraight',floor:2,x:32,z:32,rotation:Math.PI*.5,scale:.75},
-  {asset:'conveyorHead',floor:2,x:32,z:28.2,rotation:Math.PI*.5,scale:.8},
+  {asset:'conveyorHead',floor:2,x:32,z:16,rotation:0},
+  {asset:'conveyorStraight',floor:2,x:32,z:17.333,rotation:0,scale:.75},
+  {asset:'conveyorTransfer',floor:2,x:32,z:18.666,rotation:0,scale:.8},
+  {asset:'cncMachine',floor:2,x:32,z:22,rotation:Math.PI*.5,scale:.85},
+  {asset:'transferTower',floor:2,x:32,z:32,rotation:0},
   {asset:'sewerStraight',floor:3,x:20,z:8,rotation:0},
   {asset:'sewerStraight',floor:3,x:20,z:9.333,rotation:0},
   {asset:'sewerTJunction',floor:3,x:20,z:10.666,rotation:0},
@@ -62,7 +64,7 @@ export function shouldOmitCeiling(floor,x,z){
   const inRect=(cx,cz,rx,rz)=>Math.abs(x-cx)<=rx&&Math.abs(z-cz)<=rz;
   if(floor===0&&(inRect(5.5,5.5,1.7,1.7)||inRect(14.5,5.5,1.35,1.35)))return true;
   if(floor===1&&inRect(5.5,34.5,1.7,1.7))return true;
-  if(floor===2&&(inRect(8,8,1.8,1.8)||inRect(8,20,4.9,3.45)))return true;
+  if(floor===2&&(inRect(8,8,1.8,1.8)||inRect(8,20,4.9,3.45)||inRect(32,32,1.9,1.9)))return true;
   if(floor===3&&x>=19&&x<=21&&z>=7&&z<=14)return true;
   return false;
 }
