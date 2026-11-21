@@ -15,6 +15,7 @@ const CONFIG = {
 const $ = id => document.getElementById(id);
 const view = $('view');
 let scene, camera, renderer, clock;
+let floorGroups=[];
 let flashlightMain=null, flashlightFill=null;
 let flashlightBrightnessPercent=300;
 let flashlightNearFill=null;
@@ -179,7 +180,7 @@ function updateFloorTransitionFrame(dt){
   if(!floorTransition)return false;
   floorTransition.elapsed+=dt;const t=Math.min(1,floorTransition.elapsed/floorTransition.duration),e=t*t*(3-2*t);
   player.position.y=floorTransition.startY+(floorY(floorTransition.to)-floorTransition.startY)*e;
-  if(t>=1){currentFloorIndex=floorTransition.to;player.position.y=floorY(currentFloorIndex);maze=facilityMazes[currentFloorIndex];floorNoise=facilityNoise[currentFloorIndex];lastSurfaceCellKey='';updateFloorBadge();const panel=$('minimapPanel');if(panel){panel.classList.add('floor-switching');setTimeout(()=>panel.classList.remove('floor-switching'),420);}showMessage(FLOOR_LABELS[currentFloorIndex]+' 도착',1300);floorTransition=null;}
+  if(t>=1){currentFloorIndex=floorTransition.to;player.position.y=floorY(currentFloorIndex);maze=facilityMazes[currentFloorIndex];floorNoise=facilityNoise[currentFloorIndex];lastSurfaceCellKey='';updateFloorBadge();updateFloorVisibility();const panel=$('minimapPanel');if(panel){panel.classList.add('floor-switching');setTimeout(()=>panel.classList.remove('floor-switching'),420);}showMessage(FLOOR_LABELS[currentFloorIndex]+' 도착',1300);floorTransition=null;}
   return true;
 }
 function checkStairTransition(){
@@ -205,7 +206,7 @@ function initThree(){
   renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   view.replaceChildren(renderer.domElement);
   clock=new THREE.Clock();
-  scene.add(new THREE.HemisphereLight(0x9aaab4,0x252b30,.72));const light=new THREE.DirectionalLight(0x9eabb3,.22);light.position.set(-10,20,8);light.castShadow=true;light.shadow.mapSize.set(1024,1024);light.shadow.camera.near=.5;light.shadow.camera.far=55;light.shadow.bias=-.00018;scene.add(light);scene.add(new THREE.AmbientLight(0x87939a,.48));flashlightMain=new THREE.SpotLight(0xffffff,6600,55,Math.PI/3,.42,1.0);flashlightMain.position.set(0,0,0);flashlightMain.target.position.set(0,0,-1);flashlightMain.castShadow=true;flashlightMain.shadow.mapSize.set(1024,1024);flashlightMain.shadow.camera.near=.1;flashlightMain.shadow.camera.far=35;camera.add(flashlightMain);camera.add(flashlightMain.target);flashlightFill=new THREE.SpotLight(0xe8f5ff,1560,42,Math.PI/2,.78,1.0);flashlightFill.position.set(0,0,0);flashlightFill.target.position.set(0,0,-1);camera.add(flashlightFill);camera.add(flashlightFill.target);flashlightNearFill=new THREE.PointLight(0xdcecff,900,13,1.2);flashlightNearFill.position.set(0,-.08,-.15);camera.add(flashlightNearFill);scene.add(camera);
+  scene.add(new THREE.HemisphereLight(0x9aaab4,0x252b30,.30));const light=new THREE.DirectionalLight(0x9eabb3,.08);light.position.set(-10,20,8);scene.add(light);scene.add(new THREE.AmbientLight(0x87939a,.16));flashlightMain=new THREE.SpotLight(0xffffff,1800,38,Math.PI/5,.38,1.0);flashlightMain.position.set(0,0,0);flashlightMain.target.position.set(0,0,-1);flashlightMain.castShadow=true;flashlightMain.shadow.mapSize.set(1024,1024);flashlightMain.shadow.camera.near=.1;flashlightMain.shadow.camera.far=30;camera.add(flashlightMain);camera.add(flashlightMain.target);flashlightFill=new THREE.SpotLight(0xe8f5ff,380,30,Math.PI/3,.72,1.0);flashlightFill.position.set(0,0,0);flashlightFill.target.position.set(0,0,-1);camera.add(flashlightFill);camera.add(flashlightFill.target);flashlightNearFill=new THREE.PointLight(0xdcecff,90,8,1.4);flashlightNearFill.position.set(0,-.08,-.15);camera.add(flashlightNearFill);scene.add(camera);
 }
 function addBox(x,y,z,sx,sy,sz,mat){
   const mesh=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),mat);mesh.position.set(x,y,z);scene.add(mesh);return mesh;
@@ -220,7 +221,9 @@ function buildWorld(){
   const waterFloor=new THREE.MeshStandardMaterial({color:0x53666b,map:makeConcreteTexture('#303e42'),roughness:.24,metalness:.24});
   const ceilingMat=new THREE.MeshStandardMaterial({color:0x727d81,map:makeConcreteTexture('#42494c'),roughness:1});
   const dummy=new THREE.Object3D(),tileGeo=new THREE.BoxGeometry(cell,.36,cell),ceilingGeo=new THREE.BoxGeometry(cell,.24,cell),wallGeo=new THREE.BoxGeometry(cell,CONFIG.wallHeight,cell);
+  floorGroups=[];
   for(let f=0;f<FLOOR_LABELS.length;f++){
+    const floorGroup=new THREE.Group();floorGroup.name='facility-floor-'+f;floorGroups.push(floorGroup);
     const base=floorY(f),map=facilityMazes[f],factory=f===2,flooded=f===3,basement=f===4;
     const floorMat=factory?industrialFloor:flooded?waterFloor:concreteFloor,wallMat=factory||basement?industrialWall:concreteWall;
     const countTiles=CONFIG.mazeSize*CONFIG.mazeSize-18,floors=new THREE.InstancedMesh(tileGeo,floorMat,countTiles),ceilings=new THREE.InstancedMesh(ceilingGeo,ceilingMat,countTiles);
@@ -231,11 +234,11 @@ function buildWorld(){
       dummy.position.set(wx,base-.18,wz);dummy.updateMatrix();floors.setMatrixAt(fi++,dummy.matrix);
       dummy.position.set(wx,base+CONFIG.wallHeight+.12,wz);dummy.updateMatrix();ceilings.setMatrixAt(ci++,dummy.matrix);
     }
-    floors.instanceMatrix.needsUpdate=true;floors.receiveShadow=true;scene.add(floors);ceilings.instanceMatrix.needsUpdate=true;scene.add(ceilings);
+    floors.instanceMatrix.needsUpdate=true;floors.receiveShadow=true;floorGroup.add(floors);ceilings.instanceMatrix.needsUpdate=true;floorGroup.add(ceilings);
     let count=0;for(let z=0;z<CONFIG.mazeSize;z++)for(let x=0;x<CONFIG.mazeSize;x++)if(map[z][x])count++;
     const walls=new THREE.InstancedMesh(wallGeo,wallMat,count);let wi=0;
     for(let z=0;z<CONFIG.mazeSize;z++)for(let x=0;x<CONFIG.mazeSize;x++)if(map[z][x]){dummy.position.set((x-half)*cell,base+CONFIG.wallHeight/2,(z-half)*cell);dummy.updateMatrix();walls.setMatrixAt(wi++,dummy.matrix);}
-    walls.castShadow=true;walls.receiveShadow=true;walls.instanceMatrix.needsUpdate=true;scene.add(walls);
+    walls.castShadow=true;walls.receiveShadow=true;walls.instanceMatrix.needsUpdate=true;floorGroup.add(walls);
     const lightMat=new THREE.MeshStandardMaterial({color:0x56636a,emissive:factory?0x9d6e42:0xa8c4ce,emissiveIntensity:factory ? 1.1 : basement ? .8 : 1.7,roughness:.72});
     // 격자 좌표가 막힌 칸에 걸려 B3 중앙 복도에 조명이 하나도 생기지 않던 문제를 수정한다.
     // 일정 간격의 후보 위치를 가장 가까운 실제 통로 칸으로 옮겨 배치한다.
@@ -251,46 +254,52 @@ function buildWorld(){
       fixtureCells.push(best);
     }
     for(const {x,z} of fixtureCells){
-      const p=world({x,z,floor:f}),housing=new THREE.Mesh(new THREE.BoxGeometry(.9,.14,.34),lightMat);housing.position.set(p.x,base+2.82,p.z);scene.add(housing);
-      const tube=new THREE.Mesh(new THREE.BoxGeometry(.74,.045,.2),new THREE.MeshBasicMaterial({color:factory?0xffc58c:0xeaf7ff}));tube.position.set(p.x,base+2.735,p.z);scene.add(tube);
-      const light=new THREE.PointLight(factory?0xffbd83:basement?0xc5d9e8:0xd8edf4,factory?105:basement?125:155,24,1.35);light.position.set(p.x,base+2.58,p.z);scene.add(light);
+      const p=world({x,z,floor:f}),housing=new THREE.Mesh(new THREE.BoxGeometry(.9,.14,.34),lightMat);housing.position.set(p.x,base+2.82,p.z);floorGroup.add(housing);
+      const tube=new THREE.Mesh(new THREE.BoxGeometry(.74,.045,.2),new THREE.MeshBasicMaterial({color:factory?0xffc58c:0xeaf7ff}));tube.position.set(p.x,base+2.735,p.z);floorGroup.add(tube);
+      const light=new THREE.PointLight(factory?0xffbd83:basement?0xc5d9e8:0xd8edf4,factory?105:basement?125:155,24,1.35);light.position.set(p.x,base+2.58,p.z);floorGroup.add(light);
     }
     const pipeMat=new THREE.MeshStandardMaterial({color:factory?0x4a4c47:0x343d40,metalness:.68,roughness:.58});
     for(let z=4;z<CONFIG.mazeSize-4;z+=9)for(let x=4;x<CONFIG.mazeSize-5;x++)if(map[z][x]===0&&map[z][x+1]===0&&map[z][x+2]===0&&Math.random()<.18){
-      const p=world({x,z,floor:f}),pipe=new THREE.Mesh(new THREE.CylinderGeometry(.055,.055,cell*2.5,9),pipeMat);pipe.rotation.z=Math.PI/2;pipe.position.set(p.x,base+2.72,p.z);scene.add(pipe);x+=2;
+      const p=world({x,z,floor:f}),pipe=new THREE.Mesh(new THREE.CylinderGeometry(.055,.055,cell*2.5,9),pipeMat);pipe.rotation.z=Math.PI/2;pipe.position.set(p.x,base+2.72,p.z);floorGroup.add(pipe);x+=2;
     }
     if(f<=1){
       const frameMat=new THREE.MeshStandardMaterial({color:0x7b8588,metalness:.35,roughness:.7}),mattressMat=new THREE.MeshStandardMaterial({color:0x9a9b91,roughness:1});
       for(const [x,z] of [[6,6],[34,6],[6,34],[34,34]]){
         const p=world({x,z,floor:f}),bed=new THREE.Group(),frame=new THREE.Mesh(new THREE.BoxGeometry(2.25,.16,.9),frameMat),pad=new THREE.Mesh(new THREE.BoxGeometry(2.05,.2,.82),mattressMat),head=new THREE.Mesh(new THREE.BoxGeometry(.14,.85,.95),frameMat);
-        frame.position.y=.55;pad.position.set(0,.72,0);head.position.set(-1.02,.85,0);bed.add(frame,pad,head);bed.position.set(p.x,base,p.z);bed.rotation.y=x<20?0:Math.PI/2;scene.add(bed);
-        const cart=new THREE.Mesh(new THREE.BoxGeometry(.55,.75,.42),frameMat);cart.position.set(p.x+1.25,base+.38,p.z+.7);scene.add(cart);
+        frame.position.y=.55;pad.position.set(0,.72,0);head.position.set(-1.02,.85,0);bed.add(frame,pad,head);bed.position.set(p.x,base,p.z);bed.rotation.y=x<20?0:Math.PI/2;floorGroup.add(bed);
+        const cart=new THREE.Mesh(new THREE.BoxGeometry(.55,.75,.42),frameMat);cart.position.set(p.x+1.25,base+.38,p.z+.7);floorGroup.add(cart);
       }
     }
     if(factory){
       const machineMat=new THREE.MeshStandardMaterial({color:0x343b3b,metalness:.72,roughness:.52});
       for(const [x,z] of [[8,8],[32,9],[9,32],[32,32],[25,17]]){
         const p=world({x,z,floor:f}),machine=new THREE.Group(),body=new THREE.Mesh(new THREE.BoxGeometry(2.1,2.15,1.7),machineMat),cap=new THREE.Mesh(new THREE.BoxGeometry(2.3,.18,1.9),new THREE.MeshStandardMaterial({color:0x75684f,metalness:.65,roughness:.55}));
-        body.position.y=1.08;cap.position.y=2.2;machine.add(body,cap);machine.position.set(p.x,base,p.z);scene.add(machine);
+        body.position.y=1.08;cap.position.y=2.2;machine.add(body,cap);machine.position.set(p.x,base,p.z);floorGroup.add(machine);
       }
       const hazeCount=460,positions=new Float32Array(hazeCount*3);
       for(let n=0;n<hazeCount;n++){positions[n*3]=(Math.random()-.5)*worldSize*.88;positions[n*3+1]=base+1+Math.random()*2.1;positions[n*3+2]=(Math.random()-.5)*worldSize*.88;}
-      const hg=new THREE.BufferGeometry();hg.setAttribute('position',new THREE.BufferAttribute(positions,3));factoryHaze=new THREE.Points(hg,new THREE.PointsMaterial({color:0x9aa09b,size:.34,transparent:true,opacity:.105,depthWrite:false,sizeAttenuation:true}));factoryHaze.frustumCulled=false;scene.add(factoryHaze);
+      const hg=new THREE.BufferGeometry();hg.setAttribute('position',new THREE.BufferAttribute(positions,3));factoryHaze=new THREE.Points(hg,new THREE.PointsMaterial({color:0x9aa09b,size:.34,transparent:true,opacity:.105,depthWrite:false,sizeAttenuation:true}));factoryHaze.frustumCulled=false;floorGroup.add(factoryHaze);
     }
     if(flooded){
       const water=new THREE.Mesh(new THREE.PlaneGeometry(worldSize*.94,worldSize*.94),new THREE.MeshPhysicalMaterial({color:0x29464d,roughness:.19,metalness:.2,transparent:true,opacity:.34,clearcoat:.8,clearcoatRoughness:.16}));
-      water.rotation.x=-Math.PI/2;water.position.y=base+.035;scene.add(water);
+      water.rotation.x=-Math.PI/2;water.position.y=base+.035;floorGroup.add(water);
     }
     if(basement){
       const cableMat=new THREE.MeshStandardMaterial({color:0x20282a,metalness:.6,roughness:.8});
-      for(let z=6;z<CONFIG.mazeSize-5;z+=6){const p=world({x:20,z,floor:f}),tray=new THREE.Mesh(new THREE.BoxGeometry(.34,.2,cell*5),cableMat);tray.position.set(p.x,base+2.65,p.z);scene.add(tray);}
-      for(const [x,z] of [[6,6],[34,6],[6,34],[34,34]]){const p=world({x,z,floor:f}),panel=new THREE.Mesh(new THREE.BoxGeometry(.95,1.7,.24),new THREE.MeshStandardMaterial({color:0x343e40,metalness:.45,roughness:.72}));panel.position.set(p.x,base+.9,p.z);scene.add(panel);}
+      for(let z=6;z<CONFIG.mazeSize-5;z+=6){const p=world({x:20,z,floor:f}),tray=new THREE.Mesh(new THREE.BoxGeometry(.34,.2,cell*5),cableMat);tray.position.set(p.x,base+2.65,p.z);floorGroup.add(tray);}
+      for(const [x,z] of [[6,6],[34,6],[6,34],[34,34]]){const p=world({x,z,floor:f}),panel=new THREE.Mesh(new THREE.BoxGeometry(.95,1.7,.24),new THREE.MeshStandardMaterial({color:0x343e40,metalness:.45,roughness:.72}));panel.position.set(p.x,base+.9,p.z);floorGroup.add(panel);}
     }
+    scene.add(floorGroup);
   }
   for(let f=0;f<FLOOR_LABELS.length-1;f++)for(const shaft of [STAIR_UP,STAIR_DOWN]){
     const p=world({...shaft,floor:f});
     for(let n=0;n<9;n++){const step=new THREE.Mesh(new THREE.BoxGeometry(1.35,.2,.72),new THREE.MeshStandardMaterial({color:0x41494b,metalness:.48,roughness:.7}));step.position.set(p.x,floorY(f)+(n+1)*(FLOOR_SPACING/9),p.z+1.45-n*.34);scene.add(step);}
   }
+}
+function updateFloorVisibility(){
+  for(let i=0;i<floorGroups.length;i++)floorGroups[i].visible=i===currentFloorIndex;
+  if(exitMesh)exitMesh.visible=(exitCell?.floor??0)===currentFloorIndex;
+  for(const station of stations)if(station.mesh)station.mesh.visible=(station.cell.floor??currentFloorIndex)===currentFloorIndex;
 }
 function makeMarker(color,emissive=0){
   return new THREE.MeshStandardMaterial({color,emissive,emissiveIntensity:.6,roughness:.65});
@@ -886,7 +895,7 @@ function animate(){
   const dt=Math.min(clock.getDelta(),.05),now=performance.now()/1000;
   if(running&&!gameOver){updatePlayer(dt,now);monsterUpdate(dt,now);updateAmbient(now);setCamera();}
   if(factoryHaze)factoryHaze.rotation.y+=dt*.008;
-  if(scene?.fog)scene.fog.density=currentFloorIndex === 2 ? .006 : .0028;
+  if(scene?.fog)scene.fog.density=currentFloorIndex === 2 ? .004 : .0018;
   updateSoundMeters(dt);
   drawMinimap(now);
   updateDetectorScan(now);
@@ -904,9 +913,9 @@ function finish(success){
 function resetGame(){
   if(scene){
     while(scene.children.length)scene.remove(scene.children[0]);
-    scene.add(new THREE.HemisphereLight(0x9aaab4,0x252b30,.72));
-    const keyLight=new THREE.DirectionalLight(0x9eabb3,.22);keyLight.position.set(-10,20,8);scene.add(keyLight);
-    scene.add(new THREE.AmbientLight(0x87939a,.48));
+    scene.add(new THREE.HemisphereLight(0x9aaab4,0x252b30,.30));
+    const keyLight=new THREE.DirectionalLight(0x9eabb3,.08);keyLight.position.set(-10,20,8);scene.add(keyLight);
+    scene.add(new THREE.AmbientLight(0x87939a,.16));
     scene.add(camera);
   }
   if(chargingGain&&audioCtx)chargingGain.gain.setValueAtTime(0,audioCtx.currentTime);
@@ -915,7 +924,7 @@ function resetGame(){
   monsterState='wander';monsterTarget=null;lastSeen=null;lastHeard=null;lastHeardAt=0;path=[];pathRefresh=0;stationProgress=0;activeStation=null;lastStep=0;lastBreath=0;lastChargeSound=0;lastAmbient=0;lastMonsterStepAt=now;nextMonsterBreathAt=now+2+Math.random()*3;nextMonsterVocalAt=now+7+Math.random()*6;nextMonsterWallAt=now+12+Math.random()*10;nextMonsterSound=0;
   nextLocationPing=now+20+Math.random()*20;soundAlertUntil=0;locationAlertUntil=0;sightAlertUntil=0;lastSurfaceCellKey='';lastCreakAt=-Infinity;
   monsterArousal=0;lastNoiseEventAt=-Infinity;arousalDecayStart=0;playerNoiseLevel=0;
-  generateMaze();buildWorld();setupPlayerAndMonster();updateHud();gameOver=false;
+  generateMaze();buildWorld();setupPlayerAndMonster();updateFloorVisibility();updateHud();gameOver=false;
 }
 function startGame(){
   if(updatePending){window.location.reload();return;}
@@ -999,9 +1008,9 @@ function bindControls(){
   const applyFlashlightBrightness=value=>{
     flashlightBrightnessPercent=Number(value);
     $('flashlightValue').textContent=flashlightBrightnessPercent+'%';
-    if(flashlightMain)flashlightMain.intensity=2200*(flashlightBrightnessPercent/100);
-    if(flashlightFill)flashlightFill.intensity=520*(flashlightBrightnessPercent/100);
-    if(flashlightNearFill)flashlightNearFill.intensity=300*(flashlightBrightnessPercent/100);
+    if(flashlightMain)flashlightMain.intensity=1800*(flashlightBrightnessPercent/100);
+    if(flashlightFill)flashlightFill.intensity=380*(flashlightBrightnessPercent/100);
+    if(flashlightNearFill)flashlightNearFill.intensity=90*(flashlightBrightnessPercent/100);
   };
   $('flashlightSlider').value='300';
   applyFlashlightBrightness(300);
