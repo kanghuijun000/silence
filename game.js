@@ -824,6 +824,7 @@ function animate(){
   const dt=Math.min(clock.getDelta(),.05),now=performance.now()/1000;
   if(running&&!gameOver){updatePlayer(dt,now);monsterUpdate(dt,now);updateAmbient(now);setCamera();}
   if(factoryHaze)factoryHaze.rotation.y+=dt*.008;
+  if(scene?.fog)scene.fog.density=currentFloorIndex===2?.012:.008;
   updateSoundMeters(dt);
   drawMinimap(now);
   updateDetectorScan(now);
