@@ -315,7 +315,7 @@ function buildWorld(){
     const railVector=new THREE.Vector3(0,FLOOR_SPACING,-stairLength);
     for(const side of [-1,1]){
       const rail=new THREE.Mesh(new THREE.CylinderGeometry(.045,.045,railVector.length(),10),railMat);
-      rail.position.set(p.x+side*1.08,floorY(baseFloor)+FLOOR_SPACING/2+.12,p.z);
+      rail.position.set(p.x+side*1.08,floorY(baseFloor)+FLOOR_SPACING/2+.9,p.z);
       rail.quaternion.setFromUnitVectors(upAxis,railVector.clone().normalize());flight.add(rail);
       for(let n=0;n<=24;n+=3){
         const y=floorY(baseFloor)+n*stairRise+.48,z=startZ-n*stairTread;
