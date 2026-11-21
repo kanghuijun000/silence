@@ -74,7 +74,7 @@ function floorY(floorIndex){return floorIndex*FLOOR_SPACING;}
 function world(c){const f=c.floor??currentFloorIndex;return new THREE.Vector3((c.x-half)*cell,floorY(f),(c.z-half)*cell);}
 function cellAt(pos){const floor=Math.max(0,Math.min(FLOOR_LABELS.length-1,Math.round(pos.y/FLOOR_SPACING)));return{x:Math.max(0,Math.min(CONFIG.mazeSize-1,Math.round(pos.x/cell+half))),z:Math.max(0,Math.min(CONFIG.mazeSize-1,Math.round(pos.z/cell+half))),floor};}
 function isReservedCell(x,z,floorIndex){
-  const sets=floorIndex<=1?[[8,8],[31,8],[9,32],[32,32]]:floorIndex===2?[[8,8],[32,9],[9,32],[32,32],[25,17]]:floorIndex===4?[[7,8],[33,8],[7,33],[33,33]]:[];
+  const sets=floorIndex<=1?[[6,6],[34,6],[6,34],[34,34]]:floorIndex===2?[[8,8],[32,9],[9,32],[32,32],[25,17]]:floorIndex===4?[[6,6],[34,6],[6,34],[34,34]]:[];
   return sets.some(([rx,rz])=>rx===x&&rz===z);
 }
 function randomOpen(exclude=[],floorIndex=currentFloorIndex){
@@ -245,7 +245,7 @@ function buildWorld(){
     }
     if(f<=1){
       const frameMat=new THREE.MeshStandardMaterial({color:0x7b8588,metalness:.35,roughness:.7}),mattressMat=new THREE.MeshStandardMaterial({color:0x9a9b91,roughness:1});
-      for(const [x,z] of [[8,8],[31,8],[9,32],[32,32]]){
+      for(const [x,z] of [[6,6],[34,6],[6,34],[34,34]]){
         const p=world({x,z,floor:f}),bed=new THREE.Group(),frame=new THREE.Mesh(new THREE.BoxGeometry(2.25,.16,.9),frameMat),pad=new THREE.Mesh(new THREE.BoxGeometry(2.05,.2,.82),mattressMat),head=new THREE.Mesh(new THREE.BoxGeometry(.14,.85,.95),frameMat);
         frame.position.y=.55;pad.position.set(0,.72,0);head.position.set(-1.02,.85,0);bed.add(frame,pad,head);bed.position.set(p.x,base,p.z);bed.rotation.y=x<20?0:Math.PI/2;scene.add(bed);
         const cart=new THREE.Mesh(new THREE.BoxGeometry(.55,.75,.42),frameMat);cart.position.set(p.x+1.25,base+.38,p.z+.7);scene.add(cart);
@@ -268,7 +268,7 @@ function buildWorld(){
     if(basement){
       const cableMat=new THREE.MeshStandardMaterial({color:0x20282a,metalness:.6,roughness:.8});
       for(let z=6;z<CONFIG.mazeSize-5;z+=6){const p=world({x:20,z,floor:f}),tray=new THREE.Mesh(new THREE.BoxGeometry(.34,.2,cell*5),cableMat);tray.position.set(p.x,base+2.65,p.z);scene.add(tray);}
-      for(const [x,z] of [[7,8],[33,8],[7,33],[33,33]]){const p=world({x,z,floor:f}),panel=new THREE.Mesh(new THREE.BoxGeometry(.95,1.7,.24),new THREE.MeshStandardMaterial({color:0x343e40,metalness:.45,roughness:.72}));panel.position.set(p.x,base+.9,p.z);scene.add(panel);}
+      for(const [x,z] of [[6,6],[34,6],[6,34],[34,34]]){const p=world({x,z,floor:f}),panel=new THREE.Mesh(new THREE.BoxGeometry(.95,1.7,.24),new THREE.MeshStandardMaterial({color:0x343e40,metalness:.45,roughness:.72}));panel.position.set(p.x,base+.9,p.z);scene.add(panel);}
     }
   }
   for(let f=0;f<FLOOR_LABELS.length-1;f++)for(const shaft of [STAIR_UP,STAIR_DOWN]){
