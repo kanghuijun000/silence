@@ -17,7 +17,7 @@ const view = $('view');
 let scene, camera, renderer, clock;
 let floorGroups=[];
 let flashlightMain=null, flashlightFill=null;
-let flashlightBrightnessPercent=300;
+let flashlightBrightnessPercent=10;
 let flashlightNearFill=null;
 let maze = [], floorNoise = [], stations = [], stationMeshes = [];
 let facilityMazes = [], facilityNoise = [], exploredFloors = [];
@@ -28,7 +28,7 @@ const STAIR_UP = {x:20,z:20};
 const STAIR_DOWN = {x:10,z:10};
 let player, monster, exitMesh, exitCell, spawnCell;
 let running = false, gameOver = false, sprintExhausted = false;
-let paused = false, audioMuted = false, displayBrightness = 1.25, brightnessPercent = 100;
+let paused = false, audioMuted = false, displayBrightness = .5, brightnessPercent = 40;
 let stamina = 1, battery = CONFIG.detectorCapacity, detectorUntil = 0, detectorCooldownUntil = 0;
 let yaw = 0, pitch = 0, joystick = {x:0,y:0}, runHeld = false;
 let lastStep = 0, lastAmbient = 0, nextMonsterSound = 0;
@@ -999,6 +999,9 @@ function bindControls(){
     $('soundToggleBtn').textContent=audioMuted?'소리 켜기':'소리 끄기';
     updateAudioOutput();
   });
+  $('brightnessSlider').value='40';
+  $('brightnessValue').textContent='40%';
+  if(renderer)renderer.toneMappingExposure=displayBrightness;
   $('brightnessSlider').addEventListener('input',e=>{
     brightnessPercent=Number(e.target.value);
     displayBrightness=1.25*(brightnessPercent/100);
@@ -1012,8 +1015,8 @@ function bindControls(){
     if(flashlightFill)flashlightFill.intensity=380*(flashlightBrightnessPercent/100);
     if(flashlightNearFill)flashlightNearFill.intensity=90*(flashlightBrightnessPercent/100);
   };
-  $('flashlightSlider').value='300';
-  applyFlashlightBrightness(300);
+  $('flashlightSlider').value='10';
+  applyFlashlightBrightness(10);
   $('flashlightSlider').addEventListener('input',e=>applyFlashlightBrightness(e.target.value));
   $('exitGameBtn').addEventListener('click',exitToMenu);
   $('scanBtn').addEventListener('click',useDetector);
