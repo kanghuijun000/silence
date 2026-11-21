@@ -1120,12 +1120,19 @@ function applyPendingUpdate(){
 function boot(){
   initThree();bindControls();generateMaze();buildWorld();setupPlayerAndMonster();updateHud();animate();
   if('serviceWorker' in navigator){
+    let registration=null;
+    const checkForAppUpdate=()=>{
+      if(registration&&navigator.onLine)registration.update().catch(error=>console.warn('SILENCE 업데이트 확인 실패:',error));
+    };
+    navigator.serviceWorker.addEventListener('controllerchange',()=>{
+      updatePending=true;
+      if(!running)window.location.reload();
+    });
     window.addEventListener('load',async()=>{
       try{
-        const registration=await navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'});
+        registration=await navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'});
         await registration.update();
-        registration.addEventListener('updatefound',()=>{
-          const worker=registration.installing;
+        const watchInstallingWorker=worker=>{
           if(!worker)return;
           worker.addEventListener('statechange',()=>{
             if(worker.state==='installed'&&navigator.serviceWorker.controller){
@@ -1133,17 +1140,20 @@ function boot(){
               worker.postMessage({type:'SKIP_WAITING'});
             }
           });
-        });
-        navigator.serviceWorker.addEventListener('controllerchange',()=>{
+        };
+        registration.addEventListener('updatefound',()=>watchInstallingWorker(registration.installing));
+        if(registration.waiting&&navigator.serviceWorker.controller){
           updatePending=true;
-          if(!running&&!gameOver&&$('startScreen')&&!$('startScreen').classList.contains('hidden'))window.location.reload();
-        });
+          registration.waiting.postMessage({type:'SKIP_WAITING'});
+        }
         document.addEventListener('visibilitychange',()=>{
-          if(!document.hidden)registration.update().catch(()=>{});
+          if(!document.hidden)checkForAppUpdate();
         });
-        window.addEventListener('focus',()=>registration.update().catch(()=>{}));
+        window.addEventListener('focus',checkForAppUpdate);
+        window.addEventListener('pageshow',checkForAppUpdate);
+        window.setInterval(checkForAppUpdate,60000);
       }catch(error){console.warn('SILENCE 업데이트 확인 실패:',error);}
-    });
+    },{once:true});
   }
 }
 boot();
