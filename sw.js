@@ -1,4 +1,4 @@
-const CACHE_NAME = 'silence-cache-v60';
+const CACHE_NAME = 'silence-cache-v61';
 const APP_FILES = ['./', './index.html', './style.css', './game.js', './monster-model.js', './manifest.json', './icon.svg', './silence-app-icon.svg', './icon-192.png', './icon-512.png', './install.html'];
 
 self.addEventListener('install', event => {
@@ -7,6 +7,9 @@ self.addEventListener('install', event => {
       .then(cache => cache.addAll(APP_FILES))
       .then(() => self.skipWaiting())
   );
+});
+self.addEventListener('message',event=>{
+  if(event.data&&event.data.type==='SKIP_WAITING')self.skipWaiting();
 });
 
 self.addEventListener('activate', event => {
