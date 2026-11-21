@@ -22,15 +22,26 @@ export function createMonsterModel(THREE) {
 
   // A single asymmetrical torso/neck volume. The shoulders are deliberately uneven;
   // the sternum twists away from the pelvis instead of reading as a human mannequin.
-  const torso = new THREE.Mesh(makeSculpt(THREE,[
+  const torsoGeometry=makeSculpt(THREE,[
     [.02,.10,.095,-.015,-.015],[.16,.16,.13,-.005,-.02],[.34,.19,.15,.0,-.025],
     [.55,.205,.16,.005,-.035],[.76,.235,.18,.005,-.055],[.96,.29,.205,.015,-.065],
     [1.15,.34,.225,.025,-.045],[1.32,.39,.22,.025,-.005],[1.48,.43,.205,.015,.055],
     [1.62,.37,.18,.0,.075],[1.76,.27,.15,.0,.045],[1.9,.18,.13,.015,.005],
     [2.05,.145,.12,.025,-.055],[2.18,.12,.105,.03,-.09],[2.27,.075,.075,.03,-.105]
-  ],144,112,1.35),skin);
-  torso.name='Twisted_Continuous_Torso';
-  torso.castShadow=true;torso.receiveShadow=true;torsoDetailGroup.add(torso);
+  ],144,112,1.35);
+  const torso=new THREE.SkinnedMesh(torsoGeometry,skin);
+  torso.name='Twisted_Continuous_Skinned_Torso';
+  torso.castShadow=true;torso.receiveShadow=true;torso.frustumCulled=false;
+
+  const pelvis=new THREE.Bone();pelvis.name='Pelvis_Bone';pelvis.position.set(0,.10,0);
+  const spine=new THREE.Bone();spine.name='Lumbar_Spine_Bone';spine.position.set(0,.55,0);pelvis.add(spine);
+  const chest=new THREE.Bone();chest.name='Thoracic_Chest_Bone';chest.position.set(.015,.65,-.01);spine.add(chest);
+  const neck=new THREE.Bone();neck.name='Cervical_Neck_Bone';neck.position.set(.015,.55,-.04);chest.add(neck);
+  torsoDetailGroup.add(pelvis);
+  bindVerticalSkin(THREE,torso,[pelvis,spine,chest,neck],[.55,1.18,1.82],.19);
+  torsoDetailGroup.add(torso);
+  torsoDetailGroup.updateWorldMatrix(true,true);
+  torso.bind(new THREE.Skeleton([pelvis,spine,chest,neck]));
 
   // Raised, irregular shoulder and rib structures are grown from the torso surface.
   addTube(THREE,torsoDetailGroup,[[-.34,1.55,.02],[-.43,1.68,.035],[-.48,1.79,.01],[-.39,1.88,-.015]], [.07,.09,.055,.012],skin,18,36,'Raised_Left_Shoulder');
@@ -50,9 +61,9 @@ export function createMonsterModel(THREE) {
   // The neck rises off-axis and kinks before the skull. The head has its own pivot.
   const head = new THREE.Group();
   head.name='Cranium_Pivot';
-  head.position.set(-.105,.93,.025);
+  head.position.set(-.105,.23,.025);
   head.rotation.z=-.13;
-  upperBody.add(head);
+  neck.add(head);
   const skull = new THREE.Mesh(makeSculpt(THREE,[
     [0,.10,.09,.0,.015],[.07,.15,.13,.0,.025],[.16,.205,.16,-.005,.035],
     [.28,.235,.18,-.015,.025],[.4,.22,.17,-.025,-.005],[.52,.19,.145,-.035,-.045],
@@ -113,8 +124,8 @@ export function createMonsterModel(THREE) {
       [.008,.016,.002],i%3===0?cartilage:skin,8,18,'Cranial_Contracted_Fold_'+i);
   }
 
-  const leftArm=makeArm(THREE,upperBody,-1,skin,paleRidge,'Arm_Left',1.48);
-  const rightArm=makeArm(THREE,upperBody,1,skin,paleRidge,'Arm_Right',1.78);
+  const leftArm=makeArm(THREE,chest,-1,skin,paleRidge,'Arm_Left',1.48);
+  const rightArm=makeArm(THREE,chest,1,skin,paleRidge,'Arm_Right',1.78);
   const leftLeg=makeLeg(THREE,root,-1,skin,paleRidge,'Leg_Left',.92);
   const rightLeg=makeLeg(THREE,root,1,skin,paleRidge,'Leg_Right',1.12);
 
@@ -126,7 +137,7 @@ export function createMonsterModel(THREE) {
   }
   root.scale.setScalar(rootScale);
   return {
-    group:root,upperBody,head,jaw,
+    group:root,upperBody,pelvis,spine,chest,neck,head,jaw,
     armLeft:leftArm.shoulder,armRight:rightArm.shoulder,
     elbowLeft:leftArm.elbow,elbowRight:rightArm.elbow,
     wristLeft:leftArm.wrist,wristRight:rightArm.wrist,
@@ -283,10 +294,31 @@ function makeSkinnedTube(THREE,points,radii,material,name,radial=22,tubular=48,j
   return mesh;
 }
 
+function bindVerticalSkin(THREE,mesh,bones,thresholds,blend=.18){
+  const position=mesh.geometry.attributes.position,indices=[],weights=[];
+  const [a,b,c]=thresholds;
+  for(let i=0;i<position.count;i++){
+    const y=position.getY(i);
+    let w0=0,w1=0,w2=0,w3=0;
+    if(y<a)w0=1;
+    else if(y<a+blend){const q=(y-a)/blend;w0=1-q;w1=q;}
+    else if(y<b)w1=1;
+    else if(y<b+blend){const q=(y-b)/blend;w1=1-q;w2=q;}
+    else if(y<c)w2=1;
+    else if(y<c+blend){const q=(y-c)/blend;w2=1-q;w3=q;}
+    else w3=1;
+    indices.push(0,1,2,3);
+    weights.push(w0,w1,w2,w3);
+  }
+  mesh.geometry.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(indices,4));
+  mesh.geometry.setAttribute('skinWeight',new THREE.Float32BufferAttribute(weights,4));
+  mesh.normalizeSkinWeights();
+}
+
 function makeArm(THREE,parent,side,skin,ridge,name,length){
   const armRoot=new THREE.Group();
   armRoot.name=name+'_Skinned_Arm_Root';
-  armRoot.position.set(side*(side<0?.39:.34),.58,side<0?-.015:.025);
+  armRoot.position.set(side*(side<0?.39:.34),.43,side<0?-.015:.025);
   parent.add(armRoot);
   const extra=length-1.48;
   const points=side<0
