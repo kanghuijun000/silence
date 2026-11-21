@@ -1,383 +1,179 @@
-// SILENCE — THE FOLDED WITNESS
-// Bespoke asymmetric creature sculpt. Organic continuous surfaces, non-human silhouette,
-// deeply recessed facial forms, irregular anatomy and layered micro-surface detail.
+// SILENCE — THE LONG-SMILE
+// Reference-driven orange humanoid creature. Ground-to-hat height: approximately 2.5m.
 export function createMonsterModel(THREE) {
   const root = new THREE.Group();
-  root.name = 'SILENCE_FOLDED_WITNESS';
-  const skin = makeSkinMaterial(THREE);
-  const paleRidge = new THREE.MeshStandardMaterial({color:0x596568,roughness:.94});
-  const darkFold = new THREE.MeshStandardMaterial({color:0x080d10,roughness:1});
-  const socketMat = new THREE.MeshStandardMaterial({color:0x020506,roughness:1});
-  const eyeMat = new THREE.MeshPhysicalMaterial({color:0xb7c2b4,roughness:.2,metalness:0,emissive:0x283b35,emissiveIntensity:.3,clearcoat:.7});
-  const pupilMat = new THREE.MeshStandardMaterial({color:0x020606,roughness:.18});
-  const cartilage = new THREE.MeshStandardMaterial({color:0x303b3d,roughness:.82,metalness:0});
-  const rootScale = 1;
-  const upperBody = new THREE.Group();
-  upperBody.name='Upper_Body_Articulation';
-  upperBody.position.y=1.15;
-  root.add(upperBody);
-  const torsoDetailGroup = new THREE.Group();
-  torsoDetailGroup.position.y=-1.15;
-  upperBody.add(torsoDetailGroup);
+  root.name = 'SILENCE_LONG_SMILE';
+  const skin = makeOrangeSkin(THREE);
+  const skinLight = new THREE.MeshPhysicalMaterial({color:0xffa21a,roughness:.68,metalness:0,clearcoat:.12,clearcoatRoughness:.72});
+  const skinShadow = new THREE.MeshStandardMaterial({color:0x9b3908,roughness:.88});
+  const mouthMat = new THREE.MeshStandardMaterial({color:0x170904,roughness:1});
+  const hatMat = new THREE.MeshPhysicalMaterial({color:0x090a0d,roughness:.32,metalness:.08,clearcoat:.25});
+  const toothMat = new THREE.MeshPhysicalMaterial({color:0xffe8b6,roughness:.38,clearcoat:.2});
+  const eyeMat = new THREE.MeshStandardMaterial({color:0x090503,roughness:.95});
+  const glintMat = new THREE.MeshStandardMaterial({color:0x211006,roughness:.8});
 
-  // A single asymmetrical torso/neck volume. The shoulders are deliberately uneven;
-  // the sternum twists away from the pelvis instead of reading as a human mannequin.
-  const torsoGeometry=makeSculpt(THREE,[
-    [.02,.10,.095,-.015,-.015],[.16,.16,.13,-.005,-.02],[.34,.19,.15,.0,-.025],
-    [.55,.205,.16,.005,-.035],[.76,.235,.18,.005,-.055],[.96,.29,.205,.015,-.065],
-    [1.15,.34,.225,.025,-.045],[1.32,.39,.22,.025,-.005],[1.48,.43,.205,.015,.055],
-    [1.62,.37,.18,.0,.075],[1.76,.27,.15,.0,.045],[1.9,.18,.13,.015,.005],
-    [2.05,.145,.12,.025,-.055],[2.18,.12,.105,.03,-.09],[2.27,.075,.075,.03,-.105]
-  ],144,112,1.35);
-  const torso=new THREE.SkinnedMesh(torsoGeometry,skin);
-  torso.name='Twisted_Continuous_Skinned_Torso';
-  torso.castShadow=true;torso.receiveShadow=true;torso.frustumCulled=false;
+  // Legs: long, narrow thighs and shins with continuous tapered surfaces.
+  const pelvis = new THREE.Group(); pelvis.name='Pelvis'; pelvis.position.y=.91; root.add(pelvis);
+  ellipsoid(THREE,pelvis,[0,0,0],[.29,.22,.22],skin,'Narrow_Pelvis');
+  const legLeft = makeLeg(THREE,root,-1,skin,skinLight,'Left_Leg');
+  const legRight = makeLeg(THREE,root,1,skin,skinLight,'Right_Leg');
 
-  const pelvis=new THREE.Bone();pelvis.name='Pelvis_Bone';pelvis.position.set(0,.10,0);
-  const spine=new THREE.Bone();spine.name='Lumbar_Spine_Bone';spine.position.set(0,.55,0);pelvis.add(spine);
-  const chest=new THREE.Bone();chest.name='Thoracic_Chest_Bone';chest.position.set(.015,.65,-.01);spine.add(chest);
-  const neck=new THREE.Bone();neck.name='Cervical_Neck_Bone';neck.position.set(.015,.55,-.04);chest.add(neck);
-  torsoDetailGroup.add(pelvis);
-  bindVerticalSkin(THREE,torso,[pelvis,spine,chest,neck],[.55,1.18,1.82],.19);
-  torsoDetailGroup.add(torso);
-  torsoDetailGroup.updateWorldMatrix(true,true);
-  torso.bind(new THREE.Skeleton([pelvis,spine,chest,neck]));
-
-  // Raised, irregular shoulder and rib structures are grown from the torso surface.
-  addTube(THREE,torsoDetailGroup,[[-.34,1.55,.02],[-.43,1.68,.035],[-.48,1.79,.01],[-.39,1.88,-.015]], [.07,.09,.055,.012],skin,18,36,'Raised_Left_Shoulder');
-  addTube(THREE,torsoDetailGroup,[[.29,1.48,.02],[.39,1.59,.035],[.44,1.72,.015],[.38,1.83,-.02]], [.055,.075,.045,.01],skin,16,30,'Raised_Right_Shoulder');
-  for(let i=0;i<5;i++){
-    const y=1.28-i*.205;
-    addTube(THREE,torsoDetailGroup,[[-.24,y+.07,.12],[-.08,y,.19],[.12,y-.035,.17],[.28,y-.11,.08]],
-      [.014,.022,.012,.002],i%2?skin:paleRidge,10,28,'Uneven_Rib_Ridge_'+i);
-  }
-  // A broken vertebral ridge on the back gives the silhouette a jagged, non-human profile.
-  for(let i=0;i<8;i++){
-    const y=.48+i*.185, side=i%2?1:-1, len=.13+(i%3)*.035;
-    addTube(THREE,torsoDetailGroup,[[side*.015,y,-.145],[side*.055,y+.035,-.22],[side*len,y+.075,-.27],[side*(len+.055),y+.12,-.235]],
-      [.035,.045,.022,.002],i%3===0?paleRidge:skin,10,22,'Dorsal_Verterbra_'+i);
+  // Torso silhouette: broad sloping shoulders, narrow waist and a long neck.
+  const upperBody = new THREE.Group(); upperBody.name='Upper_Body'; upperBody.position.y=.91; root.add(upperBody);
+  const spine = new THREE.Group(); spine.name='Spine'; upperBody.add(spine);
+  const chest = new THREE.Group(); chest.name='Chest'; chest.position.y=.52; spine.add(chest);
+  ellipsoid(THREE,spine,[0,.36,0],[.31,.58,.235],skin,'Continuous_Abdomen');
+  ellipsoid(THREE,chest,[0,.23,0],[.53,.39,.285],skin,'Broad_Chest');
+  ellipsoid(THREE,chest,[0,.43,-.015],[.43,.22,.255],skinLight,'Clavicle_Mass');
+  // Subtle anatomical transitions, not separate hard-edged primitive blocks.
+  tube(THREE,spine,[[0,.05,.12],[.015,.26,.19],[0,.51,.18]], [.055,.075,.035],skinLight,'Sternal_Ridge');
+  for(let side of [-1,1]){
+    for(let i=0;i<4;i++){
+      const y=.18+i*.105;
+      tube(THREE,spine,[[side*.12,y,.16],[side*.25,y+.035,.12],[side*.31,y+.09,.035]],[.018,.023,.004],skinShadow,'Subtle_Rib_Shadow');
+    }
   }
 
-  // The neck rises off-axis and kinks before the skull. The head has its own pivot.
-  const head = new THREE.Group();
-  head.name='Cranium_Pivot';
-  head.position.set(-.105,.23,.025);
-  head.rotation.z=-.13;
-  neck.add(head);
-  const skull = new THREE.Mesh(makeSculpt(THREE,[
-    [0,.10,.09,.0,.015],[.07,.15,.13,.0,.025],[.16,.205,.16,-.005,.035],
-    [.28,.235,.18,-.015,.025],[.4,.22,.17,-.025,-.005],[.52,.19,.145,-.035,-.045],
-    [.63,.145,.115,-.04,-.075],[.71,.075,.07,-.035,-.09],[.75,.018,.025,-.025,-.09]
-  ],112,96,1.8),skin);
-  skull.name='Asymmetric_Elongated_Cranium';skull.castShadow=true;skull.receiveShadow=true;head.add(skull);
+  // Neck and head articulation.
+  const neck = new THREE.Group(); neck.name='Long_Neck'; neck.position.set(0,.72,-.005); chest.add(neck);
+  tube(THREE,neck,[[0,0,0],[0,.13,-.015],[.015,.32,-.035],[.025,.49,-.045],[.015,.59,-.04]],[.19,.145,.115,.12,.17],skin,'Long_Tapered_Neck',32,64);
+  ellipsoid(THREE,neck,[0,.55,-.035],[.19,.16,.17],skinLight,'Neck_To_Jaw_Transition');
+  const head = new THREE.Group(); head.name='Head_Pivot'; head.position.set(.015,.66,.015); neck.add(head);
+  ellipsoid(THREE,head,[0,.03,.015],[.355,.385,.295],skin,'Rounded_Orange_Head',.035);
+  // Cheeks and chin blend into the skull.
+  ellipsoid(THREE,head,[-.205,-.105,.115],[.16,.17,.19],skinLight,'Left_Cheek');
+  ellipsoid(THREE,head,[.205,-.105,.115],[.16,.17,.19],skinLight,'Right_Cheek');
+  ellipsoid(THREE,head,[0,-.235,.11],[.235,.115,.19],skin,'Broad_Chin');
 
-  // One exposed, pale eye; the opposite side is an empty collapsed socket.
-  addOrganicOrb(THREE,head,[-.125,.39,.151],[.09,.073,.035],socketMat,'Collapsed_Left_Orbit',.22);
-  addOrganicOrb(THREE,head,[-.128,.397,.18],[.031,.023,.02],eyeMat,'Single_Pale_Eye',.18);
-  addOrganicOrb(THREE,head,[-.13,.397,.197],[.009,.016,.007],pupilMat,'Pin_Pupil',.08);
-  addOrganicOrb(THREE,head,[.105,.355,.15],[.105,.09,.026],darkFold,'Empty_Right_Orbit',.3);
-  addTube(THREE,head,[[.015,.46,.14],[.11,.48,.145],[.205,.43,.105],[.18,.37,.15]],
-    [.035,.05,.045,.012],skin,12,30,'Broken_Orbital_Rim');
-  addTube(THREE,head,[[-.22,.47,.105],[-.16,.52,.145],[-.07,.49,.18],[.015,.44,.16]],
-    [.025,.043,.03,.006],paleRidge,12,28,'Overhanging_Brow');
-  // A narrow, displaced nasal keel instead of a recognizable human nose.
-  addTube(THREE,head,[[-.035,.48,.13],[-.015,.34,.19],[.045,.23,.205],[.105,.16,.16]],
-    [.035,.042,.026,.006],skin,14,32,'Displaced_Facial_Keel');
-  addOrganicOrb(THREE,head,[.13,.19,.166],[.025,.018,.012],socketMat,'Nasal_Cavity',.2);
-
-  // A long, off-centre vertical fissure makes the face read as an unknown organism,
-  // not a human face with decorative eyes.
-  addOrganicOrb(THREE,head,[-.005,.19,.177],[.047,.17,.018],darkFold,'Vertical_Facial_Fissure',.42);
-  addTube(THREE,head,[[-.055,.34,.17],[-.035,.25,.202],[-.055,.15,.203],[-.025,.035,.155]],
-    [.018,.025,.019,.004],paleRidge,10,28,'Left_Fissure_Lip');
-  addTube(THREE,head,[[.045,.33,.17],[.025,.24,.205],[.055,.13,.195],[.03,.025,.15]],
-    [.012,.02,.015,.003],skin,10,28,'Right_Fissure_Lip');
-  for(let i=0;i<7;i++){
-    const y=.30-i*.037, x=-.012+(i%2)*.026;
-    addTube(THREE,head,[[x,y,.19],[x+.012,y-.018,.214],[x+.005,y-.038,.19]],
-      [.009,.012,.001],i%2?cartilage:paleRidge,7,10,'Irregular_Fissure_Ridge');
+  // Deep dark eye sockets and small inset pupils.
+  for(const side of [-1,1]){
+    ellipsoid(THREE,head,[side*.145,.145,.265],[.078,.052,.035],mouthMat,side<0?'Left_Eye_Socket':'Right_Eye_Socket');
+    ellipsoid(THREE,head,[side*.145,.147,.294],[.034,.027,.012],glintMat,'Inset_Eye');
+    tube(THREE,head,[[side*.235,.19,.235],[side*.16,.225,.27],[side*.075,.19,.27]],[.018,.026,.012],skinShadow,'Heavy_Eyebrow');
   }
-  // Fine facial creases and raised skin folds break up the smooth planes.
+
+  // Wide fixed grin, sculpted as a curved dark opening with raised lips and individually visible teeth.
+  const grin = new THREE.Group(); grin.name='Wide_Grin'; grin.position.set(0,-.105,.275); head.add(grin);
+  ellipsoid(THREE,grin,[0,0,0],[.285,.105,.038],mouthMat,'Dark_Mouth_Cavity');
+  tube(THREE,grin,[[-.29,.015,.012],[-.22,.095,.03],[-.08,.12,.035],[.08,.12,.035],[.23,.085,.025],[.29,.012,.01]],[.026,.035,.032,.032,.03,.018],skinLight,'Upper_Smiling_Lip',16,64);
+  tube(THREE,grin,[[-.27,-.015,.015],[-.17,-.09,.025],[0,-.105,.035],[.17,-.08,.025],[.27,-.01,.015]],[.018,.028,.03,.026,.014],skin,'Lower_Smiling_Lip',14,48);
+  for(let i=0;i<11;i++){
+    const x=-.235+i*.047, y=.035+Math.sin((i/10)*Math.PI)*.027;
+    const w=i===0||i===10?.027:.039, h=i===0||i===10?.038:.055;
+    const tooth=new THREE.Mesh(new THREE.BoxGeometry(w,h,.018),toothMat);
+    tooth.position.set(x,y,.043); tooth.rotation.z=(i-5)*-.012; tooth.name='Individual_Upper_Tooth_'+i;
+    tooth.castShadow=true;grin.add(tooth);
+  }
   for(let i=0;i<9;i++){
-    const side=i%2?1:-1, y=.12+(i%4)*.085;
-    addTube(THREE,head,[[side*.07,y+.08,.14],[side*.13,y+.035,.17],[side*.19,y,.125]],
-      [.006,.012,.001],i%3===0?paleRidge:skin,8,16,'Facial_Crease');
+    const x=-.205+i*.051;
+    const tooth=new THREE.Mesh(new THREE.BoxGeometry(.032,.025,.015),toothMat);
+    tooth.position.set(x,-.052,.044); tooth.name='Lower_Tooth_'+i;grin.add(tooth);
+  }
+  // Smile-corner creases and warm facial folds.
+  for(const side of [-1,1]){
+    tube(THREE,head,[[side*.27,-.08,.23],[side*.31,-.025,.255],[side*.29,.045,.24]],[.012,.018,.003],skinShadow,'Smile_Corner_Crease');
+    tube(THREE,head,[[side*.23,-.17,.22],[side*.27,-.12,.24],[side*.28,-.07,.23]],[.008,.013,.002],skinLight,'Cheek_Fold');
   }
 
-  const jaw = new THREE.Group();
-  jaw.name='Independent_Jaw_Hinge';
-  jaw.position.set(.015,.145,.135);
-  head.add(jaw);
-  addOrganicOrb(THREE,jaw,[0,-.055,.015],[.145,.062,.082],skin,'Asymmetric_Lower_Jaw',.36);
-  addTube(THREE,jaw,[[-.13,-.025,.035],[-.07,-.095,.095],[.015,-.11,.11],[.105,-.065,.07],[.14,-.025,.02]],
-    [.018,.028,.024,.014,.002],paleRidge,12,34,'Lower_Jaw_Raised_Rim');
-  const toothMat=new THREE.MeshPhysicalMaterial({color:0x8c9688,roughness:.48,metalness:0,clearcoat:.18});
-  for(let i=0;i<7;i++){
-    const x=-.105+i*.034,lean=(i%2?-.012:.012),length=.045+(i%3)*.018;
-    addTube(THREE,jaw,[[x,-.018,.078],[x+lean,-.035,.105],[x+lean*.7,-.035-length,.112]],
-      [.012,.009,.001],toothMat,8,12,'Irregular_Jaw_Tooth_'+i);
-  }
-  addOrganicOrb(THREE,head,[.105,.37,.175],[.027,.021,.014],eyeMat,'Deep_Secondary_Reflective_Point',.14);
-  for(let i=0;i<12;i++){
-    const side=i%2?1:-1,y=.18+(i%6)*.078,x=side*(.16+(i%3)*.018);
-    addTube(THREE,head,[[x,y+.09,.095],[x+side*.045,y+.035,.145],[x+side*.025,y-.025,.13]],
-      [.008,.016,.002],i%3===0?cartilage:skin,8,18,'Cranial_Contracted_Fold_'+i);
-  }
+  // Black bowler/top hat: distinct brim and rounded crown.
+  const brim=new THREE.Mesh(new THREE.CylinderGeometry(.285,.30,.055,64,2),hatMat);
+  brim.position.set(0,.405,-.015);brim.castShadow=true;brim.receiveShadow=true;brim.name='Black_Hat_Brim';head.add(brim);
+  const crown=new THREE.Mesh(new THREE.CylinderGeometry(.185,.205,.235,48,8),hatMat);
+  crown.position.set(0,.545,-.015);crown.castShadow=true;crown.receiveShadow=true;crown.name='Black_Hat_Crown';head.add(crown);
+  ellipsoid(THREE,head,[0,.665,-.015],[.19,.045,.19],hatMat,'Hat_Crown_Top');
 
-  const leftArm=makeArm(THREE,chest,-1,skin,paleRidge,'Arm_Left',1.48);
-  const rightArm=makeArm(THREE,chest,1,skin,paleRidge,'Arm_Right',1.78);
-  const leftLeg=makeLeg(THREE,root,-1,skin,paleRidge,'Leg_Left',.92);
-  const rightLeg=makeLeg(THREE,root,1,skin,paleRidge,'Leg_Right',1.12);
+  // Very long arms: fingertips approach the floor when standing upright.
+  const armLeft=makeArm(THREE,chest,-1,skin,skinLight,'Left_Arm');
+  const armRight=makeArm(THREE,chest,1,skin,skinLight,'Right_Arm');
 
-  // Sparse surface filaments and contracted skin folds add readable close-up detail.
-  for(let i=0;i<18;i++){
-    const side=i%2?1:-1, y=.45+(i*.097)%1.55, x=side*(.13+((i*7)%9)*.018);
-    addTube(THREE,torsoDetailGroup,[[x,y,.11],[x+side*.025,y+.035,.16],[x+side*.012,y+.075,.12]],
-      [.003,.008,.001],i%4===0?cartilage:skin,6,10,'Surface_Filament');
-  }
-  root.scale.setScalar(rootScale);
+  root.scale.setScalar(1);
   return {
-    group:root,upperBody,pelvis,spine,chest,neck,head,jaw,
-    armLeft:leftArm.shoulder,armRight:rightArm.shoulder,
-    elbowLeft:leftArm.elbow,elbowRight:rightArm.elbow,
-    wristLeft:leftArm.wrist,wristRight:rightArm.wrist,
-    legLeft:leftLeg.hip,legRight:rightLeg.hip,
-    kneeLeft:leftLeg.knee,kneeRight:rightLeg.knee,
-    footLeft:leftLeg.foot,footRight:rightLeg.foot
+    group:root,upperBody,pelvis,spine,chest,neck,head,jaw:grin,
+    armLeft:armLeft.shoulder,armRight:armRight.shoulder,
+    elbowLeft:armLeft.elbow,elbowRight:armRight.elbow,
+    wristLeft:armLeft.wrist,wristRight:armRight.wrist,
+    legLeft:legLeft.hip,legRight:legRight.hip,
+    kneeLeft:legLeft.knee,kneeRight:legRight.knee,
+    footLeft:legLeft.foot,footRight:legRight.foot
   };
 }
 
-function makeSkinMaterial(THREE){
-  const size=1024, height=new Uint8Array(size*size), rough=new Uint8Array(size*size), color=new Uint8Array(size*size*4);
-  let seed=78131;
-  const rand=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};
+function makeOrangeSkin(THREE){
+  const size=256, data=new Uint8Array(size*size*4), bump=new Uint8Array(size*size);
+  let seed=92741;
+  const random=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};
   for(let y=0;y<size;y++)for(let x=0;x<size;x++){
-    const i=y*size+x;
-    const broad=Math.sin(x*.018+Math.sin(y*.013)*2.7)*.5+Math.sin(y*.027-x*.009)*.35;
-    const folds=Math.sin(x*.16+Math.sin(y*.07)*2)*Math.sin(y*.12+x*.035);
-    const pores=(rand()-.5)*.32, h=Math.max(0,Math.min(255,128+broad*19+folds*15+pores*58));
-    height[i]=h;
-    rough[i]=Math.max(115,Math.min(255,218+broad*12+folds*18+(rand()-.5)*30));
-    const mottled=broad*13+folds*10+(rand()-.5)*23;
-    const p=i*4;
-    color[p]=Math.max(0,Math.min(255,68+mottled));
-    color[p+1]=Math.max(0,Math.min(255,79+mottled));
-    color[p+2]=Math.max(0,Math.min(255,81+mottled));
-    color[p+3]=255;
+    const i=y*size+x, broad=Math.sin(x*.035+Math.sin(y*.021)*2)*.5+Math.sin(y*.045-x*.018)*.35;
+    const pores=(random()-.5)*16, mottled=broad*12+pores;
+    const p=i*4;data[p]=Math.max(0,Math.min(255,244+mottled));data[p+1]=Math.max(0,Math.min(255,112+mottled*1.15));
+    data[p+2]=Math.max(0,Math.min(255,8+mottled*.25));data[p+3]=255;
+    bump[i]=Math.max(0,Math.min(255,128+broad*20+(random()-.5)*36));
   }
-  const normal=new Uint8Array(size*size*4);
-  for(let y=0;y<size;y++){
-    const ym=(y+size-1)%size,yp=(y+1)%size;
-    for(let x=0;x<size;x++){
-      const xm=(x+size-1)%size,xp=(x+1)%size;
-      const dx=(height[y*size+xp]-height[y*size+xm])/255*3.1;
-      const dy=(height[yp*size+x]-height[ym*size+x])/255*3.1;
-      const inv=1/Math.hypot(dx,dy,1),p=(y*size+x)*4;
-      normal[p]=Math.round((-dx*inv)*127+128);
-      normal[p+1]=Math.round((-dy*inv)*127+128);
-      normal[p+2]=Math.round(inv*127+128);normal[p+3]=255;
-    }
-  }
-  const texture=(data,format)=>{
-    const t=new THREE.DataTexture(data,size,size,format);
-    t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(2.4,3.2);
-    t.generateMipmaps=true;t.minFilter=THREE.LinearMipmapLinearFilter;t.magFilter=THREE.LinearFilter;
-    t.anisotropy=8;t.needsUpdate=true;return t;
-  };
-  const albedo=texture(color,THREE.RGBAFormat);albedo.colorSpace=THREE.SRGBColorSpace;
-  const bump=texture(height,THREE.RedFormat),roughMap=texture(rough,THREE.RedFormat),normalMap=texture(normal,THREE.RGBAFormat);
-  return new THREE.MeshPhysicalMaterial({
-    color:0xffffff,map:albedo,roughness:.9,roughnessMap:roughMap,metalness:0,
-    bumpMap:bump,bumpScale:.046,normalMap,normalScale:new THREE.Vector2(.62,.62),
-    clearcoat:.12,clearcoatRoughness:.72,sheen:.08,sheenColor:new THREE.Color(0x455256),
-    vertexColors:true
-  });
+  const map=new THREE.DataTexture(data,size,size,THREE.RGBAFormat);map.colorSpace=THREE.SRGBColorSpace;
+  map.wrapS=map.wrapT=THREE.RepeatWrapping;map.repeat.set(2.2,2.8);map.generateMipmaps=true;map.minFilter=THREE.LinearMipmapLinearFilter;map.magFilter=THREE.LinearFilter;map.needsUpdate=true;
+  const bumpMap=new THREE.DataTexture(bump,size,size,THREE.RedFormat);bumpMap.wrapS=bumpMap.wrapT=THREE.RepeatWrapping;bumpMap.repeat.copy(map.repeat);bumpMap.needsUpdate=true;
+  return new THREE.MeshPhysicalMaterial({color:0xffffff,map,bumpMap,bumpScale:.018,roughness:.72,metalness:0,clearcoat:.1,clearcoatRoughness:.7});
 }
 
-// Profile-driven sculpt with angular asymmetry, warped cross-sections and multi-scale surface breakup.
-function makeSculpt(THREE,profile,vertical=120,radial=96,detail=1){
-  const samples=[],cat=(p0,p1,p2,p3,t)=>.5*((2*p1)+(-p0+p2)*t+(2*p0-5*p1+4*p2-p3)*t*t+(-p0+3*p1-3*p2+p3)*t*t*t);
-  for(let i=0;i<vertical;i++){
-    const u=i/(vertical-1)*(profile.length-1),k=Math.min(profile.length-2,Math.floor(u)),t=u-k;
-    const a=profile[Math.max(0,k-1)],b=profile[k],c=profile[k+1],d=profile[Math.min(profile.length-1,k+2)];
-    samples.push([0,1,2,3,4].map(j=>cat(a[j]??0,b[j]??0,c[j]??0,d[j]??0,t)));
+function ellipsoid(THREE,parent,pos,scale,material,name,warp=.018){
+  const g=new THREE.SphereGeometry(1,64,48),a=g.attributes.position;
+  for(let i=0;i<a.count;i++){
+    const x=a.getX(i),y=a.getY(i),z=a.getZ(i);
+    const n=1+Math.sin(x*11+y*8+z*7)*warp+Math.sin(x*23-y*17+z*19)*warp*.35;
+    a.setXYZ(i,x*scale[0]*n,y*scale[1]*n,z*scale[2]*n);
   }
-  const p=[],col=[],idx=[];
-  for(let i=0;i<samples.length;i++){
-    const [y,rx,rz,cz,cx]=samples[i];
-    for(let j=0;j<radial;j++){
-      const a=j/radial*Math.PI*2,cs=Math.cos(a),sn=Math.sin(a);
-      const asym=1+Math.sin(a*2.1+.7)*.11+Math.sin(a*5.3+i*.11)*.045;
-      const folds=Math.sin(a*7.2+i*.23)*.014+Math.sin(a*13-i*.31)*.006;
-      const fine=Math.sin(a*29+i*1.7)*Math.sin(i*.8+a*11)*.003*detail;
-      const x=cx+cs*(rx*asym+folds+fine);
-      const z=cz+sn*(rz*asym+folds*.8+fine);
-      const warpedY=y+Math.sin(a*3.4+i*.12)*.012*detail;
-      p.push(x,warpedY,z);
-      const grain=.83+Math.sin(x*71+y*43+z*67)*.075+Math.sin(x*139-y*87+z*103)*.035;
-      col.push(grain,grain*1.025,grain*1.04);
-    }
-  }
-  for(let i=0;i<vertical-1;i++)for(let j=0;j<radial;j++){
-    const a=i*radial+j,b=i*radial+(j+1)%radial,c=(i+1)*radial+(j+1)%radial,d=(i+1)*radial+j;
-    idx.push(a,d,b,b,d,c);
-  }
-  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(p,3));
-  g.setAttribute('color',new THREE.Float32BufferAttribute(col,3));g.setIndex(idx);g.computeVertexNormals();return g;
+  a.needsUpdate=true;g.computeVertexNormals();
+  const m=new THREE.Mesh(g,material);m.position.set(...pos);m.name=name;m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;
 }
 
-function tubeGeometry(THREE,points,radii,radial=14,tubular=28,rough=.035){
+function tube(THREE,parent,points,radii,material,name,radial=20,tubular=48){
   const curve=new THREE.CatmullRomCurve3(points.map(p=>new THREE.Vector3(...p)));
-  const frames=curve.computeFrenetFrames(tubular,false),p=[],col=[],idx=[];
+  const frames=curve.computeFrenetFrames(tubular,false),positions=[],indices=[];
   for(let i=0;i<=tubular;i++){
-    const t=i/tubular,center=curve.getPointAt(t),q=t*(radii.length-1),k=Math.min(radii.length-2,Math.floor(q)),f=q-k;
-    const radius=radii[k]*(1-f)+radii[k+1]*f;
+    const t=i/tubular,q=t*(radii.length-1),k=Math.min(radii.length-2,Math.floor(q)),f=q-k;
+    const r=radii[k]*(1-f)+radii[k+1]*f,c=curve.getPointAt(t);
     for(let j=0;j<radial;j++){
-      const a=j/radial*Math.PI*2,w=1+Math.sin(a*3+i*.41)*rough+Math.sin(a*7-i*.19)*rough*.45;
-      const v=center.clone().addScaledVector(frames.normals[i],Math.cos(a)*radius*w)
-        .addScaledVector(frames.binormals[i],Math.sin(a)*radius*w);
-      p.push(v.x,v.y,v.z);
-      const shade=.82+Math.sin(v.x*87+v.y*59+v.z*73)*.09;
-      col.push(shade,shade*1.025,shade*1.04);
+      const a=j/radial*Math.PI*2,w=1+Math.sin(a*3+i*.37)*.025+Math.sin(a*7-i*.19)*.012;
+      const v=c.clone().addScaledVector(frames.normals[i],Math.cos(a)*r*w).addScaledVector(frames.binormals[i],Math.sin(a)*r*w);
+      positions.push(v.x,v.y,v.z);
     }
   }
   for(let i=0;i<tubular;i++)for(let j=0;j<radial;j++){
     const a=i*radial+j,b=i*radial+(j+1)%radial,c=(i+1)*radial+(j+1)%radial,d=(i+1)*radial+j;
-    idx.push(a,b,d,b,c,d);
+    indices.push(a,b,d,b,c,d);
   }
-  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(p,3));
-  g.setAttribute('color',new THREE.Float32BufferAttribute(col,3));g.setIndex(idx);g.computeVertexNormals();return g;
-}
-function addTube(THREE,parent,points,radii,material,radial=12,tubular=24,name='Organic_Ridge'){
-  const m=new THREE.Mesh(tubeGeometry(THREE,points,radii,radial,tubular),material);
-  m.name=name;m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;
-}
-function makeOrbGeometry(THREE,scale,detail=.2){
-  const g=new THREE.SphereGeometry(1,40,28),p=g.attributes.position;
-  for(let i=0;i<p.count;i++){
-    const x=p.getX(i),y=p.getY(i),z=p.getZ(i);
-    const n=1+Math.sin(x*8+y*11+z*5)*detail*.09+Math.sin(x*17-y*9+z*13)*detail*.035;
-    p.setXYZ(i,x*scale[0]*n,y*scale[1]*n,z*scale[2]*n);
-  }
-  p.needsUpdate=true;g.computeVertexNormals();return g;
-}
-function addOrganicOrb(THREE,parent,pos,scale,mat,name,detail=.2){
-  const m=new THREE.Mesh(makeOrbGeometry(THREE,scale,detail),mat);
-  m.position.set(...pos);m.name=name;m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));g.setIndex(indices);g.computeVertexNormals();
+  const m=new THREE.Mesh(g,material);m.name=name;m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;
 }
 
-function makeSkinnedTube(THREE,points,radii,material,name,radial=22,tubular=48,jointT=.55){
-  const geometry=tubeGeometry(THREE,points,radii,radial,tubular);
-  const indices=[],weights=[];
-  for(let ring=0;ring<=tubular;ring++){
-    const t=ring/tubular;
-    let a=0,b=0,c=0;
-    const blend=.085,second=.86;
-    if(t<jointT-blend)a=1;
-    else if(t<jointT+blend){
-      const q=(t-(jointT-blend))/(blend*2);a=1-q;b=q;
-    }else if(t<second)b=1;
-    else{
-      const q=Math.min(1,(t-second)/(1-second));b=1-q;c=q;
-    }
-    for(let j=0;j<radial;j++){
-      indices.push(0,1,2,0);
-      weights.push(a,b,c,0);
-    }
-  }
-  geometry.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(indices,4));
-  geometry.setAttribute('skinWeight',new THREE.Float32BufferAttribute(weights,4));
-  const mesh=new THREE.SkinnedMesh(geometry,material);
-  mesh.name=name;mesh.castShadow=true;mesh.receiveShadow=true;
-  mesh.frustumCulled=false;
-  mesh.normalizeSkinWeights();
-  return mesh;
-}
-
-function bindVerticalSkin(THREE,mesh,bones,thresholds,blend=.18){
-  const position=mesh.geometry.attributes.position,indices=[],weights=[];
-  const [a,b,c]=thresholds;
-  for(let i=0;i<position.count;i++){
-    const y=position.getY(i);
-    let w0=0,w1=0,w2=0,w3=0;
-    if(y<a)w0=1;
-    else if(y<a+blend){const q=(y-a)/blend;w0=1-q;w1=q;}
-    else if(y<b)w1=1;
-    else if(y<b+blend){const q=(y-b)/blend;w1=1-q;w2=q;}
-    else if(y<c)w2=1;
-    else if(y<c+blend){const q=(y-c)/blend;w2=1-q;w3=q;}
-    else w3=1;
-    indices.push(0,1,2,3);
-    weights.push(w0,w1,w2,w3);
-  }
-  mesh.geometry.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(indices,4));
-  mesh.geometry.setAttribute('skinWeight',new THREE.Float32BufferAttribute(weights,4));
-  mesh.normalizeSkinWeights();
-}
-
-function makeArm(THREE,parent,side,skin,ridge,name,length){
-  const armRoot=new THREE.Group();
-  armRoot.name=name+'_Skinned_Arm_Root';
-  armRoot.position.set(side*(side<0?.39:.34),.43,side<0?-.015:.025);
-  parent.add(armRoot);
-  const extra=length-1.48;
-  const points=side<0
-    ?[[0,0,0],[side*.12,-.2,.025],[side*.18,-.48,.08],[side*.11,-.76,.12],[side*.16,-1.08,.16],[side*.19,-1.35-extra*.45,.18],[side*.21,-1.58-extra,.16]]
-    :[[0,0,0],[side*.13,-.18,.02],[side*.19,-.42,.065],[side*.16,-.68,.11],[side*.23,-.92,.14],[side*.27,-1.12-extra*.4,.16]];
-  const radii=side<0?[.205,.17,.13,.115,.083,.061,.043]:[.22,.18,.15,.12,.092,.055];
-  const shoulder=new THREE.Bone();shoulder.name=name+'_Shoulder_Bone';
-  const elbow=new THREE.Bone();elbow.name=name+'_Elbow_Bone';
-  elbow.position.set(...points[3]);shoulder.add(elbow);
-  const end=points[points.length-1];
-  const wrist=new THREE.Bone();wrist.name=name+'_Wrist_Bone';
-  wrist.position.set(end[0]-points[3][0],end[1]-points[3][1],end[2]-points[3][2]);
-  elbow.add(wrist);
-  armRoot.add(shoulder);
-  const mesh=makeSkinnedTube(THREE,points,radii,skin,name+'_Continuous_Skinned_Surface',22,52,3/(points.length-1));
-  armRoot.add(mesh);
-  parent.updateWorldMatrix(true,true);
-  mesh.bind(new THREE.Skeleton([shoulder,elbow,wrist]));
-
-  addTube(THREE,wrist,[[0,0,0],[side*.025,-.11,.055],[side*.035,-.2,.075]],
-    [.07,.09,.055],skin,18,24,name+'_Palm_Form');
+function makeArm(THREE,parent,side,skin,highlight,name){
+  const shoulder=new THREE.Group();shoulder.name=name+'_Shoulder';shoulder.position.set(side*.43,.29,0);parent.add(shoulder);
+  const elbow=new THREE.Group();elbow.name=name+'_Elbow';elbow.position.set(side*.09,-.57,.025);shoulder.add(elbow);
+  const wrist=new THREE.Group();wrist.name=name+'_Wrist';wrist.position.set(side*.07,-.60,.045);elbow.add(wrist);
+  tube(THREE,shoulder,[[0,0,0],[side*.08,-.22,.015],[side*.12,-.46,.04],[side*.09,-.57,.025]],[.205,.17,.125,.105],skin,name+'_Upper_Arm',24,64);
+  ellipsoid(THREE,elbow,[0,0,0],[.115,.13,.12],skin,name+'_Elbow_Joint');
+  tube(THREE,elbow,[[0,0,0],[side*.035,-.2,.025],[side*.055,-.42,.04],[side*.07,-.60,.045]],[.105,.085,.065,.045],skin,name+'_Long_Forearm',22,64);
+  ellipsoid(THREE,wrist,[0,-.035,.045],[.075,.12,.085],skin,name+'_Wrist_Blend');
+  tube(THREE,wrist,[[0,-.08,.045],[side*.015,-.18,.075],[side*.025,-.28,.085]],[.065,.085,.055],skin,name+'_Palm',18,36);
   for(let i=0;i<4;i++){
-    const spread=(i-1.5)*.052,flen=.25+(i%2)*.11+(side<0?.09:0),x=spread;
-    addTube(THREE,wrist,[[x,-.13,.08],[x+spread*.3,-.25,.13],
-      [x+spread*.55,-.25-flen*.7,.17],[x+spread*.8,-.23-flen,.13]],
-      [.032,.027,.014,.002],skin,9,22,name+'_Long_Digit_'+i);
+    const x=(i-1.5)*.038, len=.19+(i%2)*.035;
+    tube(THREE,wrist,[[x,-.19,.085],[x+(i-1.5)*.012,-.28,.11],[x+(i-1.5)*.018,-.28-len,.12]],[.025,.019,.003],skin,name+'_Long_Finger_'+i,12,28);
   }
-  addTube(THREE,wrist,[[-side*.045,-.13,.06],[-side*.12,-.23,.12],
-    [-side*.17,-.37,.15]],[.045,.028,.002],skin,10,20,name+'_Hooked_Thumb');
+  tube(THREE,wrist,[[-side*.055,-.16,.07],[-side*.105,-.25,.12],[-side*.13,-.34,.13]],[.035,.024,.002],skin,name+'_Thumb',12,28);
   return {shoulder,elbow,wrist};
 }
-function makeLeg(THREE,root,side,skin,ridge,name,length){
-  const legRoot=new THREE.Group();
-  legRoot.name=name+'_Skinned_Leg_Root';
-  legRoot.position.set(side*.17,.76,0);
-  root.add(legRoot);
-  const points=side<0
-    ?[[0,0,0],[side*.04,-.18,-.09],[side*.11,-.39,-.15],[side*.04,-.57,-.04],[side*.12,-.76,.04],[side*.16,-.9,.13]]
-    :[[0,0,0],[side*.03,-.2,-.07],[side*.06,-.4,-.13],[side*.14,-.55,-.035],[side*.18,-.76,.08]];
-  const radii=side<0?[.18,.15,.11,.09,.07,.045]:[.19,.15,.12,.085,.05];
-  const hip=new THREE.Bone();hip.name=name+'_Hip_Bone';
-  const knee=new THREE.Bone();knee.name=name+'_Knee_Bone';
-  knee.position.set(...points[3]);hip.add(knee);
-  const end=points[points.length-1];
-  const ankle=new THREE.Bone();ankle.name=name+'_Ankle_Bone';
-  ankle.position.set(end[0]-points[3][0],end[1]-points[3][1],end[2]-points[3][2]);
-  knee.add(ankle);
-  legRoot.add(hip);
-  const mesh=makeSkinnedTube(THREE,points,radii,skin,name+'_Continuous_Skinned_Surface',20,48,3/(points.length-1));
-  legRoot.add(mesh);
-  root.updateWorldMatrix(true,true);
-  mesh.bind(new THREE.Skeleton([hip,knee,ankle]));
 
-  addTube(THREE,ankle,[[0,0,0],[0,-.025,.16],[side*.035,-.04,.29]],
-    [.075,.085,.035],skin,16,22,name+'_Distorted_Foot');
+function makeLeg(THREE,root,side,skin,highlight,name){
+  const hip=new THREE.Group();hip.name=name+'_Hip';hip.position.set(side*.17,.91,0);root.add(hip);
+  const knee=new THREE.Group();knee.name=name+'_Knee';knee.position.set(side*.025,-.46,-.015);hip.add(knee);
+  const foot=new THREE.Group();foot.name=name+'_Ankle';foot.position.set(side*.025,-.42,.02);knee.add(foot);
+  tube(THREE,hip,[[0,0,0],[side*.025,-.17,-.035],[side*.04,-.34,-.045],[side*.025,-.46,-.015]],[.155,.135,.095,.075],skin,name+'_Long_Thigh',22,56);
+  ellipsoid(THREE,knee,[0,0,0],[.08,.09,.085],skin,name+'_Knee_Joint');
+  tube(THREE,knee,[[0,0,0],[side*.015,-.15,.005],[side*.025,-.3,.035],[side*.025,-.42,.02]],[.075,.065,.048,.035],skin,name+'_Narrow_Shin',20,52);
+  ellipsoid(THREE,foot,[0,-.015,.12],[.09,.065,.19],skin,name+'_Long_Foot');
   for(let i=0;i<4;i++){
-    const x=(i-1.5)*.045;
-    addTube(THREE,ankle,[[x,-.025,.22],[x+(i-1.5)*.012,-.06,.31],
-      [x+(i-1.5)*.02,-.075,.39]],[.027,.015,.001],skin,8,16,name+'_Toe_'+i);
+    const x=(i-1.5)*.035;
+    tube(THREE,foot,[[x,-.025,.20],[x,-.035,.28],[x,-.04,.34]],[.024,.014,.001],skin,name+'_Toe',10,20);
   }
-  return {hip,knee,foot:ankle};
+  return {hip,knee,foot};
 }
