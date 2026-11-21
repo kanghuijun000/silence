@@ -1077,7 +1077,10 @@ function resetGame(){
   monsterState='wander';monsterTarget=null;lastSeen=null;lastHeard=null;lastHeardAt=0;path=[];pathRefresh=0;stationProgress=0;activeStation=null;lastStep=0;lastBreath=0;lastChargeSound=0;lastAmbient=0;lastMonsterStepAt=now;nextMonsterBreathAt=now+2+Math.random()*3;nextMonsterVocalAt=now+7+Math.random()*6;nextMonsterWallAt=now+12+Math.random()*10;nextMonsterSound=0;
   nextLocationPing=now+20+Math.random()*20;soundAlertUntil=0;locationAlertUntil=0;sightAlertUntil=0;lastSurfaceCellKey='';lastCreakAt=-Infinity;
   monsterArousal=0;lastNoiseEventAt=-Infinity;arousalDecayStart=0;playerNoiseLevel=0;
-  generateMaze();buildWorld();setupPlayerAndMonster();updateFloorVisibility();updateHud();gameOver=false;
+  generateMaze();buildWorld();
+  // resetGame rebuilds the entire scene; restore the facility models on the new floor groups.
+  loadEnvironmentAssets(THREE,renderer,floorGroups,world,floorY).catch(error=>console.warn('SILENCE 환경 에셋 재배치 실패:',error));
+  setupPlayerAndMonster();updateFloorVisibility();updateHud();gameOver=false;
 }
 let worldInitialized=false;
 let controlsBound=false;
