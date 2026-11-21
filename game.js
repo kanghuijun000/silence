@@ -16,7 +16,8 @@ const $ = id => document.getElementById(id);
 const view = $('view');
 let scene, camera, renderer, clock;
 let flashlightMain=null, flashlightFill=null;
-let flashlightBrightnessPercent=100;
+let flashlightBrightnessPercent=300;
+let flashlightNearFill=null;
 let maze = [], floorNoise = [], stations = [], stationMeshes = [];
 let facilityMazes = [], facilityNoise = [], exploredFloors = [];
 let currentFloorIndex = 1, floorTransition = null, factoryHaze = null, stairLock = null;
@@ -204,7 +205,7 @@ function initThree(){
   renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   view.replaceChildren(renderer.domElement);
   clock=new THREE.Clock();
-  scene.add(new THREE.HemisphereLight(0x9aaab4,0x252b30,.72));const light=new THREE.DirectionalLight(0x9eabb3,.22);light.position.set(-10,20,8);light.castShadow=true;light.shadow.mapSize.set(1024,1024);light.shadow.camera.near=.5;light.shadow.camera.far=55;light.shadow.bias=-.00018;scene.add(light);scene.add(new THREE.AmbientLight(0x87939a,.48));flashlightMain=new THREE.SpotLight(0xf0f7fa,2200*(flashlightBrightnessPercent/100),42,Math.PI/5,.52,1.0);flashlightMain.position.set(0,0,0);flashlightMain.target.position.set(0,0,-1);flashlightMain.castShadow=true;flashlightMain.shadow.mapSize.set(1024,1024);flashlightMain.shadow.camera.near=.1;flashlightMain.shadow.camera.far=28;camera.add(flashlightMain);camera.add(flashlightMain.target);flashlightFill=new THREE.SpotLight(0xdceaf2,520*(flashlightBrightnessPercent/100),30,Math.PI/3,.72,1.2);flashlightFill.position.set(0,0,0);flashlightFill.target.position.set(0,0,-1);camera.add(flashlightFill);camera.add(flashlightFill.target);scene.add(camera);
+  scene.add(new THREE.HemisphereLight(0x9aaab4,0x252b30,.72));const light=new THREE.DirectionalLight(0x9eabb3,.22);light.position.set(-10,20,8);light.castShadow=true;light.shadow.mapSize.set(1024,1024);light.shadow.camera.near=.5;light.shadow.camera.far=55;light.shadow.bias=-.00018;scene.add(light);scene.add(new THREE.AmbientLight(0x87939a,.48));flashlightMain=new THREE.SpotLight(0xffffff,6600,55,Math.PI/3,.42,1.0);flashlightMain.position.set(0,0,0);flashlightMain.target.position.set(0,0,-1);flashlightMain.castShadow=true;flashlightMain.shadow.mapSize.set(1024,1024);flashlightMain.shadow.camera.near=.1;flashlightMain.shadow.camera.far=35;camera.add(flashlightMain);camera.add(flashlightMain.target);flashlightFill=new THREE.SpotLight(0xe8f5ff,1560,42,Math.PI/2,.78,1.0);flashlightFill.position.set(0,0,0);flashlightFill.target.position.set(0,0,-1);camera.add(flashlightFill);camera.add(flashlightFill.target);flashlightNearFill=new THREE.PointLight(0xdcecff,900,13,1.2);flashlightNearFill.position.set(0,-.08,-.15);camera.add(flashlightNearFill);scene.add(camera);
 }
 function addBox(x,y,z,sx,sy,sz,mat){
   const mesh=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),mat);mesh.position.set(x,y,z);scene.add(mesh);return mesh;
@@ -995,12 +996,16 @@ function bindControls(){
     $('brightnessValue').textContent=brightnessPercent+'%';
     if(renderer)renderer.toneMappingExposure=displayBrightness;
   });
-  $('flashlightSlider').addEventListener('input',e=>{
-    flashlightBrightnessPercent=Number(e.target.value);
+  const applyFlashlightBrightness=value=>{
+    flashlightBrightnessPercent=Number(value);
     $('flashlightValue').textContent=flashlightBrightnessPercent+'%';
     if(flashlightMain)flashlightMain.intensity=2200*(flashlightBrightnessPercent/100);
     if(flashlightFill)flashlightFill.intensity=520*(flashlightBrightnessPercent/100);
-  });
+    if(flashlightNearFill)flashlightNearFill.intensity=300*(flashlightBrightnessPercent/100);
+  };
+  $('flashlightSlider').value='300';
+  applyFlashlightBrightness(300);
+  $('flashlightSlider').addEventListener('input',e=>applyFlashlightBrightness(e.target.value));
   $('exitGameBtn').addEventListener('click',exitToMenu);
   $('scanBtn').addEventListener('click',useDetector);
   $('startBtn').addEventListener('click',startGame);$('restartBtn').addEventListener('click',startGame);
