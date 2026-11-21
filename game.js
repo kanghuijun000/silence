@@ -803,7 +803,7 @@ function updateAmbient(now){
 function drawMinimap(now){
   const canvas=$('minimap');if(!canvas||!player||!maze.length)return;
   const ctx=canvas.getContext('2d'),size=canvas.width,step=size/CONFIG.mazeSize,pc=cellAt(player.position),f=currentFloorIndex,map=facilityMazes[f],seen=exploredFloors[f];
-  for(let z=Math.max(0,pc.z-5);z<=Math.min(CONFIG.mazeSize-1,pc.z+5);z++)for(let x=Math.max(0,pc.x-5);x<=Math.min(CONFIG.mazeSize-1,pc.x+5);x++)if(Math.hypot(x-pc.x,z-pc.z)<=5.8)seen[z][x]=true;
+  for(let z=Math.max(0,pc.z-7);z<=Math.min(CONFIG.mazeSize-1,pc.z+7);z++)for(let x=Math.max(0,pc.x-7);x<=Math.min(CONFIG.mazeSize-1,pc.x+7);x++)if(Math.hypot(x-pc.x,z-pc.z)<=7.4)seen[z][x]=true;
   ctx.clearRect(0,0,size,size);ctx.fillStyle='#080e13';ctx.fillRect(0,0,size,size);
   for(let z=0;z<CONFIG.mazeSize;z++)for(let x=0;x<CONFIG.mazeSize;x++){
     if(!seen[z][x])continue;const px=x*step,py=z*step;
@@ -814,7 +814,7 @@ function drawMinimap(now){
   if(exitCell.floor===f&&seen[exitCell.z][exitCell.x]){ctx.fillStyle='#e7d18a';ctx.fillRect(exitCell.x*step+step*.2,exitCell.z*step+step*.2,step*.6,step*.6);}
   for(const s of stations)if((s.cell.floor??1)===f&&seen[s.cell.z][s.cell.x]){ctx.fillStyle='#66d4d2';ctx.beginPath();ctx.arc((s.cell.x+.5)*step,(s.cell.z+.5)*step,Math.max(1.5,step*.28),0,Math.PI*2);ctx.fill();}
   const mc=cellAt(monster.position);
-  if(now<detectorUntil&&f!==4&&mc.floor===f){ctx.fillStyle='#ff3434';ctx.shadowColor='#ff2424';ctx.shadowBlur=8;ctx.beginPath();ctx.arc((mc.x+.5)*step,(mc.z+.5)*step,Math.max(2.2,step*.42),0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;}
+  if(now<detectorUntil&&f!==4&&mc.floor===f&&Math.abs(mc.x-pc.x)<=7&&Math.abs(mc.z-pc.z)<=7){ctx.fillStyle='#ff3434';ctx.shadowColor='#ff2424';ctx.shadowBlur=8;ctx.beginPath();ctx.arc((mc.x+.5)*step,(mc.z+.5)*step,Math.max(2.2,step*.42),0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;}
   const px=(pc.x+.5)*step,py=(pc.z+.5)*step;ctx.save();ctx.translate(px,py);ctx.rotate(-yaw);
   ctx.fillStyle='#f4f6f7';ctx.strokeStyle='#101820';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(0,-step*.9);ctx.lineTo(step*.62,step*.62);ctx.lineTo(0,step*.3);ctx.lineTo(-step*.62,step*.62);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();
   ctx.strokeStyle='#9cabb4';ctx.lineWidth=1.4;ctx.strokeRect(.7,.7,size-1.4,size-1.4);
@@ -824,7 +824,7 @@ function animate(){
   const dt=Math.min(clock.getDelta(),.05),now=performance.now()/1000;
   if(running&&!gameOver){updatePlayer(dt,now);monsterUpdate(dt,now);updateAmbient(now);setCamera();}
   if(factoryHaze)factoryHaze.rotation.y+=dt*.008;
-  if(scene?.fog)scene.fog.density=currentFloorIndex===2?.012:.008;
+  if(scene?.fog)scene.fog.density=currentFloorIndex === 2 ? .012 : .008;
   updateSoundMeters(dt);
   drawMinimap(now);
   updateDetectorScan(now);
