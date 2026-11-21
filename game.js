@@ -22,7 +22,7 @@ let flashlightBrightnessPercent=10;
 let flashlightNearFill=null;
 let maze = [], floorNoise = [], stations = [], stationMeshes = [];
 let facilityMazes = [], facilityNoise = [], exploredFloors = [];
-let currentFloorIndex = 1, floorTransition = null, factoryHaze = null, stairLock = null, stairTraversal = null;
+let currentFloorIndex = 1, floorTransition = null, factoryHaze = null, stairLock = null, stairTraversal = null, monsterStairTraversal = null;
 const FLOOR_LABELS = ['2F','1F','B1','B2','B3'];
 const FLOOR_SPACING = 4.5;
 const STAIR_UP = {x:20,z:20};
@@ -77,7 +77,7 @@ function inside(x,z){return x>=0&&z>=0&&x<CONFIG.mazeSize&&z<CONFIG.mazeSize;}
 function isOpen(x,z,floorIndex=currentFloorIndex){const map=facilityMazes[floorIndex]||maze;return inside(x,z)&&map?.[z]?.[x]===0;}
 function floorY(floorIndex){return -floorIndex*FLOOR_SPACING;}
 function world(c){const f=c.floor??currentFloorIndex;return new THREE.Vector3((c.x-half)*cell,floorY(f),(c.z-half)*cell);}
-function cellAt(pos){const floor=stairTraversal?stairTraversal.fromFloor:Math.max(0,Math.min(FLOOR_LABELS.length-1,Math.round(-pos.y/FLOOR_SPACING)));return{x:Math.max(0,Math.min(CONFIG.mazeSize-1,Math.round(pos.x/cell+half))),z:Math.max(0,Math.min(CONFIG.mazeSize-1,Math.round(pos.z/cell+half))),floor};}
+function cellAt(pos){const floor=pos===monster?.position&&monsterStairTraversal?monsterStairTraversal.fromFloor:stairTraversal?stairTraversal.fromFloor:Math.max(0,Math.min(FLOOR_LABELS.length-1,Math.round(-pos.y/FLOOR_SPACING)));return{x:Math.max(0,Math.min(CONFIG.mazeSize-1,Math.round(pos.x/cell+half))),z:Math.max(0,Math.min(CONFIG.mazeSize-1,Math.round(pos.z/cell+half))),floor};}
 function isReservedCell(x,z,floorIndex){
   const sets=floorIndex<=1?[[6,6],[34,6],[6,34],[34,34]]:floorIndex===2?[[8,8],[32,9],[9,32],[32,32],[25,17]]:floorIndex===4?[[6,6],[34,6],[6,34],[34,34]]:[];
   return sets.some(([rx,rz])=>rx===x&&rz===z);
@@ -419,8 +419,7 @@ function buildMonster(){
 function setMonsterVisible(on,throughWalls=false){if(!monsterGroup)return;if(monsterVisible===on&&monsterThroughWalls===throughWalls)return;monsterVisible=on;monsterThroughWalls=throughWalls;monsterGroup.visible=on;monsterGroup.traverse(o=>{if(o.isMesh){o.renderOrder=on?8:0;const ms=Array.isArray(o.material)?o.material:[o.material];for(const m of ms){m.depthTest=!throughWalls;m.depthWrite=!throughWalls;m.needsUpdate=true;}}});}
 function setCamera(){
   camera.position.copy(player.position);
-  const stairBob=stairTraversal?Math.sin(stairTraversal.progress*24*Math.PI*2)*.018:0;
-  camera.position.y=player.position.y+1.62+stairBob;
+  camera.position.y=player.position.y+1.62;
   camera.rotation.order='YXZ';camera.rotation.y=yaw;camera.rotation.x=pitch;
 }
 function setupPlayerAndMonster(){
@@ -844,7 +843,8 @@ function beginStairTraversalIfEntering(dir,targetX=player.position.x,targetZ=pla
   for(const [name,shaft] of [['up',STAIR_UP],['down',STAIR_DOWN]]){
     if((name==='up'&&currentFloorIndex===0)||(name==='down'&&currentFloorIndex===FLOOR_LABELS.length-1))continue;
     const data=stairStartFor(name,shaft),centerX=world({...shaft,floor:currentFloorIndex}).x;
-    if(dir.z*data.direction>.38&&Math.abs(targetX-centerX)<.82&&Math.abs(targetZ-data.startZ)<.92){
+    const crossedEntry=(player.position.z-data.startZ)*data.direction>=-.65&&(targetZ-data.startZ)*data.direction<=.95;
+    if(dir.z*data.direction>.14&&Math.abs(targetX-centerX)<1.12&&crossedEntry){
       stairTraversal={...data,stepCount:24};stairLock=name;updateFloorVisibility();
       showMessage(name==='down'?'계단을 내려갑니다':'계단을 올라갑니다',850);return true;
     }
@@ -855,12 +855,15 @@ function updateStairTraversal(){
   if(!stairTraversal)return;
   const t=stairTraversal,progress=THREE.MathUtils.clamp((player.position.z-t.startZ)/(t.endZ-t.startZ),0,1);
   t.progress=progress;
-  // A continuous ramp keeps the camera and player height aligned with the visible flight.
-  player.position.y=floorY(t.fromFloor)+(floorY(t.toFloor)-floorY(t.fromFloor))*progress;
+  // Follow the actual tread elevations; smooth only the transition between consecutive steps.
+  const stairUnits=progress*24,wholeSteps=Math.min(24,Math.floor(stairUnits)),stepBlend=stairUnits>=24?0:(stairUnits-wholeSteps);
+  const easedStep=stepBlend*stepBlend*(3-2*stepBlend);
+  const verticalProgress=(wholeSteps+easedStep)/24;
+  player.position.y=floorY(t.fromFloor)+(floorY(t.toFloor)-floorY(t.fromFloor))*verticalProgress;
   if(progress>=1){
     player.position.z=t.endZ;player.position.y=floorY(t.toFloor);
     currentFloorIndex=t.toFloor;maze=facilityMazes[currentFloorIndex];floorNoise=facilityNoise[currentFloorIndex];
-    lastSurfaceCellKey='';stairTraversal=null;updateFloorBadge();updateFloorVisibility();
+    lastSurfaceCellKey='';stairTraversal=null;stairLock=null;updateFloorBadge();updateFloorVisibility();
     const panel=$('minimapPanel');if(panel){panel.classList.add('floor-switching');setTimeout(()=>panel.classList.remove('floor-switching'),420);}
     showMessage(FLOOR_LABELS[currentFloorIndex]+' 도착',1000);
   }else if(progress<=0&&((t.direction<0&&player.position.z>t.startZ+.15)||(t.direction>0&&player.position.z<t.startZ-.15))){
