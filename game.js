@@ -305,7 +305,7 @@ function buildWorld(){
       tread.position.set(p.x,floorY(baseFloor)-(n+.5)*stairRise,z);
       tread.castShadow=true;tread.receiveShadow=true;flight.add(tread);
       const riser=new THREE.Mesh(new THREE.BoxGeometry(1.88,stairRise,.065),stairRiserMat);
-      riser.position.set(p.x,floorY(baseFloor)+(n+.5)*stairRise,startZ-(n+1)*stairTread+.025);
+      riser.position.set(p.x,floorY(baseFloor)-(n+.5)*stairRise,startZ-(n+1)*stairTread+.025);
       riser.castShadow=true;riser.receiveShadow=true;flight.add(riser);
       const nosing=new THREE.Mesh(new THREE.BoxGeometry(1.94,.035,.065),stairEdgeMat);
       nosing.position.set(p.x,topY-.018,startZ-(n+1)*stairTread+.012);flight.add(nosing);
