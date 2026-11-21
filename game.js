@@ -168,7 +168,24 @@ function findPath(start,goal){
     for(const p of next){const pk=nodeKey(p);if(isOpen(p.x,p.z,p.floor)&&!prev.has(pk)){prev.set(pk,c);q.push(p);}}
   }
   if(!prev.has(nodeKey(g)))return [];
-  const out=[];let cur=g;while(cur&&nodeKey(cur)!==nodeKey(s)){out.push(cur);cur=prev.get(nodeKey(cur));}return out.reverse();
+  const cells=[];let cur=g;while(cur&&nodeKey(cur)!==nodeKey(s)){cells.push(cur);cur=prev.get(nodeKey(cur));}cells.reverse();
+  const route=[];
+  for(let i=0;i<cells.length;i++){
+    const previous=i===0?s:cells[i-1],next=cells[i];
+    if(previous.floor!==next.floor){
+      const shaft=previous.x===STAIR_UP.x&&previous.z===STAIR_UP.z?STAIR_UP:previous.x===STAIR_DOWN.x&&previous.z===STAIR_DOWN.z?STAIR_DOWN:null;
+      if(!shaft)continue;
+      if(route.length)route.pop();
+      const p=world({...shaft,floor:previous.floor}),descending=next.floor>previous.floor;
+      const startZ=p.z+(descending?3.36:-3.36),endZ=p.z-(descending?3.36:-3.36);
+      for(let step=0;step<=24;step++){
+        const t=step/24,whole=Math.min(24,Math.floor(t*24)),blend=t>=1?0:t*24-whole;
+        const eased=blend*blend*(3-2*blend),vertical=(whole+eased)/24;
+        route.push({x:shaft.x,z:shaft.z,floor:previous.floor,worldPosition:[p.x,floorY(previous.floor)+(floorY(next.floor)-floorY(previous.floor))*vertical,startZ+(endZ-startZ)*t],stairWaypoint:true,stairFromFloor:previous.floor,stairToFloor:next.floor,stairProgress:t});
+      }
+    }else route.push(next);
+  }
+  return route;
 }
 function updateFloorBadge(){const badge=$('mapFloor');if(badge)badge.textContent=FLOOR_LABELS[currentFloorIndex]||'1F';}
 function beginFloorTransition(targetFloor,shaft){
@@ -977,9 +994,13 @@ function monsterUpdate(dt,now){
   }
   if(monsterState==='wander'&&(!monsterTarget||nodeKey(mc)===nodeKey(monsterTarget)))monsterTarget=randomOpen([exitCell,spawnCell],mc.floor);
   if(monsterState==='chase'&&lastSeen)monsterTarget={...lastSeen};
-  if(now-pathRefresh>.55||path.length===0){path=findPath(mc,monsterTarget);pathRefresh=now;}
+  if(!monsterStairTraversal&&(now-pathRefresh>.55||path.length===0)){path=findPath(mc,monsterTarget);pathRefresh=now;}
+  if(monsterStairTraversal&&(!path[0]?.stairWaypoint||path[0].stairToFloor!==monsterStairTraversal.toFloor))monsterStairTraversal=null;
   let targetPoint=null;
-  if(path.length){targetPoint=world(path[0]);}
+  if(path.length){targetPoint=path[0].worldPosition?new THREE.Vector3(...path[0].worldPosition):world(path[0]);}
+  if(!monsterStairTraversal&&path[0]?.stairWaypoint&&path[0].stairProgress===0&&targetPoint&&monster.position.distanceTo(targetPoint)<.55){
+    monsterStairTraversal={fromFloor:path[0].stairFromFloor,toFloor:path[0].stairToFloor};
+  }
   else if(monsterTarget)targetPoint=world(monsterTarget);
   // 같은 통로 칸에 들어온 뒤에는 칸 중앙이 아니라 플레이어의 실제 좌표를 추격한다.
   // 그렇지 않으면 플레이어가 칸 가장자리에 정지했을 때 포획 거리까지 접근하지 못할 수 있다.
@@ -992,7 +1013,7 @@ function monsterUpdate(dt,now){
   let moving=false;
   if(targetPoint){
     const dx=targetPoint.x-monster.position.x,dy=targetPoint.y-monster.position.y,dz=targetPoint.z-monster.position.z,len=Math.hypot(dx,dy,dz);
-    if(len<.25){if(path.length)path.shift();}
+    if(len<.16){if(path.length)path.shift();}
     else{const step=Math.min(len,speed*dt);monster.position.x+=dx/len*step;monster.position.y+=dy/len*step;monster.position.z+=dz/len*step;moving=true;}
   }
   monsterAnimTime+=dt;
@@ -1090,7 +1111,7 @@ function resetGame(){
     scene.add(camera);
   }
   if(chargingGain&&audioCtx)chargingGain.gain.setValueAtTime(0,audioCtx.currentTime);
-  paused=false;stamina=1;sprintExhausted=false;battery=CONFIG.detectorCapacity;detectorUntil=0;detectorCooldownUntil=0;joystick={x:0,y:0};runHeld=false;currentFloorIndex=1;floorTransition=null;stairLock=null;stairTraversal=null;
+  paused=false;stamina=1;sprintExhausted=false;battery=CONFIG.detectorCapacity;detectorUntil=0;detectorCooldownUntil=0;joystick={x:0,y:0};runHeld=false;currentFloorIndex=1;floorTransition=null;stairLock=null;stairTraversal=null;monsterStairTraversal=null;
   const now=performance.now()/1000;
   monsterState='wander';monsterTarget=null;lastSeen=null;lastHeard=null;lastHeardAt=0;path=[];pathRefresh=0;stationProgress=0;activeStation=null;lastStep=0;lastBreath=0;lastChargeSound=0;lastAmbient=0;lastMonsterStepAt=now;nextMonsterBreathAt=now+2+Math.random()*3;nextMonsterVocalAt=now+7+Math.random()*6;nextMonsterWallAt=now+12+Math.random()*10;nextMonsterSound=0;
   nextLocationPing=now+20+Math.random()*20;soundAlertUntil=0;locationAlertUntil=0;sightAlertUntil=0;lastSurfaceCellKey='';lastCreakAt=-Infinity;
