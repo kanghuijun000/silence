@@ -206,7 +206,7 @@ function initThree(){
   renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   view.replaceChildren(renderer.domElement);
   clock=new THREE.Clock();
-  scene.add(new THREE.HemisphereLight(0x9aaab4,0x252b30,.30));const light=new THREE.DirectionalLight(0x9eabb3,.08);light.position.set(-10,20,8);scene.add(light);scene.add(new THREE.AmbientLight(0x87939a,.16));flashlightMain=new THREE.SpotLight(0xffffff,1800,38,Math.PI/5,.38,1.0);flashlightMain.position.set(0,0,0);flashlightMain.target.position.set(0,0,-1);flashlightMain.castShadow=true;flashlightMain.shadow.mapSize.set(1024,1024);flashlightMain.shadow.camera.near=.1;flashlightMain.shadow.camera.far=30;camera.add(flashlightMain);camera.add(flashlightMain.target);flashlightFill=new THREE.SpotLight(0xe8f5ff,380,30,Math.PI/3,.72,1.0);flashlightFill.position.set(0,0,0);flashlightFill.target.position.set(0,0,-1);camera.add(flashlightFill);camera.add(flashlightFill.target);flashlightNearFill=new THREE.PointLight(0xdcecff,90,8,1.4);flashlightNearFill.position.set(0,-.08,-.15);camera.add(flashlightNearFill);scene.add(camera);
+  scene.add(new THREE.HemisphereLight(0x9aaab4,0x252b30,.42));const light=new THREE.DirectionalLight(0x9eabb3,.10);light.position.set(-10,20,8);scene.add(light);scene.add(new THREE.AmbientLight(0x87939a,.26));flashlightMain=new THREE.SpotLight(0xffffff,1800*(flashlightBrightnessPercent/100),38,Math.PI/5,.38,1.0);flashlightMain.position.set(0,0,0);flashlightMain.target.position.set(0,0,-1);flashlightMain.castShadow=true;flashlightMain.shadow.mapSize.set(1024,1024);flashlightMain.shadow.camera.near=.1;flashlightMain.shadow.camera.far=30;camera.add(flashlightMain);camera.add(flashlightMain.target);flashlightFill=new THREE.SpotLight(0xe8f5ff,380*(flashlightBrightnessPercent/100),30,Math.PI/3,.72,1.0);flashlightFill.position.set(0,0,0);flashlightFill.target.position.set(0,0,-1);camera.add(flashlightFill);camera.add(flashlightFill.target);flashlightNearFill=new THREE.PointLight(0xdcecff,90*(flashlightBrightnessPercent/100),8,1.4);flashlightNearFill.position.set(0,-.08,-.15);camera.add(flashlightNearFill);scene.add(camera);
 }
 function addBox(x,y,z,sx,sy,sz,mat){
   const mesh=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),mat);mesh.position.set(x,y,z);scene.add(mesh);return mesh;
@@ -256,7 +256,7 @@ function buildWorld(){
     for(const {x,z} of fixtureCells){
       const p=world({x,z,floor:f}),housing=new THREE.Mesh(new THREE.BoxGeometry(.9,.14,.34),lightMat);housing.position.set(p.x,base+2.82,p.z);floorGroup.add(housing);
       const tube=new THREE.Mesh(new THREE.BoxGeometry(.74,.045,.2),new THREE.MeshBasicMaterial({color:factory?0xffc58c:0xeaf7ff}));tube.position.set(p.x,base+2.735,p.z);floorGroup.add(tube);
-      const light=new THREE.PointLight(factory?0xffbd83:basement?0xc5d9e8:0xd8edf4,factory?105:basement?125:155,24,1.35);light.position.set(p.x,base+2.58,p.z);floorGroup.add(light);
+      const light=new THREE.PointLight(factory?0xffbd83:basement?0xc5d9e8:0xd8edf4,factory?12:basement?10:12,15,1.5);light.position.set(p.x,base+2.58,p.z);floorGroup.add(light);
     }
     const pipeMat=new THREE.MeshStandardMaterial({color:factory?0x4a4c47:0x343d40,metalness:.68,roughness:.58});
     for(let z=4;z<CONFIG.mazeSize-4;z+=9)for(let x=4;x<CONFIG.mazeSize-5;x++)if(map[z][x]===0&&map[z][x+1]===0&&map[z][x+2]===0&&Math.random()<.18){
@@ -914,7 +914,7 @@ function resetGame(){
   if(scene){
     while(scene.children.length)scene.remove(scene.children[0]);
     scene.add(new THREE.HemisphereLight(0x9aaab4,0x252b30,.30));
-    const keyLight=new THREE.DirectionalLight(0x9eabb3,.08);keyLight.position.set(-10,20,8);scene.add(keyLight);
+    const keyLight=new THREE.DirectionalLight(0x9eabb3,.10);keyLight.position.set(-10,20,8);scene.add(keyLight);
     scene.add(new THREE.AmbientLight(0x87939a,.16));
     scene.add(camera);
   }
