@@ -1,6 +1,6 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 import { createMonsterModel } from './monster-model.js';
-import { loadEnvironmentAssets } from './environment-assets.js';
+import { loadEnvironmentAssets, shouldOmitCeiling } from './environment-assets.js';
 
 const CONFIG = {
   mazeSize: 41,          // 탐색 부담을 줄인 약 40x40 규모의 홀수 격자
@@ -235,9 +235,9 @@ function buildWorld(){
       if([STAIR_UP,STAIR_DOWN].some(p=>x===p.x&&Math.abs(p.z-z)<=1))continue;
       const wx=(x-half)*cell,wz=(z-half)*cell;
       dummy.position.set(wx,base-.18,wz);dummy.updateMatrix();floors.setMatrixAt(fi++,dummy.matrix);
-      dummy.position.set(wx,base+CONFIG.wallHeight+.12,wz);dummy.updateMatrix();ceilings.setMatrixAt(ci++,dummy.matrix);
+      if(!shouldOmitCeiling(f,x,z)){dummy.position.set(wx,base+CONFIG.wallHeight+.12,wz);dummy.updateMatrix();ceilings.setMatrixAt(ci++,dummy.matrix);}
     }
-    floors.instanceMatrix.needsUpdate=true;floors.receiveShadow=true;floorGroup.add(floors);ceilings.instanceMatrix.needsUpdate=true;floorGroup.add(ceilings);
+    floors.instanceMatrix.needsUpdate=true;floors.receiveShadow=true;floorGroup.add(floors);ceilings.count=ci;ceilings.instanceMatrix.needsUpdate=true;floorGroup.add(ceilings);
     let count=0;for(let z=0;z<CONFIG.mazeSize;z++)for(let x=0;x<CONFIG.mazeSize;x++)if(map[z][x])count++;
     const walls=new THREE.InstancedMesh(wallGeo,wallMat,count);walls.name='wall-surface';let wi=0;
     for(let z=0;z<CONFIG.mazeSize;z++)for(let x=0;x<CONFIG.mazeSize;x++)if(map[z][x]){dummy.position.set((x-half)*cell,base+CONFIG.wallHeight/2,(z-half)*cell);dummy.updateMatrix();walls.setMatrixAt(wi++,dummy.matrix);}
@@ -253,7 +253,7 @@ function buildWorld(){
         if(d>25||!inside(x,z)||map[z][x]!==0||d>=bestD)continue;
         best={x,z};bestD=d;
       }
-      if(!best||bestD>25||fixtureCells.some(p=>Math.hypot(p.x-best.x,p.z-best.z)<5.5))continue;
+      if(!best||bestD>25||shouldOmitCeiling(f,best.x,best.z)||fixtureCells.some(p=>Math.hypot(p.x-best.x,p.z-best.z)<5.5))continue;
       fixtureCells.push(best);
     }
     for(const {x,z} of fixtureCells){
@@ -279,7 +279,7 @@ function buildWorld(){
     if(basement){
       const cableMat=new THREE.MeshStandardMaterial({color:0x20282a,metalness:.6,roughness:.8});
       for(let z=6;z<CONFIG.mazeSize-5;z+=6){const p=world({x:20,z,floor:f}),tray=new THREE.Mesh(new THREE.BoxGeometry(.34,.2,cell*5),cableMat);tray.position.set(p.x,base+2.65,p.z);floorGroup.add(tray);}
-      for(const [x,z] of [[6,6],[34,6],[6,34],[34,34]]){const p=world({x,z,floor:f}),panel=new THREE.Mesh(new THREE.BoxGeometry(.95,1.7,.24),new THREE.MeshStandardMaterial({color:0x343e40,metalness:.45,roughness:.72}));panel.position.set(p.x,base+.9,p.z);floorGroup.add(panel);}
+      // 전기·통신 설비는 고품질 GLB 환경 모듈로 대체한다.
     }
     scene.add(floorGroup);
   }
@@ -975,20 +975,36 @@ function monsterUpdate(dt,now){
     else{const step=Math.min(len,speed*dt);monster.position.x+=dx/len*step;monster.position.y+=dy/len*step;monster.position.z+=dz/len*step;moving=true;}
   }
   monsterAnimTime+=dt;
-  const gaitRate=alertLevel>=4?10.5:alertLevel>=3?7.2:3.8;
-  const stride=moving?(alertLevel>=4?.62:alertLevel>=3?.38:.17):.035;
-  const gait=Math.sin(monsterAnimTime*gaitRate)*stride;
+  const gaitRate=alertLevel>=4?7.4:alertLevel>=3?5.4:3.25;
+  const phase=monsterAnimTime*gaitRate;
+  const leftPhase=phase,rightPhase=phase+Math.PI;
+  const drive=moving?1:0;
+  const leftStride=Math.sin(leftPhase),rightStride=Math.sin(rightPhase);
+  const leftLift=Math.max(0,Math.cos(leftPhase)),rightLift=Math.max(0,Math.cos(rightPhase));
   if(monsterRig){
-    monsterRig.armLeft.rotation.x=gait;
-    monsterRig.armRight.rotation.x=-gait;
-    monsterRig.armLeft.rotation.z=-.08+Math.abs(gait)*.12;
-    monsterRig.armRight.rotation.z=.08-Math.abs(gait)*.12;
-    monsterRig.legLeft.rotation.x=-gait*.72;
-    monsterRig.legRight.rotation.x=gait*.72;
-    monsterRig.head.rotation.x=(alertLevel>=4?-.13:-.035)+Math.sin(monsterAnimTime*1.25)*.025;
-    monsterRig.head.rotation.z=Math.sin(monsterAnimTime*.82)*.035+(alertLevel>=2?.025:0);
+    const reach=alertLevel>=4?.52:alertLevel>=3?.39:.25;
+    monsterRig.armLeft.rotation.x=-.08+leftStride*reach*drive;
+    monsterRig.armRight.rotation.x=-.02+rightStride*reach*.82*drive;
+    monsterRig.armLeft.rotation.z=-.12+leftLift*.12*drive;
+    monsterRig.armRight.rotation.z=.10-rightLift*.10*drive;
+    monsterRig.elbowLeft.rotation.x=-.42-leftLift*.46*drive;
+    monsterRig.elbowRight.rotation.x=-.30-rightLift*.52*drive;
+    monsterRig.wristLeft.rotation.x=.08+Math.sin(leftPhase-.7)*.13*drive;
+    monsterRig.wristRight.rotation.x=-.06+Math.sin(rightPhase-.55)*.15*drive;
+    monsterRig.legLeft.rotation.x=-leftStride*.42*drive;
+    monsterRig.legRight.rotation.x=-rightStride*.48*drive;
+    monsterRig.kneeLeft.rotation.x=leftLift*.78*drive;
+    monsterRig.kneeRight.rotation.x=rightLift*.88*drive;
+    monsterRig.upperBody.rotation.x=(moving?-.055:0)+Math.sin(phase*2)*.025*drive;
+    monsterRig.upperBody.rotation.y=Math.sin(phase)*.075*drive;
+    monsterRig.upperBody.rotation.z=Math.sin(phase)*.035*drive;
+    monsterRig.upperBody.scale.y=1+(moving?Math.abs(Math.sin(phase*2))*.006:Math.sin(monsterAnimTime*1.8)*.009);
+    monsterRig.head.rotation.x=(alertLevel>=4?-.16:-.035)+Math.sin(monsterAnimTime*1.1-.4)*.035;
+    monsterRig.head.rotation.y=Math.sin(monsterAnimTime*.73)*.055+(alertLevel>=2?.035:0);
+    monsterRig.head.rotation.z=Math.sin(monsterAnimTime*.82-.35)*.045+(alertLevel>=2?.025:0);
+    monsterRig.jaw.rotation.x=.025+Math.max(0,Math.sin(monsterAnimTime*2.15))*.055+(alertLevel>=4?.045:0);
   }
-  const bodyBob=moving?Math.abs(Math.sin(monsterAnimTime*gaitRate))*.035:Math.sin(monsterAnimTime*1.1)*.012;
+  const bodyBob=moving?Math.abs(Math.sin(phase*2))*.045:Math.sin(monsterAnimTime*1.8)*.014;
   monsterGroup.position.set(monster.position.x,monster.position.y+bodyBob,monster.position.z);
   monsterGroup.rotation.y=Math.atan2(player.position.x-monster.position.x,player.position.z-monster.position.z);
   if(distance<.9)finish(false);
