@@ -319,9 +319,9 @@ function buildWorld(){
     const railVector=new THREE.Vector3(0,FLOOR_SPACING,stairLength);
     for(const side of [-1,1]){
       const beam=new THREE.Mesh(new THREE.BoxGeometry(.16,FLOOR_SPACING+.12,stairLength+.18),stringerMat);
-      beam.position.set(p.x+side*1.02,floorY(baseFloor)+FLOOR_SPACING/2,p.z);beam.rotation.x=Math.atan2(FLOOR_SPACING,stairLength);flight.add(beam);
+      beam.position.set(p.x+side*1.02,floorY(baseFloor)-FLOOR_SPACING/2,p.z);beam.rotation.x=Math.atan2(FLOOR_SPACING,stairLength);flight.add(beam);
       const rail=new THREE.Mesh(new THREE.CylinderGeometry(.055,.055,railVector.length(),14),railMat);
-      rail.position.set(p.x+side*1.16,floorY(baseFloor)+FLOOR_SPACING/2+.96,p.z);
+      rail.position.set(p.x+side*1.16,floorY(baseFloor)-FLOOR_SPACING/2+.96,p.z);
       rail.quaternion.setFromUnitVectors(upAxis,railVector.clone().normalize());flight.add(rail);
       for(let n=0;n<=24;n+=2){
         const y=floorY(baseFloor)-n*stairRise+.48,z=startZ-n*stairTread;
@@ -334,17 +334,17 @@ function buildWorld(){
     // 계단실 가장자리의 바닥 테두리와 벽체를 만들어 빈 격자처럼 보이지 않게 한다.
     for(const side of [-1,1]){
       const curb=new THREE.Mesh(new THREE.BoxGeometry(.18,.42,stairLength+.8),stairRiserMat);
-      curb.position.set(p.x+side*1.42,floorY(baseFloor)+.18,p.z);flight.add(curb);
+      curb.position.set(p.x+side*1.42,floorY(baseFloor)-FLOOR_SPACING/2+.18,p.z);flight.add(curb);
     }
     // 계단 하부 콘크리트 슬래브: 발판 아래가 허공처럼 보이지 않도록 실제 구조 두께를 준다.
     const soffit=new THREE.Mesh(new THREE.BoxGeometry(2.28,.24,stairLength+.16),stairRiserMat);
-    soffit.position.set(p.x,floorY(baseFloor)+FLOOR_SPACING/2-.22,p.z);
+    soffit.position.set(p.x,floorY(baseFloor)-FLOOR_SPACING/2-.22,p.z);
     soffit.rotation.x=Math.atan2(FLOOR_SPACING,stairLength);soffit.castShadow=true;soffit.receiveShadow=true;flight.add(soffit);
     // 난간 바깥쪽 케이블 전선관과 고정 브래킷
     const conduitMat=new THREE.MeshStandardMaterial({color:0x252d30,metalness:.78,roughness:.42});
     for(const side of [-1,1]){
       const conduit=new THREE.Mesh(new THREE.CylinderGeometry(.045,.045,stairLength+.5,10),conduitMat);
-      conduit.rotation.x=Math.PI/2;conduit.position.set(p.x+side*1.72,floorY(baseFloor)+FLOOR_SPACING/2+.12,p.z);flight.add(conduit);
+      conduit.rotation.x=Math.PI/2;conduit.position.set(p.x+side*1.72,floorY(baseFloor)-FLOOR_SPACING/2+.12,p.z);flight.add(conduit);
       for(let n=0;n<7;n++){
         const bracket=new THREE.Mesh(new THREE.BoxGeometry(.16,.08,.12),railMat);
         bracket.position.set(p.x+side*1.72,floorY(baseFloor)-.28-n*.62,p.z+stairLength/2-n*stairLength/6);flight.add(bracket);
