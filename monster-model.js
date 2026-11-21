@@ -86,7 +86,7 @@ export function createMonsterModel(THREE) {
   const armLeft=makeArm(THREE,chest,-1,skin,skinLight,'Left_Arm');
   const armRight=makeArm(THREE,chest,1,skin,skinLight,'Right_Arm');
 
-  root.scale.setScalar(1);
+  root.scale.setScalar(.72);
   return {
     group:root,upperBody,pelvis,spine,chest,neck,head,jaw:grin,
     armLeft:armLeft.shoulder,armRight:armRight.shoulder,
