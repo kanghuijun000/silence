@@ -222,12 +222,14 @@ function buildWorld(){
   const waterFloor=new THREE.MeshStandardMaterial({color:0x53666b,map:makeConcreteTexture('#303e42'),roughness:.24,metalness:.24});
   const ceilingMat=new THREE.MeshStandardMaterial({color:0x727d81,map:makeConcreteTexture('#42494c'),roughness:1});
   const dummy=new THREE.Object3D(),tileGeo=new THREE.BoxGeometry(cell,.36,cell),ceilingGeo=new THREE.BoxGeometry(cell,.24,cell),wallGeo=new THREE.BoxGeometry(cell,CONFIG.wallHeight,cell);
+  for(const geometry of [tileGeo,ceilingGeo,wallGeo])geometry.setAttribute('uv2',geometry.attributes.uv.clone());
   floorGroups=[];
   for(let f=0;f<FLOOR_LABELS.length;f++){
     const floorGroup=new THREE.Group();floorGroup.name='facility-floor-'+f;floorGroups.push(floorGroup);
     const base=floorY(f),map=facilityMazes[f],factory=f===2,flooded=f===3,basement=f===4;
     const floorMat=factory?industrialFloor:flooded?waterFloor:concreteFloor,wallMat=factory||basement?industrialWall:concreteWall;
     const countTiles=CONFIG.mazeSize*CONFIG.mazeSize-6,floors=new THREE.InstancedMesh(tileGeo,floorMat,countTiles),ceilings=new THREE.InstancedMesh(ceilingGeo,ceilingMat,countTiles);
+    floors.name='floor-surface';ceilings.name='ceiling-surface';
     let fi=0,ci=0;
     for(let z=0;z<CONFIG.mazeSize;z++)for(let x=0;x<CONFIG.mazeSize;x++){
       if([STAIR_UP,STAIR_DOWN].some(p=>x===p.x&&Math.abs(p.z-z)<=1))continue;
@@ -237,7 +239,7 @@ function buildWorld(){
     }
     floors.instanceMatrix.needsUpdate=true;floors.receiveShadow=true;floorGroup.add(floors);ceilings.instanceMatrix.needsUpdate=true;floorGroup.add(ceilings);
     let count=0;for(let z=0;z<CONFIG.mazeSize;z++)for(let x=0;x<CONFIG.mazeSize;x++)if(map[z][x])count++;
-    const walls=new THREE.InstancedMesh(wallGeo,wallMat,count);let wi=0;
+    const walls=new THREE.InstancedMesh(wallGeo,wallMat,count);walls.name='wall-surface';let wi=0;
     for(let z=0;z<CONFIG.mazeSize;z++)for(let x=0;x<CONFIG.mazeSize;x++)if(map[z][x]){dummy.position.set((x-half)*cell,base+CONFIG.wallHeight/2,(z-half)*cell);dummy.updateMatrix();walls.setMatrixAt(wi++,dummy.matrix);}
     walls.castShadow=true;walls.receiveShadow=true;walls.instanceMatrix.needsUpdate=true;floorGroup.add(walls);
     const lightMat=new THREE.MeshStandardMaterial({color:0x56636a,emissive:factory?0x9d6e42:0xa8c4ce,emissiveIntensity:factory ? 1.1 : basement ? .8 : 1.7,roughness:.72});
