@@ -64,7 +64,7 @@ export function shouldOmitCeiling(floor,x,z){
   const inRect=(cx,cz,rx,rz)=>Math.abs(x-cx)<=rx&&Math.abs(z-cz)<=rz;
   if(floor===0&&(inRect(5.5,5.5,1.7,1.7)||inRect(14.5,5.5,1.35,1.35)))return true;
   if(floor===1&&inRect(5.5,34.5,1.7,1.7))return true;
-  if(floor===2&&(inRect(8,8,1.8,1.8)||inRect(8,20,4.9,3.45)||inRect(32,32,1.9,1.9)))return true;
+  if(floor===2&&(inRect(8,8,1.8,1.8)||inRect(8,20,3.1,5.2)||inRect(32,32,1.9,1.9)))return true;
   if(floor===3&&x>=19&&x<=21&&z>=7&&z<=14)return true;
   return false;
 }
