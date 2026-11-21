@@ -1079,11 +1079,23 @@ function resetGame(){
   monsterArousal=0;lastNoiseEventAt=-Infinity;arousalDecayStart=0;playerNoiseLevel=0;
   generateMaze();buildWorld();setupPlayerAndMonster();updateFloorVisibility();updateHud();gameOver=false;
 }
+let worldInitialized=false;
+let controlsBound=false;
+function initializeGameWorld(){
+  if(worldInitialized)return;
+  initThree();
+  generateMaze();
+  buildWorld();
+  loadEnvironmentAssets(THREE,renderer,floorGroups,world,floorY).catch(error=>console.warn('SILENCE 환경 에셋 로딩 실패:',error));
+  setupPlayerAndMonster();
+  updateHud();
+  animate();
+  worldInitialized=true;
+}
 function startGame(){
   if(updatePending){window.location.reload();return;}
   try{
-    if(!renderer)initThree();
-    if(!scene||!clock)throw new Error('게임 그래픽 초기화가 완료되지 않았습니다.');
+    if(!worldInitialized)initializeGameWorld();
     ensureAudio();startHorrorMusic();resetGame();paused=false;$('pauseModal').classList.add('hidden');clock.start();running=true;
     $('startScreen').classList.add('hidden');$('endScreen').classList.add('hidden');
     $('game').classList.add('playing');
@@ -1091,7 +1103,8 @@ function startGame(){
     showMessage('소리를 조심해라. 출구는 하나다.',2400);
   }catch(error){
     console.error('SILENCE 게임 시작 실패:',error);
-    alert('게임을 시작하지 못했습니다. 그래픽 초기화 오류가 발생했습니다. 앱을 다시 열어 주세요.');
+    window.__silenceInitError=error;
+    alert('게임을 시작하지 못했습니다. 그래픽 엔진 또는 게임 초기화에 실패했습니다. 네트워크 연결을 확인한 뒤 다시 시도해 주세요.');
   }
 }
 function updateAudioOutput(){
@@ -1180,8 +1193,7 @@ function bindControls(){
   $('flashlightSlider').addEventListener('input',e=>applyFlashlightBrightness(e.target.value));
   $('exitGameBtn').addEventListener('click',exitToMenu);
   $('scanBtn').addEventListener('click',useDetector);
-  $('startBtn').addEventListener('click',startGame);$('restartBtn').addEventListener('click',startGame);
-  $('guideBtn').addEventListener('click',()=>{$('guideModal').classList.remove('hidden');});$('closeGuideBtn').addEventListener('click',()=>$('guideModal').classList.add('hidden'));$('menuBtn').addEventListener('click',()=>{if(updatePending){window.location.reload();return;}$('endScreen').classList.add('hidden');$('startScreen').classList.remove('hidden');});window.addEventListener('keydown',e=>{if(e.key==='Escape')$('guideModal').classList.add('hidden');});
+  $('restartBtn').addEventListener('click',startGame);$('menuBtn').addEventListener('click',()=>{if(updatePending){window.location.reload();return;}$('endScreen').classList.add('hidden');$('startScreen').classList.remove('hidden');});window.addEventListener('keydown',e=>{if(e.key==='Escape')$('guideModal').classList.add('hidden');});
   const handleViewportChange=()=>syncGameViewport();
   window.addEventListener('resize',handleViewportChange,{passive:true});
   window.addEventListener('orientationchange',()=>setTimeout(handleViewportChange,120),{passive:true});
@@ -1200,12 +1212,15 @@ function applyPendingUpdate(){
   if(updatePending){window.location.reload();}
 }
 function boot(){
-  // 메뉴 입력을 그래픽 초기화보다 먼저 연결한다. WebGL 초기화 실패가 메뉴 전체를 멈추게 해서는 안 된다.
-  bindControls();
+  // 메뉴 버튼은 index.html의 독립 스크립트에서 먼저 연결한다.
   try{
-    initThree();generateMaze();buildWorld();
-    loadEnvironmentAssets(THREE,renderer,floorGroups,world,floorY).catch(error=>console.warn('SILENCE 환경 에셋 로딩 실패:',error));
-    setupPlayerAndMonster();updateHud();animate();
+    if(!controlsBound){bindControls();controlsBound=true;}
+  }catch(error){
+    console.error('SILENCE 인게임 입력 초기화 실패:',error);
+    window.__silenceControlsError=error;
+  }
+  try{
+    initializeGameWorld();
   }catch(error){
     console.error('SILENCE 게임 초기화 실패:',error);
     window.__silenceInitError=error;
@@ -1248,4 +1263,5 @@ function boot(){
     },{once:true});
   }
 }
+window.startSilenceGame=startGame;
 boot();
