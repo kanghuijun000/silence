@@ -226,7 +226,7 @@ function buildWorld(){
     const floorGroup=new THREE.Group();floorGroup.name='facility-floor-'+f;floorGroups.push(floorGroup);
     const base=floorY(f),map=facilityMazes[f],factory=f===2,flooded=f===3,basement=f===4;
     const floorMat=factory?industrialFloor:flooded?waterFloor:concreteFloor,wallMat=factory||basement?industrialWall:concreteWall;
-    const countTiles=CONFIG.mazeSize*CONFIG.mazeSize-18,floors=new THREE.InstancedMesh(tileGeo,floorMat,countTiles),ceilings=new THREE.InstancedMesh(ceilingGeo,ceilingMat,countTiles);
+    const countTiles=CONFIG.mazeSize*CONFIG.mazeSize-6,floors=new THREE.InstancedMesh(tileGeo,floorMat,countTiles),ceilings=new THREE.InstancedMesh(ceilingGeo,ceilingMat,countTiles);
     let fi=0,ci=0;
     for(let z=0;z<CONFIG.mazeSize;z++)for(let x=0;x<CONFIG.mazeSize;x++){
       if([STAIR_UP,STAIR_DOWN].some(p=>x===p.x&&Math.abs(p.z-z)<=1))continue;
