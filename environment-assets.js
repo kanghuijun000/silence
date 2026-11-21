@@ -42,6 +42,69 @@ const PLACEMENTS = [
   {asset:'junctionCabinet',floor:4,x:19,z:5,rotation:Math.PI*.5,wallMount:true}
 ];
 
+const SURFACE_MATERIALS = {
+  hospitalFloor: {slug:'ceramic-tiles',repeat:[2.5,2.5]},
+  hospitalWall: {slug:'white-plaster',repeat:[1.5,1.65]},
+  factoryFloor: {slug:'checker-plate',repeat:[3,3]},
+  factoryWall: {slug:'rusty-metal',repeat:[3,3]},
+  factoryCeiling: {slug:'corrugated-metal',repeat:[3,3]},
+  concrete: {slug:'worn-concrete',repeat:[1.5,1.65]}
+};
+
+async function loadPBRMaterial(THREE,renderer,ktx2Loader,definition){
+  const base='https://tevy.dev/materials/'+definition.slug+'/v1/';
+  const [map,normalMap,ormMap]=await Promise.all([
+    ktx2Loader.loadAsync(base+'color-1k.ktx2'),
+    ktx2Loader.loadAsync(base+'normal-1k.ktx2'),
+    ktx2Loader.loadAsync(base+'orm-1k.ktx2')
+  ]);
+  map.colorSpace=THREE.SRGBColorSpace;
+  const anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),8);
+  for(const texture of [map,normalMap,ormMap]){
+    texture.wrapS=texture.wrapT=THREE.RepeatWrapping;
+    texture.repeat.set(definition.repeat[0],definition.repeat[1]);
+    texture.anisotropy=anisotropy;
+    texture.needsUpdate=true;
+  }
+  return new THREE.MeshStandardMaterial({
+    color:0xffffff,
+    map,
+    normalMap,
+    normalScale:new THREE.Vector2(.82,.82),
+    aoMap:ormMap,
+    aoMapIntensity:1.15,
+    roughnessMap:ormMap,
+    metalnessMap:ormMap,
+    roughness:1,
+    metalness:0
+  });
+}
+
+async function applyPhotogrammetricSurfaces(THREE,renderer,ktx2Loader,floorGroups){
+  const loaded={};
+  await Promise.all(Object.entries(SURFACE_MATERIALS).map(async([key,definition])=>{
+    try{
+      loaded[key]=await loadPBRMaterial(THREE,renderer,ktx2Loader,definition);
+      console.info('[SILENCE] PBR 표면 준비 완료:',definition.slug);
+    }catch(error){
+      console.warn('[SILENCE] PBR 표면을 불러오지 못했습니다:',definition.slug,error);
+    }
+  }));
+
+  for(let floor=0;floor<floorGroups.length;floor++){
+    const group=floorGroups[floor];
+    const floorMesh=group.getObjectByName('floor-surface');
+    const wallMesh=group.getObjectByName('wall-surface');
+    const ceilingMesh=group.getObjectByName('ceiling-surface');
+    const floorMaterial=floor<=1?loaded.hospitalFloor:floor===2?loaded.factoryFloor:floor===3?loaded.concrete:loaded.factoryFloor;
+    const wallMaterial=floor<=1?loaded.hospitalWall:floor===2||floor===4?loaded.factoryWall:loaded.concrete;
+    const ceilingMaterial=floor<=1?loaded.hospitalWall:floor===2?loaded.factoryCeiling:floor===3?loaded.concrete:loaded.factoryWall;
+    if(floorMesh&&floorMaterial)floorMesh.material=floorMaterial;
+    if(wallMesh&&wallMaterial)wallMesh.material=wallMaterial;
+    if(ceilingMesh&&ceilingMaterial)ceilingMesh.material=ceilingMaterial;
+  }
+}
+
 function loadGLB(loader,url){
   return new Promise((resolve,reject)=>{
     loader.load(url,gltf=>resolve(gltf.scene),undefined,reject);
@@ -75,6 +138,7 @@ export async function loadEnvironmentAssets(THREE,renderer,floorGroups,world,flo
   const loader=new GLTFLoader();
   loader.setKTX2Loader(ktx2Loader);
   loader.setMeshoptDecoder(MeshoptDecoder);
+  const surfacePromise=applyPhotogrammetricSurfaces(THREE,renderer,ktx2Loader,floorGroups).catch(error=>console.warn('[SILENCE] PBR 표면 적용 실패:',error));
   const prototypes=new Map();
   const assetIds=[...new Set(PLACEMENTS.map(item=>item.asset))];
 
@@ -116,6 +180,7 @@ export async function loadEnvironmentAssets(THREE,renderer,floorGroups,world,flo
     placed++;
   }
 
+  await surfacePromise;
   console.info('[SILENCE] 환경 모델 배치 완료:',placed+'/'+PLACEMENTS.length);
   return {loaded:prototypes.size,placed};
 }
