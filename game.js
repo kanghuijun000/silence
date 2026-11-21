@@ -73,10 +73,14 @@ function isOpen(x,z,floorIndex=currentFloorIndex){const map=facilityMazes[floorI
 function floorY(floorIndex){return floorIndex*FLOOR_SPACING;}
 function world(c){const f=c.floor??currentFloorIndex;return new THREE.Vector3((c.x-half)*cell,floorY(f),(c.z-half)*cell);}
 function cellAt(pos){const floor=Math.max(0,Math.min(FLOOR_LABELS.length-1,Math.round(pos.y/FLOOR_SPACING)));return{x:Math.max(0,Math.min(CONFIG.mazeSize-1,Math.round(pos.x/cell+half))),z:Math.max(0,Math.min(CONFIG.mazeSize-1,Math.round(pos.z/cell+half))),floor};}
+function isReservedCell(x,z,floorIndex){
+  const sets=floorIndex<=1?[[8,8],[31,8],[9,32],[32,32]]:floorIndex===2?[[8,8],[32,9],[9,32],[32,32],[25,17]]:floorIndex===4?[[7,8],[33,8],[7,33],[33,33]]:[];
+  return sets.some(([rx,rz])=>rx===x&&rz===z);
+}
 function randomOpen(exclude=[],floorIndex=currentFloorIndex){
   const blocked=new Set(exclude.map(key)),map=facilityMazes[floorIndex]||maze;
-  for(let i=0;i<5000;i++){const c={x:1+randInt(CONFIG.mazeSize-2),z:1+randInt(CONFIG.mazeSize-2)};if(map?.[c.z]?.[c.x]===0&&!blocked.has(key(c)))return {...c,floor:floorIndex};}
-  for(let z=1;z<CONFIG.mazeSize-1;z++)for(let x=1;x<CONFIG.mazeSize-1;x++)if(map?.[z]?.[x]===0&&!blocked.has(key({x,z})))return{x,z,floor:floorIndex};
+  for(let i=0;i<5000;i++){const c={x:1+randInt(CONFIG.mazeSize-2),z:1+randInt(CONFIG.mazeSize-2)};if(map?.[c.z]?.[c.x]===0&&!blocked.has(key(c))&&!isReservedCell(c.x,c.z,floorIndex))return {...c,floor:floorIndex};}
+  for(let z=1;z<CONFIG.mazeSize-1;z++)for(let x=1;x<CONFIG.mazeSize-1;x++)if(map?.[z]?.[x]===0&&!blocked.has(key({x,z}))&&!isReservedCell(x,z,floorIndex))return{x,z,floor:floorIndex};
   return{x:1,z:1,floor:floorIndex};
 }
 function createFloorMaze(floorIndex){
@@ -140,7 +144,7 @@ function generateMaze(){
   currentFloorIndex=1;maze=facilityMazes[currentFloorIndex];floorNoise=facilityNoise[currentFloorIndex];floorTransition=null;
   spawnCell=randomOpen([STAIR_UP,STAIR_DOWN],currentFloorIndex);
   const distances=bfsDistances({...STAIR_UP,floor:0},0);let far={...STAIR_UP,floor:0},max=-1;
-  for(const [k,d] of distances)if(d>max){max=d;const [x,z]=k.split(',').map(Number);far={x,z,floor:0};}
+  for(const [k,d] of distances){const [x,z]=k.split(',').map(Number);if(d>max&&!isReservedCell(x,z,0)){max=d;far={x,z,floor:0};}}
   exitCell=far;updateFloorBadge();
 }
 function bfsDistances(start,floorIndex=start.floor??currentFloorIndex){
@@ -316,7 +320,7 @@ function setCamera(){
 }
 function setupPlayerAndMonster(){
   const p=world(spawnCell);player={position:p.clone(),radius:.34};
-  const reach=bfsDistances(spawnCell,currentFloorIndex),opts=[];for(const [k,d] of reach)if(d>=9&&d<=20){const [x,z]=k.split(',').map(Number);opts.push({x,z,floor:currentFloorIndex});}const mc=opts.length?opts[randInt(opts.length)]:randomOpen([spawnCell,exitCell],currentFloorIndex);const mp=world(mc);monster={position:mp.clone(),cell:mc};
+  const reach=bfsDistances(spawnCell,currentFloorIndex),opts=[];for(const [k,d] of reach)if(d>=9&&d<=20){const [x,z]=k.split(',').map(Number);if(!isReservedCell(x,z,currentFloorIndex))opts.push({x,z,floor:currentFloorIndex});}const mc=opts.length?opts[randInt(opts.length)]:randomOpen([spawnCell,exitCell],currentFloorIndex);const mp=world(mc);monster={position:mp.clone(),cell:mc};
   buildMonster();buildExit();buildStations();setCamera();
 }
 function ensureAudio(){
