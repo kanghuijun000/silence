@@ -1,6 +1,6 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 import { createMonsterModel } from './monster-model.js';
-import { loadEnvironmentAssets, shouldOmitCeiling } from './environment-assets.js';
+import { loadEnvironmentAssets, shouldOmitCeiling, shouldOmitFloor } from './environment-assets.js';
 
 const CONFIG = {
   mazeSize: 41,          // 탐색 부담을 줄인 약 40x40 규모의 홀수 격자
@@ -227,6 +227,8 @@ function buildWorld(){
   for(let f=0;f<FLOOR_LABELS.length;f++){
     const floorGroup=new THREE.Group();floorGroup.name='facility-floor-'+f;floorGroups.push(floorGroup);
     const base=floorY(f),map=facilityMazes[f],factory=f===2,flooded=f===3,basement=f===4;
+    // B1의 왼쪽 생산동을 30m급 개방형 창고 홀로 비운다. 외곽 벽은 유지하고 내부 임의 벽만 제거한다.
+    if(factory)for(let z=17;z<=23;z++)for(let x=3;x<=12;x++)map[z][x]=0;
     const floorMat=factory?industrialFloor:flooded?waterFloor:concreteFloor,wallMat=factory||basement?industrialWall:concreteWall;
     const countTiles=CONFIG.mazeSize*CONFIG.mazeSize-6,floors=new THREE.InstancedMesh(tileGeo,floorMat,countTiles),ceilings=new THREE.InstancedMesh(ceilingGeo,ceilingMat,countTiles);
     floors.name='floor-surface';ceilings.name='ceiling-surface';
@@ -234,10 +236,10 @@ function buildWorld(){
     for(let z=0;z<CONFIG.mazeSize;z++)for(let x=0;x<CONFIG.mazeSize;x++){
       if([STAIR_UP,STAIR_DOWN].some(p=>x===p.x&&Math.abs(p.z-z)<=1))continue;
       const wx=(x-half)*cell,wz=(z-half)*cell;
-      dummy.position.set(wx,base-.18,wz);dummy.updateMatrix();floors.setMatrixAt(fi++,dummy.matrix);
+      if(!shouldOmitFloor(f,x,z)){dummy.position.set(wx,base-.18,wz);dummy.updateMatrix();floors.setMatrixAt(fi++,dummy.matrix);}
       if(!shouldOmitCeiling(f,x,z)){dummy.position.set(wx,base+CONFIG.wallHeight+.12,wz);dummy.updateMatrix();ceilings.setMatrixAt(ci++,dummy.matrix);}
     }
-    floors.instanceMatrix.needsUpdate=true;floors.receiveShadow=true;floorGroup.add(floors);ceilings.count=ci;ceilings.instanceMatrix.needsUpdate=true;floorGroup.add(ceilings);
+    floors.count=fi;floors.instanceMatrix.needsUpdate=true;floors.receiveShadow=true;floorGroup.add(floors);ceilings.count=ci;ceilings.instanceMatrix.needsUpdate=true;floorGroup.add(ceilings);
     let count=0;for(let z=0;z<CONFIG.mazeSize;z++)for(let x=0;x<CONFIG.mazeSize;x++)if(map[z][x])count++;
     const walls=new THREE.InstancedMesh(wallGeo,wallMat,count);walls.name='wall-surface';let wi=0;
     for(let z=0;z<CONFIG.mazeSize;z++)for(let x=0;x<CONFIG.mazeSize;x++)if(map[z][x]){dummy.position.set((x-half)*cell,base+CONFIG.wallHeight/2,(z-half)*cell);dummy.updateMatrix();walls.setMatrixAt(wi++,dummy.matrix);}
@@ -262,7 +264,7 @@ function buildWorld(){
       const light=new THREE.PointLight(factory?0xffbd83:basement?0xc5d9e8:0xd8edf4,factory?12:basement?10:12,15,1.5);light.position.set(p.x,base+2.58,p.z);floorGroup.add(light);
     }
     const pipeMat=new THREE.MeshStandardMaterial({color:factory?0x4a4c47:0x343d40,metalness:.68,roughness:.58});
-    for(let z=4;z<CONFIG.mazeSize-4;z+=9)for(let x=4;x<CONFIG.mazeSize-5;x++)if(map[z][x]===0&&map[z][x+1]===0&&map[z][x+2]===0&&Math.random()<.18){
+    for(let z=4;z<CONFIG.mazeSize-4;z+=9)for(let x=4;x<CONFIG.mazeSize-5;x++)if(![0,1,2].some(k=>shouldOmitCeiling(f,x+k,z))&&map[z][x]===0&&map[z][x+1]===0&&map[z][x+2]===0&&Math.random()<.18){
       const p=world({x,z,floor:f}),pipe=new THREE.Mesh(new THREE.CylinderGeometry(.055,.055,cell*2.5,9),pipeMat);pipe.rotation.z=Math.PI/2;pipe.position.set(p.x,base+2.72,p.z);floorGroup.add(pipe);x+=2;
     }
     // 병원 의료 장비는 environment-assets.js의 실제 GLB 모델로 비동기 배치한다.
