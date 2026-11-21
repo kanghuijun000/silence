@@ -1159,7 +1159,7 @@ function bindControls(){
   const joyEnd=e=>{if(joyPointer===e.pointerId){joyPointer=null;joystick={x:0,y:0};stick.style.transform='';}};
   joy.addEventListener('pointerup',joyEnd);joy.addEventListener('pointercancel',joyEnd);
   let lookPointer=null,lastX=0,lastY=0;
-  renderer?.domElement.addEventListener('pointerdown',e=>{const portrait=getViewportSize().portrait;if(portrait?e.clientY<innerHeight*.38:e.clientX<innerWidth*.38)return;lookPointer=e.pointerId;lastX=e.clientX;lastY=e.clientY;});
+  view.addEventListener('pointerdown',e=>{const portrait=getViewportSize().portrait;if(portrait?e.clientY<innerHeight*.38:e.clientX<innerWidth*.38)return;lookPointer=e.pointerId;lastX=e.clientX;lastY=e.clientY;});
   window.addEventListener('pointermove',e=>{if(lookPointer!==e.pointerId)return;const rawX=e.clientX-lastX,rawY=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;const portrait=getViewportSize().portrait,dx=portrait?rawY:rawX,dy=portrait?-rawX:rawY;yaw-=dx*.0045;pitch=Math.max(-1.05,Math.min(1.05,pitch-dy*.0035));});
   window.addEventListener('pointerup',e=>{if(lookPointer===e.pointerId)lookPointer=null;});
   $('runBtn').addEventListener('pointerdown',e=>{e.preventDefault();runHeld=true;$('runBtn').classList.add('active');});
