@@ -1081,11 +1081,18 @@ function resetGame(){
 }
 function startGame(){
   if(updatePending){window.location.reload();return;}
-  ensureAudio();startHorrorMusic();if(!renderer)initThree();resetGame();paused=false;$('pauseModal').classList.add('hidden');clock.start();running=true;
-  $('startScreen').classList.add('hidden');$('endScreen').classList.add('hidden');
-  $('game').classList.add('playing');
-  if(screen.orientation?.lock)screen.orientation.lock('landscape').catch(()=>{});
-  showMessage('소리를 조심해라. 출구는 하나다.',2400);
+  try{
+    if(!renderer)initThree();
+    if(!scene||!clock)throw new Error('게임 그래픽 초기화가 완료되지 않았습니다.');
+    ensureAudio();startHorrorMusic();resetGame();paused=false;$('pauseModal').classList.add('hidden');clock.start();running=true;
+    $('startScreen').classList.add('hidden');$('endScreen').classList.add('hidden');
+    $('game').classList.add('playing');
+    if(screen.orientation?.lock)screen.orientation.lock('landscape').catch(()=>{});
+    showMessage('소리를 조심해라. 출구는 하나다.',2400);
+  }catch(error){
+    console.error('SILENCE 게임 시작 실패:',error);
+    alert('게임을 시작하지 못했습니다. 그래픽 초기화 오류가 발생했습니다. 앱을 다시 열어 주세요.');
+  }
 }
 function updateAudioOutput(){
   if(!masterGain||!audioCtx)return;
@@ -1193,9 +1200,16 @@ function applyPendingUpdate(){
   if(updatePending){window.location.reload();}
 }
 function boot(){
-  initThree();bindControls();generateMaze();buildWorld();
-  loadEnvironmentAssets(THREE,renderer,floorGroups,world,floorY).catch(error=>console.warn('SILENCE 환경 에셋 로딩 실패:',error));
-  setupPlayerAndMonster();updateHud();animate();
+  // 메뉴 입력을 그래픽 초기화보다 먼저 연결한다. WebGL 초기화 실패가 메뉴 전체를 멈추게 해서는 안 된다.
+  bindControls();
+  try{
+    initThree();generateMaze();buildWorld();
+    loadEnvironmentAssets(THREE,renderer,floorGroups,world,floorY).catch(error=>console.warn('SILENCE 환경 에셋 로딩 실패:',error));
+    setupPlayerAndMonster();updateHud();animate();
+  }catch(error){
+    console.error('SILENCE 게임 초기화 실패:',error);
+    window.__silenceInitError=error;
+  }
   if('serviceWorker' in navigator){
     let registration=null;
     const checkForAppUpdate=()=>{
