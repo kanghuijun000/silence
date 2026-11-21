@@ -1,6 +1,8 @@
 // SILENCE photoreal environment asset pipeline.
 // Models are pinned CC0 GLB releases from tevy.dev; GLB files include their PBR materials/textures.
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
+import { KTX2Loader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/KTX2Loader.js';
+import { MeshoptDecoder } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/meshopt_decoder.module.js';
 
 const MODEL_BASE = 'https://tevy.dev/models/';
 
@@ -66,8 +68,13 @@ function preparePrototype(THREE,model){
   return model;
 }
 
-export async function loadEnvironmentAssets(THREE,floorGroups,world,floorY){
+export async function loadEnvironmentAssets(THREE,renderer,floorGroups,world,floorY){
+  const ktx2Loader=new KTX2Loader()
+    .setTranscoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/basis/')
+    .detectSupport(renderer);
   const loader=new GLTFLoader();
+  loader.setKTX2Loader(ktx2Loader);
+  loader.setMeshoptDecoder(MeshoptDecoder);
   const prototypes=new Map();
   const assetIds=[...new Set(PLACEMENTS.map(item=>item.asset))];
 
@@ -95,7 +102,7 @@ export async function loadEnvironmentAssets(THREE,floorGroups,world,floorY){
 
     const p=world({x:placement.x,z:placement.z,floor:placement.floor});
     group.position.set(p.x,floorY(placement.floor),p.z);
-    if(placement.wallMount)group.position.y+=1.25;
+    if(placement.wallMount){group.position.y+=1.25;group.position.x-=1.5;}
     group.rotation.y=placement.rotation||0;
     const scale=placement.scale||1;
     group.scale.setScalar(scale);
