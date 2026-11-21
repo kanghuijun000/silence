@@ -228,7 +228,8 @@ function buildWorld(){
     const floorGroup=new THREE.Group();floorGroup.name='facility-floor-'+f;floorGroups.push(floorGroup);
     const base=floorY(f),map=facilityMazes[f],factory=f===2,flooded=f===3,basement=f===4;
     // B1의 왼쪽 생산동을 30m급 개방형 창고 홀로 비운다. 외곽 벽은 유지하고 내부 임의 벽만 제거한다.
-    if(factory)for(let z=17;z<=23;z++)for(let x=3;x<=12;x++)map[z][x]=0;
+    if(factory)for(let z=15;z<=25;z++)for(let x=5;x<=10;x++)map[z][x]=0;
+    for(let x=7;x<=9;x++)map[26][x]=0;
     const floorMat=factory?industrialFloor:flooded?waterFloor:concreteFloor,wallMat=factory||basement?industrialWall:concreteWall;
     const countTiles=CONFIG.mazeSize*CONFIG.mazeSize-6,floors=new THREE.InstancedMesh(tileGeo,floorMat,countTiles),ceilings=new THREE.InstancedMesh(ceilingGeo,ceilingMat,countTiles);
     floors.name='floor-surface';ceilings.name='ceiling-surface';
