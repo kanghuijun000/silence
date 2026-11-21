@@ -75,9 +75,9 @@ function key(c){return c.x+','+c.z;}
 function nodeKey(c){return (c.floor??currentFloorIndex)+':'+c.x+','+c.z;}
 function inside(x,z){return x>=0&&z>=0&&x<CONFIG.mazeSize&&z<CONFIG.mazeSize;}
 function isOpen(x,z,floorIndex=currentFloorIndex){const map=facilityMazes[floorIndex]||maze;return inside(x,z)&&map?.[z]?.[x]===0;}
-function floorY(floorIndex){return floorIndex*FLOOR_SPACING;}
+function floorY(floorIndex){return -floorIndex*FLOOR_SPACING;}
 function world(c){const f=c.floor??currentFloorIndex;return new THREE.Vector3((c.x-half)*cell,floorY(f),(c.z-half)*cell);}
-function cellAt(pos){const floor=Math.max(0,Math.min(FLOOR_LABELS.length-1,Math.round(pos.y/FLOOR_SPACING)));return{x:Math.max(0,Math.min(CONFIG.mazeSize-1,Math.round(pos.x/cell+half))),z:Math.max(0,Math.min(CONFIG.mazeSize-1,Math.round(pos.z/cell+half))),floor};}
+function cellAt(pos){const floor=Math.max(0,Math.min(FLOOR_LABELS.length-1,Math.round(-pos.y/FLOOR_SPACING)));return{x:Math.max(0,Math.min(CONFIG.mazeSize-1,Math.round(pos.x/cell+half))),z:Math.max(0,Math.min(CONFIG.mazeSize-1,Math.round(pos.z/cell+half))),floor};}
 function isReservedCell(x,z,floorIndex){
   const sets=floorIndex<=1?[[6,6],[34,6],[6,34],[34,34]]:floorIndex===2?[[8,8],[32,9],[9,32],[32,32],[25,17]]:floorIndex===4?[[6,6],[34,6],[6,34],[34,34]]:[];
   return sets.some(([rx,rz])=>rx===x&&rz===z);
@@ -299,10 +299,10 @@ function buildWorld(){
     const flight=new THREE.Group(),p=world({...shaft,floor:baseFloor});
     const startZ=p.z+stairLength/2,endZ=p.z-stairLength/2;
     for(let n=0;n<24;n++){
-      const topY=floorY(baseFloor)+(n+1)*stairRise;
+      const topY=floorY(baseFloor)-(n+1)*stairRise;
       const z=startZ-(n+.5)*stairTread;
       const tread=new THREE.Mesh(new THREE.BoxGeometry(1.92,stairRise,stairTread),stairStepMat);
-      tread.position.set(p.x,floorY(baseFloor)+(n+.5)*stairRise,z);
+      tread.position.set(p.x,floorY(baseFloor)-(n+.5)*stairRise,z);
       tread.castShadow=true;tread.receiveShadow=true;flight.add(tread);
       const riser=new THREE.Mesh(new THREE.BoxGeometry(1.88,stairRise,.065),stairRiserMat);
       riser.position.set(p.x,floorY(baseFloor)+(n+.5)*stairRise,startZ-(n+1)*stairTread+.025);
@@ -316,7 +316,7 @@ function buildWorld(){
       const landingLip=new THREE.Mesh(new THREE.BoxGeometry(2.68,.045,1.48),stairRiserMat);
       landingLip.position.set(p.x,y-.13,z);flight.add(landingLip);
     }
-    const railVector=new THREE.Vector3(0,FLOOR_SPACING,-stairLength);
+    const railVector=new THREE.Vector3(0,FLOOR_SPACING,stairLength);
     for(const side of [-1,1]){
       const beam=new THREE.Mesh(new THREE.BoxGeometry(.16,FLOOR_SPACING+.12,stairLength+.18),stringerMat);
       beam.position.set(p.x+side*1.02,floorY(baseFloor)+FLOOR_SPACING/2,p.z);beam.rotation.x=Math.atan2(FLOOR_SPACING,stairLength);flight.add(beam);
@@ -324,7 +324,7 @@ function buildWorld(){
       rail.position.set(p.x+side*1.16,floorY(baseFloor)+FLOOR_SPACING/2+.96,p.z);
       rail.quaternion.setFromUnitVectors(upAxis,railVector.clone().normalize());flight.add(rail);
       for(let n=0;n<=24;n+=2){
-        const y=floorY(baseFloor)+n*stairRise+.48,z=startZ-n*stairTread;
+        const y=floorY(baseFloor)-n*stairRise+.48,z=startZ-n*stairTread;
         const post=new THREE.Mesh(new THREE.CylinderGeometry(.035,.05,.96,10),railMat);
         post.position.set(p.x+side*1.16,y,z);flight.add(post);
         const clamp=new THREE.Mesh(new THREE.CylinderGeometry(.075,.075,.07,10),stringerMat);
@@ -347,16 +347,16 @@ function buildWorld(){
       conduit.rotation.x=Math.PI/2;conduit.position.set(p.x+side*1.72,floorY(baseFloor)+FLOOR_SPACING/2+.12,p.z);flight.add(conduit);
       for(let n=0;n<7;n++){
         const bracket=new THREE.Mesh(new THREE.BoxGeometry(.16,.08,.12),railMat);
-        bracket.position.set(p.x+side*1.72,floorY(baseFloor)+.28+n*.62,p.z+stairLength/2-n*stairLength/6);flight.add(bracket);
+        bracket.position.set(p.x+side*1.72,floorY(baseFloor)-.28-n*.62,p.z+stairLength/2-n*stairLength/6);flight.add(bracket);
       }
     }
     // 계단참 천장형 방습등과 따뜻한 벽면 반사광
     const fixture=new THREE.Mesh(new THREE.BoxGeometry(.72,.12,.24),new THREE.MeshStandardMaterial({color:0x465052,metalness:.42,roughness:.62}));
-    fixture.position.set(p.x,floorY(baseFloor)+FLOOR_SPACING+2.78,endZ-.35);flight.add(fixture);
+    fixture.position.set(p.x,floorY(baseFloor+1)+2.78,endZ-.35);flight.add(fixture);
     const diffuser=new THREE.Mesh(new THREE.BoxGeometry(.61,.035,.18),new THREE.MeshBasicMaterial({color:0xd8e4d9}));
-    diffuser.position.set(p.x,floorY(baseFloor)+FLOOR_SPACING+2.70,endZ-.35);flight.add(diffuser);
+    diffuser.position.set(p.x,floorY(baseFloor+1)+2.70,endZ-.35);flight.add(diffuser);
     const stairLight=new THREE.PointLight(0xc8d8d0,8,9,1.7);
-    stairLight.position.set(p.x,floorY(baseFloor)+FLOOR_SPACING+2.45,endZ-.35);flight.add(stairLight);
+    stairLight.position.set(p.x,floorY(baseFloor+1)+2.45,endZ-.35);flight.add(stairLight);
     return flight;
   }
   for(let f=0;f<FLOOR_LABELS.length-1;f++)for(const shaft of [STAIR_UP,STAIR_DOWN]){
@@ -842,8 +842,8 @@ function beginStairTraversalIfEntering(dir,targetX=player.position.x,targetZ=pla
 function updateStairTraversal(){
   if(!stairTraversal)return;
   const t=stairTraversal,progress=THREE.MathUtils.clamp((player.position.z-t.startZ)/(t.endZ-t.startZ),0,1);
-  const step=Math.min(t.stepCount,Math.floor(progress*t.stepCount+1e-5));
-  player.position.y=floorY(t.fromFloor)+(floorY(t.toFloor)-floorY(t.fromFloor))*(step/t.stepCount);
+  // Keep vertical movement continuous instead of snapping once per tread.
+  player.position.y=floorY(t.fromFloor)+(floorY(t.toFloor)-floorY(t.fromFloor))*progress;
   if(progress>=1){
     player.position.z=t.endZ;player.position.y=floorY(t.toFloor);
     currentFloorIndex=t.toFloor;maze=facilityMazes[currentFloorIndex];floorNoise=facilityNoise[currentFloorIndex];
