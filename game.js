@@ -795,7 +795,7 @@ function updateHud(){
 function inStairwellFootprint(x,z,floorIndex=currentFloorIndex){
   for(const shaft of [STAIR_UP,STAIR_DOWN]){
     const p=world({...shaft,floor:floorIndex});
-    if(Math.abs(x-p.x)<1.28&&Math.abs(z-p.z)<4.12)return true;
+    if(Math.abs(x-p.x)<1.58&&Math.abs(z-p.z)<3.34)return true;
   }
   return false;
 }
