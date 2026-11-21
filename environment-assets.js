@@ -80,7 +80,7 @@ async function loadPBRMaterial(THREE,renderer,ktx2Loader,definition){
   });
 }
 
-async function applyPhotogrammetricSurfaces(THREE,renderer,ktx2Loader,floorGroups){
+async function applyPBRMaterials(THREE,renderer,ktx2Loader,floorGroups){
   const loaded={};
   await Promise.all(Object.entries(SURFACE_MATERIALS).map(async([key,definition])=>{
     try{
@@ -138,7 +138,7 @@ export async function loadEnvironmentAssets(THREE,renderer,floorGroups,world,flo
   const loader=new GLTFLoader();
   loader.setKTX2Loader(ktx2Loader);
   loader.setMeshoptDecoder(MeshoptDecoder);
-  const surfacePromise=applyPhotogrammetricSurfaces(THREE,renderer,ktx2Loader,floorGroups).catch(error=>console.warn('[SILENCE] PBR 표면 적용 실패:',error));
+  const surfacePromise=applyPBRMaterials(THREE,renderer,ktx2Loader,floorGroups).catch(error=>console.warn('[SILENCE] PBR 표면 적용 실패:',error));
   const prototypes=new Map();
   const assetIds=[...new Set(PLACEMENTS.map(item=>item.asset))];
 
