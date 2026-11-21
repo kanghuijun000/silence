@@ -96,10 +96,32 @@
   const guideButton = document.getElementById('guideBtn');
   const closeGuideButton = document.getElementById('closeGuideBtn');
   const guideModal = document.getElementById('guideModal');
-  if (startButton) startButton.addEventListener('click', () => {
-    if (typeof window.startSilenceGame === 'function') window.startSilenceGame();
-    else alert('게임 엔진을 불러오지 못했습니다. 인터넷 연결을 확인한 뒤 앱을 다시 열어 주세요.');
+
+  // Wait for all static imports and module evaluation before allowing Start.
+  const gameReady = import('./game.js').then(() => {
+    if (typeof window.startSilenceGame !== 'function') {
+      throw new Error('게임 모듈은 로드됐지만 시작 함수가 등록되지 않았습니다.');
+    }
+    return window.startSilenceGame;
   });
+
+  if (startButton) startButton.addEventListener('click', async () => {
+    if (startButton.disabled) return;
+    startButton.disabled = true;
+    const originalText = startButton.textContent;
+    startButton.textContent = '불러오는 중...';
+    try {
+      const startGame = await gameReady;
+      startGame();
+    } catch (error) {
+      console.error('SILENCE 게임 모듈 로딩 실패:', error);
+      alert('게임 엔진 로딩 실패: ' + (error?.message || String(error)));
+    } finally {
+      startButton.disabled = false;
+      startButton.textContent = originalText;
+    }
+  });
+
   if (guideButton && guideModal) guideButton.addEventListener('click', () => guideModal.classList.remove('hidden'));
   if (closeGuideButton && guideModal) closeGuideButton.addEventListener('click', () => guideModal.classList.add('hidden'));
   window.addEventListener('keydown', event => {
