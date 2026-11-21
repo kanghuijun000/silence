@@ -96,7 +96,7 @@ function generateMaze(){
   facilityNoise=facilityMazes.map(map=>Array.from({length:CONFIG.mazeSize},(_,z)=>Array.from({length:CONFIG.mazeSize},(_,x)=>map[z][x]===0&&Math.random()<.035?['creak','metal','rubble','water'][randInt(4)]:null)));
   exploredFloors=FLOOR_LABELS.map(()=>Array.from({length:CONFIG.mazeSize},()=>Array(CONFIG.mazeSize).fill(false)));
   currentFloorIndex=1;maze=facilityMazes[currentFloorIndex];floorNoise=facilityNoise[currentFloorIndex];floorTransition=null;
-  spawnCell=randomOpen([],currentFloorIndex);
+  spawnCell=randomOpen([STAIR_UP,STAIR_DOWN],currentFloorIndex);
   const distances=bfsDistances({...STAIR_UP,floor:0},0);let far={...STAIR_UP,floor:0},max=-1;
   for(const [k,d] of distances)if(d>max){max=d;const [x,z]=k.split(',').map(Number);far={x,z,floor:0};}
   exitCell=far;updateFloorBadge();
@@ -247,7 +247,7 @@ function buildStations(){
   for(let f=0;f<FLOOR_LABELS.length;f++)for(let i=0;i<(f===1?2:1);i++)spawnStation([],f);
 }
 function spawnStation(extra=[],floorIndex=currentFloorIndex){
-  const exclusions=[spawnCell,exitCell,...stations.map(s=>s.cell),cellAt(player.position),cellAt(monster.position),...extra];
+  const exclusions=[spawnCell,exitCell,STAIR_UP,STAIR_DOWN,...stations.map(s=>s.cell),cellAt(player.position),cellAt(monster.position),...extra];
   const c=randomOpen(exclusions,floorIndex);stations.push({cell:c,mesh:null});
   const p=world(c),g=new THREE.Group();
   const base=new THREE.Mesh(new THREE.CylinderGeometry(.52,.6,.22,12),makeMarker(0x687783,0x17232c));base.position.y=.11;g.add(base);
@@ -427,7 +427,7 @@ function playMonsterAudio(kind,intensity=1){
 }
 function monsterHasNearbyWall(){
   const c=cellAt(monster.position);
-  return [[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dz])=>!isOpen(c.x+dx,c.z+dz));
+  return [[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dz])=>!isOpen(c.x+dx,c.z+dz,c.floor));
 }
 function updateMonsterAudio(now,distance,moving,speed){
   if(!audioCtx||document.hidden||!running||paused||gameOver)return;
