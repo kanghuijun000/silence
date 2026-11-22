@@ -33,6 +33,7 @@ const ASSETS = {
 };
 
 const environmentCollisionRects = [];
+let environmentLoadGeneration = 0;
 export function getEnvironmentCollisionRects(){ return environmentCollisionRects; }
 
 const PLACEMENTS = [
@@ -213,6 +214,7 @@ function preparePrototype(THREE,model){
 }
 
 export async function loadEnvironmentAssets(THREE,renderer,floorGroups,world,floorY){
+  const loadGeneration=++environmentLoadGeneration;
   environmentCollisionRects.length=0;
   const ktx2Loader=new KTX2Loader()
     .setTranscoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/basis/')
@@ -260,7 +262,7 @@ export async function loadEnvironmentAssets(THREE,renderer,floorGroups,world,flo
     });
     target.add(group);
     group.updateMatrixWorld(true);
-    if(placement.solid){
+    if(placement.solid&&loadGeneration===environmentLoadGeneration){
       const bounds=new THREE.Box3().setFromObject(group),inset=.12;
       const minX=bounds.min.x+inset,maxX=bounds.max.x-inset,minZ=bounds.min.z+inset,maxZ=bounds.max.z-inset;
       if(Number.isFinite(minX)&&Number.isFinite(maxX)&&Number.isFinite(minZ)&&Number.isFinite(maxZ)&&maxX-minX>.22&&maxZ-minZ>.22&&maxX-minX<10&&maxZ-minZ<10){
