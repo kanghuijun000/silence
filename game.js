@@ -386,6 +386,10 @@ function updateFloorVisibility(){
   if(stairTraversal){visibleFloors.add(stairTraversal.fromFloor);visibleFloors.add(stairTraversal.toFloor);}
   for(let i=0;i<floorGroups.length;i++){
     const group=floorGroups[i];group.visible=visibleFloors.has(i);
+    // While inside the stairwell, remove both adjoining floor-ceiling slabs
+    // from the camera path. They return immediately after the player reaches a landing.
+    const ceiling=group.getObjectByName('ceiling-surface');
+    if(ceiling)ceiling.visible=!stairTraversal;
     for(const child of group.children){
       if(child.userData?.isStairFlight){
         const sharedConnection=Math.min(stairTraversal?.fromFloor??-1,stairTraversal?.toFloor??-1);
