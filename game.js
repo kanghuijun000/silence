@@ -91,8 +91,8 @@ function isReservedCell(x,z,floorIndex){
 }
 function randomOpen(exclude=[],floorIndex=currentFloorIndex){
   const blocked=new Set(exclude.map(key)),map=facilityMazes[floorIndex]||maze;
-  for(let i=0;i<5000;i++){const c={x:1+randInt(CONFIG.mazeSize-2),z:1+randInt(CONFIG.mazeSize-2)};if(map?.[c.z]?.[c.x]===0&&!blocked.has(key(c))&&!isReservedCell(c.x,c.z,floorIndex))return {...c,floor:floorIndex};}
-  for(let z=1;z<CONFIG.mazeSize-1;z++)for(let x=1;x<CONFIG.mazeSize-1;x++)if(map?.[z]?.[x]===0&&!blocked.has(key({x,z}))&&!isReservedCell(x,z,floorIndex))return{x,z,floor:floorIndex};
+  for(let i=0;i<5000;i++){const c={x:1+randInt(CONFIG.mazeSize-2),z:1+randInt(CONFIG.mazeSize-2)};if(isOpen(c.x,c.z,floorIndex)&&!blocked.has(key(c))&&!isReservedCell(c.x,c.z,floorIndex))return {...c,floor:floorIndex};}
+  for(let z=1;z<CONFIG.mazeSize-1;z++)for(let x=1;x<CONFIG.mazeSize-1;x++)if(isOpen(x,z,floorIndex)&&!blocked.has(key({x,z}))&&!isReservedCell(x,z,floorIndex))return{x,z,floor:floorIndex};
   return{x:1,z:1,floor:floorIndex};
 }
 function createFloorMaze(floorIndex){
@@ -1159,7 +1159,6 @@ function initializeGameWorld(){
   initThree();
   generateMaze();
   buildWorld();
-  loadEnvironmentAssets(THREE,renderer,floorGroups,world,floorY).catch(error=>console.warn('SILENCE 환경 에셋 로딩 실패:',error));
   setupPlayerAndMonster();
   updateHud();
   animate();
