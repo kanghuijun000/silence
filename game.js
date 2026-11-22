@@ -1,6 +1,6 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 import { createMonsterModel } from './monster-model.js';
-import { loadEnvironmentAssets, shouldOmitCeiling, shouldOmitFloor } from './environment-assets.js';
+import { loadEnvironmentAssets, shouldOmitCeiling, shouldOmitFloor, getEnvironmentCollisionRects } from './environment-assets.js';
 
 const CONFIG = {
   mazeSize: 41,          // 탐색 부담을 줄인 약 40x40 규모의 홀수 격자
@@ -74,7 +74,14 @@ function randInt(n){ return Math.floor(Math.random()*n); }
 function key(c){return c.x+','+c.z;}
 function nodeKey(c){return (c.floor??currentFloorIndex)+':'+c.x+','+c.z;}
 function inside(x,z){return x>=0&&z>=0&&x<CONFIG.mazeSize&&z<CONFIG.mazeSize;}
-function isOpen(x,z,floorIndex=currentFloorIndex){const map=facilityMazes[floorIndex]||maze;return inside(x,z)&&map?.[z]?.[x]===0;}
+function isEnvironmentCellBlocked(x,z,floorIndex){
+  const wx=(x-half)*cell,wz=(z-half)*cell,halfCell=cell*.42;
+  return getEnvironmentCollisionRects().some(r=>r.floor===floorIndex&&wx+halfCell>r.minX&&wx-halfCell<r.maxX&&wz+halfCell>r.minZ&&wz-halfCell<r.maxZ);
+}
+function isOpen(x,z,floorIndex=currentFloorIndex){const map=facilityMazes[floorIndex]||maze;return inside(x,z)&&map?.[z]?.[x]===0&&!isEnvironmentCellBlocked(x,z,floorIndex);}
+function environmentCollisionAt(x,z,floorIndex,radius=.34){
+  return getEnvironmentCollisionRects().some(r=>r.floor===floorIndex&&x+radius>r.minX&&x-radius<r.maxX&&z+radius>r.minZ&&z-radius<r.maxZ);
+}
 function floorY(floorIndex){return -floorIndex*FLOOR_SPACING;}
 function world(c){const f=c.floor??currentFloorIndex;return new THREE.Vector3((c.x-half)*cell,floorY(f),(c.z-half)*cell);}
 function cellAt(pos){const floor=pos===monster?.position&&monsterStairTraversal?monsterStairTraversal.fromFloor:stairTraversal?stairTraversal.fromFloor:Math.max(0,Math.min(FLOOR_LABELS.length-1,Math.round(-pos.y/FLOOR_SPACING)));return{x:Math.max(0,Math.min(CONFIG.mazeSize-1,Math.round(pos.x/cell+half))),z:Math.max(0,Math.min(CONFIG.mazeSize-1,Math.round(pos.z/cell+half))),floor};}
@@ -850,6 +857,7 @@ function inStairwellFootprint(x,z,floorIndex=currentFloorIndex){
 function collides(x,z){
   if(!stairTraversal&&inStairwellFootprint(x,z))return true;
   const r=player.radius,checks=[[x-r,z-r],[x+r,z-r],[x-r,z+r],[x+r,z+r]];
+  if(environmentCollisionAt(x,z,currentFloorIndex,r))return true;
   return checks.some(([px,pz])=>{const c=cellAt({x:px,z:pz,y:floorY(currentFloorIndex)});return !isOpen(c.x,c.z,currentFloorIndex);});
 }
 function isFloodedFloor(floorIndex){return floorIndex===3;}
@@ -864,8 +872,10 @@ function beginStairTraversalIfEntering(dir,targetX=player.position.x,targetZ=pla
   for(const [name,shaft] of [['up',STAIR_UP],['down',STAIR_DOWN]]){
     if((name==='up'&&currentFloorIndex===0)||(name==='down'&&currentFloorIndex===FLOOR_LABELS.length-1))continue;
     const data=stairStartFor(name,shaft),centerX=world({...shaft,floor:currentFloorIndex}).x;
-    const currentEntry=(player.position.z-data.startZ)*data.direction;
-    const nextEntry=(targetZ-data.startZ)*data.direction;
+    // Trigger before the player's collision radius reaches the stairwell blocker.
+    const entryZ=data.startZ-data.direction*.36;
+    const currentEntry=(player.position.z-entryZ)*data.direction;
+    const nextEntry=(targetZ-entryZ)*data.direction;
     const crossedEntry=currentEntry<=0&&nextEntry>=0;
     if(dir.z*data.direction>.14&&Math.abs(targetX-centerX)<1.12&&crossedEntry){
       stairTraversal={...data,stepCount:24};stairLock=name;updateFloorVisibility();
@@ -906,7 +916,7 @@ function movePlayer(dt){
     const centerX=world({...stairTraversal.shaft,floor:stairTraversal.fromFloor}).x;
     if(Math.abs(dir.z)>.12){
       const nextZ=player.position.z+dir.z*stairSpeed*dt;
-      const targetX=THREE.MathUtils.clamp(player.position.x+dir.x*stairSpeed*dt,centerX-.32,centerX+.32);
+      const targetX=THREE.MathUtils.clamp(player.position.x+dir.x*stairSpeed*dt,centerX-.58,centerX+.58);
       player.position.x=THREE.MathUtils.damp(player.position.x,targetX,12,dt);
       player.position.z=THREE.MathUtils.clamp(nextZ,Math.min(stairTraversal.startZ,stairTraversal.endZ),Math.max(stairTraversal.startZ,stairTraversal.endZ));
       updateStairTraversal();moved=true;
@@ -920,7 +930,7 @@ function movePlayer(dt){
   // 계단 진입은 일반 바닥 충돌보다 먼저 판정한다. 계단실을 가로질러 빠져나가는 길은 막는다.
   if(beginStairTraversalIfEntering(dir,targetX,targetZ)){
     const t=stairTraversal,centerX=world({...t.shaft,floor:t.fromFloor}).x;
-    player.position.x=THREE.MathUtils.clamp(targetX,centerX-.32,centerX+.32);
+    player.position.x=THREE.MathUtils.clamp(targetX,centerX-.58,centerX+.58);
     player.position.z=THREE.MathUtils.clamp(targetZ,Math.min(t.startZ,t.endZ),Math.max(t.startZ,t.endZ));
     updateStairTraversal();return true;
   }
@@ -1029,7 +1039,13 @@ function monsterUpdate(dt,now){
   if(targetPoint){
     const dx=targetPoint.x-monster.position.x,dy=targetPoint.y-monster.position.y,dz=targetPoint.z-monster.position.z,len=Math.hypot(dx,dy,dz);
     if(len<.16){if(path.length)path.shift();}
-    else{const step=Math.min(len,speed*dt);monster.position.x+=dx/len*step;monster.position.y+=dy/len*step;monster.position.z+=dz/len*step;moving=true;}
+    else{
+      const step=Math.min(len,speed*dt),nx=monster.position.x+dx/len*step,nz=monster.position.z+dz/len*step;
+      const floor=monsterStairTraversal?monsterStairTraversal.fromFloor:mc.floor;
+      if(monsterStairTraversal||!environmentCollisionAt(nx,nz,floor,.32)){
+        monster.position.x=nx;monster.position.y+=dy/len*step;monster.position.z=nz;moving=true;
+      }else{pathRefresh=0;}
+    }
   }
   monsterAnimTime+=dt;
   const gaitRate=alertLevel>=4?7.4:alertLevel>=3?5.4:3.25;
