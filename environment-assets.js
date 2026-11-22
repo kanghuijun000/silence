@@ -32,33 +32,42 @@ const ASSETS = {
   sewerTJunction: 'brick-sewer-tunnel-t-junction/v1/lod1.glb'
 };
 
+const environmentCollisionRects = [];
+export function getEnvironmentCollisionRects(){ return environmentCollisionRects; }
+
 const PLACEMENTS = [
   {asset:'hospitalWard',floor:0,x:5.5,z:5.5,rotation:0},
   {asset:'operatingTheatre',floor:0,x:14.5,z:5.5,rotation:0},
-  {asset:'privacyScreen',floor:0,x:34,z:6.1,rotation:Math.PI*.5},
-  {asset:'wheelchair',floor:0,x:34,z:34,rotation:-.25},
+  {solid:true,asset:'privacyScreen',floor:0,x:34,z:6.1,rotation:Math.PI*.5},
+  {solid:true,asset:'wheelchair',floor:0,x:34,z:34,rotation:-.25},
+  {solid:true,asset:'gurney',floor:0,x:5.4,z:14.4,rotation:Math.PI*.5,scale:.78},
+  {solid:true,asset:'ivStand',floor:0,x:14.3,z:14.2,rotation:0,scale:.9},
+  {solid:true,asset:'instrumentTrolley',floor:0,x:25.5,z:14.5,rotation:Math.PI*.5,scale:.82},
   {asset:'hospitalWard',floor:1,x:5.5,z:34.5,rotation:Math.PI},
   {asset:'wheelchair',floor:1,x:34,z:6,rotation:Math.PI},
-  {asset:'instrumentTrolley',floor:1,x:34,z:34,rotation:-Math.PI*.5},
+  {solid:true,asset:'instrumentTrolley',floor:1,x:34,z:34,rotation:-Math.PI*.5},
+  {solid:true,asset:'gurney',floor:1,x:14.5,z:5.5,rotation:0,scale:.78},
+  {solid:true,asset:'ivStand',floor:1,x:25.5,z:5.5,rotation:Math.PI*.5,scale:.9},
+  {solid:true,asset:'privacyScreen',floor:1,x:5.5,z:14.5,rotation:0,scale:.85},
   {asset:'controlRoom',floor:2,x:8,z:8,rotation:0},
   {asset:'factoryHall',floor:2,x:8,z:20,rotation:0,scale:.68},
-  {asset:'robotArm',floor:2,x:32,z:8,rotation:Math.PI*.5},
-  {asset:'conveyorHead',floor:2,x:32,z:16,rotation:0},
-  {asset:'conveyorStraight',floor:2,x:32,z:17.333,rotation:0,scale:.75},
-  {asset:'conveyorTransfer',floor:2,x:32,z:18.666,rotation:0,scale:.8},
-  {asset:'cncMachine',floor:2,x:32,z:22,rotation:Math.PI*.5,scale:.85},
-  {asset:'transferTower',floor:2,x:32,z:32,rotation:0},
+  {solid:true,asset:'robotArm',floor:2,x:32,z:8,rotation:Math.PI*.5},
+  {solid:true,asset:'conveyorHead',floor:2,x:32,z:16,rotation:0},
+  {solid:true,asset:'conveyorStraight',floor:2,x:32,z:17.333,rotation:0,scale:.75},
+  {solid:true,asset:'conveyorTransfer',floor:2,x:32,z:18.666,rotation:0,scale:.8},
+  {solid:true,asset:'cncMachine',floor:2,x:32,z:22,rotation:Math.PI*.5,scale:.85},
+  {solid:true,asset:'transferTower',floor:2,x:32,z:32,rotation:0},
   // Additional industrial set dressing: storage, maintenance benches, steam lines and active transport equipment.
-  {asset:'palletRack',floor:2,x:5,z:5,rotation:0,scale:.78},
+  {solid:true,asset:'palletRack',floor:2,x:5,z:5,rotation:0,scale:.78},
   {asset:'palletRack',floor:2,x:35,z:5,rotation:Math.PI,scale:.78},
   {asset:'palletRack',floor:2,x:5,z:35,rotation:0,scale:.78},
   {asset:'palletRack',floor:2,x:35,z:35,rotation:Math.PI,scale:.78},
-  {asset:'forklift',floor:2,x:18,z:8,rotation:Math.PI*.5,scale:.9},
+  {solid:true,asset:'forklift',floor:2,x:18,z:8,rotation:Math.PI*.5,scale:.9},
   {asset:'forklift',floor:2,x:23,z:33,rotation:-Math.PI*.5,scale:.9},
-  {asset:'toolChestBench',floor:2,x:6,z:7,rotation:Math.PI,scale:.9},
+  {solid:true,asset:'toolChestBench',floor:2,x:6,z:7,rotation:Math.PI,scale:.9},
   {asset:'toolChestBench',floor:2,x:35,z:7,rotation:0,scale:.9},
   {asset:'toolChestBench',floor:2,x:6,z:34,rotation:Math.PI,scale:.9},
-  {asset:'steamPipeRun',floor:2,x:14,z:6,rotation:0,scale:1},
+  {solid:true,asset:'steamPipeRun',floor:2,x:14,z:6,rotation:0,scale:1},
   {asset:'steamPipeRun',floor:2,x:14,z:10,rotation:0,scale:1},
   {asset:'steamPipeRun',floor:2,x:27,z:6,rotation:Math.PI,scale:1},
   {asset:'steamPipeRun',floor:2,x:27,z:10,rotation:Math.PI,scale:1},
@@ -204,6 +213,7 @@ function preparePrototype(THREE,model){
 }
 
 export async function loadEnvironmentAssets(THREE,renderer,floorGroups,world,floorY){
+  environmentCollisionRects.length=0;
   const ktx2Loader=new KTX2Loader()
     .setTranscoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/basis/')
     .detectSupport(renderer);
@@ -249,6 +259,14 @@ export async function loadEnvironmentAssets(THREE,renderer,floorGroups,world,flo
       }
     });
     target.add(group);
+    group.updateMatrixWorld(true);
+    if(placement.solid){
+      const bounds=new THREE.Box3().setFromObject(group),inset=.12;
+      const minX=bounds.min.x+inset,maxX=bounds.max.x-inset,minZ=bounds.min.z+inset,maxZ=bounds.max.z-inset;
+      if(Number.isFinite(minX)&&Number.isFinite(maxX)&&Number.isFinite(minZ)&&Number.isFinite(maxZ)&&maxX-minX>.22&&maxZ-minZ>.22&&maxX-minX<10&&maxZ-minZ<10){
+        environmentCollisionRects.push({floor:placement.floor,minX,maxX,minZ,maxZ,asset:placement.asset});
+      }
+    }
     placed++;
   }
 
