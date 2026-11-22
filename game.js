@@ -968,6 +968,13 @@ function updatePlayer(dt,now){
 }
 let lastBreath=0,lastChargeSound=0;
 function monsterUpdate(dt,now){
+  // The final stair waypoint is consumed one frame before the next floor cell.
+  // Commit the destination floor before cellAt() or pathfinding reads the monster.
+  if(monsterStairTraversal&&(!path[0]?.stairWaypoint||path[0].stairToFloor!==monsterStairTraversal.toFloor)){
+    monster.position.y=floorY(monsterStairTraversal.toFloor);
+    monsterStairTraversal=null;
+    pathRefresh=0;
+  }
   if(now>=arousalDecayStart&&monsterArousal>0){
     monsterArousal=Math.max(0,monsterArousal-dt*4.5);
   }
@@ -1001,7 +1008,6 @@ function monsterUpdate(dt,now){
   if(monsterState==='wander'&&(!monsterTarget||nodeKey(mc)===nodeKey(monsterTarget)))monsterTarget=randomOpen([exitCell,spawnCell],mc.floor);
   if(monsterState==='chase'&&lastSeen)monsterTarget={...lastSeen};
   if(!monsterStairTraversal&&(now-pathRefresh>.55||path.length===0)){path=findPath(mc,monsterTarget);pathRefresh=now;}
-  if(monsterStairTraversal&&(!path[0]?.stairWaypoint||path[0].stairToFloor!==monsterStairTraversal.toFloor))monsterStairTraversal=null;
   let targetPoint=null;
   if(path.length){targetPoint=path[0].worldPosition?new THREE.Vector3(...path[0].worldPosition):world(path[0]);}
   if(!monsterStairTraversal&&path[0]?.stairWaypoint&&path[0].stairProgress===0&&targetPoint&&monster.position.distanceTo(targetPoint)<.55){
