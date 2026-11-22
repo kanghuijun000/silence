@@ -1,4 +1,4 @@
-const CACHE_NAME = 'silence-cache-v88';
+const CACHE_NAME = 'silence-cache-v89';
 const APP_FILES = ['./', './index.html', './style.css', './game.js', './monster-model.js', './environment-assets.js', './manifest.json', './icon.svg', './silence-app-icon.svg', './icon-192.png', './icon-512.png', './install.html'];
 
 self.addEventListener('install', event => {
@@ -47,7 +47,7 @@ self.addEventListener('fetch', event => {
       const response = await fetch(request, { cache: 'no-store' });
       if (response && response.ok) {
         const cache = await caches.open(CACHE_NAME);
-        cache.put(request, response.clone());
+        await cache.put(request, response.clone());
       }
       return response;
     } catch (error) {
