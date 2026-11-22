@@ -1002,11 +1002,14 @@ function monsterUpdate(dt,now){
   if(path.length){targetPoint=path[0].worldPosition?new THREE.Vector3(...path[0].worldPosition):world(path[0]);}
   if(!monsterStairTraversal&&path[0]?.stairWaypoint&&path[0].stairProgress===0&&targetPoint&&monster.position.distanceTo(targetPoint)<.55){
     monsterStairTraversal={fromFloor:path[0].stairFromFloor,toFloor:path[0].stairToFloor};
+  }else if(!path.length&&monsterTarget){
+    // A stair waypoint is a real 3D route segment. Never replace it with the
+    // final target cell: doing so sends the monster directly through floors.
+    targetPoint=world(monsterTarget);
   }
-  else if(monsterTarget)targetPoint=world(monsterTarget);
-  // 같은 통로 칸에 들어온 뒤에는 칸 중앙이 아니라 플레이어의 실제 좌표를 추격한다.
-  // 그렇지 않으면 플레이어가 칸 가장자리에 정지했을 때 포획 거리까지 접근하지 못할 수 있다.
-  if(monsterState==='chase'&&mc.floor===pc.floor&&mc.x===pc.x&&mc.z===pc.z){
+  // Same-cell pursuit may use the player's exact position only on ordinary
+  // floor cells. During stair approach/traversal the physical stair route wins.
+  if(!monsterStairTraversal&&!path[0]?.stairWaypoint&&monsterState==='chase'&&mc.floor===pc.floor&&mc.x===pc.x&&mc.z===pc.z){
     targetPoint=new THREE.Vector3(player.position.x,monster.position.y,player.position.z);
   }
   const alertLevel=now<sightAlertUntil?4:now<locationAlertUntil?3:now<soundAlertUntil?2:1;
